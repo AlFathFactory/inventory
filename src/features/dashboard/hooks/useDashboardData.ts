@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import { categoryConfig, categoryOptions, type CategoryKey } from '../../../config/categoryConfig'
+import {
+  categoryEntries,
+  categoryOptions,
+  type CategoryDefinition,
+  type CategoryKey,
+} from '../../../config/categoryConfig'
 import { isSupabaseConfigured } from '../../../lib/supabaseClient'
 import {
   getCategoryRows,
@@ -28,6 +33,11 @@ type ImportLogRow = InventoryRow & {
   imported_at?: string
 }
 
+type StockCategoryDefinition = CategoryDefinition & {
+  stockField: string
+  minQuantityField: string
+}
+
 const mainInventoryTables = new Set([
   'consumables',
   'paints',
@@ -37,6 +47,18 @@ const mainInventoryTables = new Set([
   'raw_materials',
   'cylinders',
 ])
+
+function hasStockConfig(
+  category: CategoryDefinition,
+): category is StockCategoryDefinition {
+  return Boolean(category.stockField && category.minQuantityField)
+}
+
+function hasOnlyStockField(
+  category: CategoryDefinition,
+): category is CategoryDefinition & { stockField: string } {
+  return Boolean(category.stockField)
+}
 
 function createInitialCards(): CategoryCard[] {
   return categoryOptions.map((category) => ({
@@ -82,15 +104,15 @@ function formatOperationDate(value: unknown): string {
   return `${day}/${month}`
 }
 
-function buildRecentOperations(rowsByCategory: Array<{
-  categoryKey: CategoryKey
-  rows: InventoryRow[]
-}>) {
+function buildRecentOperations(
+  rowsByCategory: Array<{
+    category: CategoryDefinition
+    rows: InventoryRow[]
+  }>,
+): DashboardOperation[] {
   const operations: Array<DashboardOperation & { timestamp: number }> = []
 
-  rowsByCategory.forEach(({ categoryKey, rows }) => {
-    const category = categoryConfig[categoryKey]
-
+  rowsByCategory.forEach(({ category, rows }) => {
     rows.forEach((row, index) => {
       const rawDate = row[category.dateField]
       const timestamp = extractStringValue(rawDate)
@@ -139,16 +161,14 @@ function buildRecentOperations(rowsByCategory: Array<{
 }
 
 function buildAlerts(
-  lowStockRowsByCategory: Array<{
-    categoryKey: CategoryKey
+  rowsByCategory: Array<{
+    category: StockCategoryDefinition
     rows: InventoryRow[]
   }>,
 ): DashboardInventoryAlert[] {
-  return lowStockRowsByCategory
-    .flatMap(({ categoryKey, rows }) => {
-      const category = categoryConfig[categoryKey]
-
-      return rows.map((row, index) => {
+  return rowsByCategory
+    .flatMap(({ category, rows }) =>
+      rows.map((row, index) => {
         const itemName =
           extractStringValue(row.item_name) ??
           extractStringValue(row.type_name) ??
@@ -159,18 +179,15 @@ function buildAlerts(
           id: `${category.table}-alert-${index}`,
           category: category.label,
           itemName,
-          stockBalance: extractNumberValue(row[category.stockField ?? '']),
-          minQuantity: extractNumberValue(row[category.minQuantityField ?? '']),
+          stockBalance: extractNumberValue(row[category.stockField]),
+          minQuantity: extractNumberValue(row[category.minQuantityField]),
           status:
-            getStockStatus(
-              row,
-              category.stockField ?? '',
-              category.minQuantityField ?? '',
-            ) ?? 'safe',
+            getStockStatus(row, category.stockField, category.minQuantityField) ??
+            'safe',
           actionLabel: 'إضافة',
         }
-      })
-    })
+      }),
+    )
     .sort((first, second) => first.stockBalance - second.stockBalance)
     .slice(0, 4)
 }
@@ -203,34 +220,66 @@ export function useDashboardData(): DashboardState {
         return
       }
 
-      const categoryEntries = Object.entries(categoryConfig) as Array<
-        [CategoryKey, (typeof categoryConfig)[CategoryKey]]
-      >
+      const entries: Array<[CategoryKey, CategoryDefinition]> = categoryEntries
 
       const importsPromise = getCategoryRows<ImportLogRow>('imports')
-      const rowCountPromises = categoryEntries.map(async ([key, category]) => ({
+      const rowCountPromises = entries.map(async ([key, category]) => ({
         key,
         category,
         result: await getCategoryRows(category.table),
       }))
 
-      const lowStockPromises = categoryEntries
-        .filter(([, category]) => category.stockField && category.minQuantityField)
-        .map(async ([key, category]) => ({
-          key,
-          result: await getLowStockRows(
-            category.table,
-            category.stockField as string,
-            category.minQuantityField as string,
-          ),
-        }))
+      const lowStockPromises = entries.reduce<
+        Array<
+          Promise<{
+            key: CategoryKey
+            category: StockCategoryDefinition
+            result: Awaited<ReturnType<typeof getLowStockRows>>
+          }>
+        >
+      >((promises, [key, category]) => {
+        if (!hasStockConfig(category)) {
+          return promises
+        }
 
-      const outOfStockPromises = categoryEntries
-        .filter(([, category]) => category.stockField)
-        .map(async ([key, category]) => ({
-          key,
-          result: await getOutOfStockRows(category.table, category.stockField as string),
-        }))
+        promises.push(
+          (async () => ({
+            key,
+            category,
+            result: await getLowStockRows(
+              category.table,
+              category.stockField,
+              category.minQuantityField,
+            ),
+          }))(),
+        )
+
+        return promises
+      }, [])
+
+      const outOfStockPromises = entries.reduce<
+        Array<
+          Promise<{
+            key: CategoryKey
+            category: CategoryDefinition & { stockField: string }
+            result: Awaited<ReturnType<typeof getOutOfStockRows>>
+          }>
+        >
+      >((promises, [key, category]) => {
+        if (!hasOnlyStockField(category)) {
+          return promises
+        }
+
+        promises.push(
+          (async () => ({
+            key,
+            category,
+            result: await getOutOfStockRows(category.table, category.stockField),
+          }))(),
+        )
+
+        return promises
+      }, [])
 
       const [importsResult, categoryRowResults, lowStockResults, outOfStockResults] =
         await Promise.all([
@@ -297,15 +346,15 @@ export function useDashboardData(): DashboardState {
       }
 
       const recentOperations = buildRecentOperations(
-        categoryRowResults.map(({ key, result }) => ({
-          categoryKey: key,
+        categoryRowResults.map(({ category, result }) => ({
+          category,
           rows: result.data ?? [],
         })),
       )
 
       const alerts = buildAlerts(
-        lowStockResults.map(({ key, result }) => ({
-          categoryKey: key,
+        lowStockResults.map(({ category, result }) => ({
+          category,
           rows: result.data ?? [],
         })),
       )

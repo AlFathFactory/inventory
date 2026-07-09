@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   categoryConfig,
-  type CategoryConfigEntry,
+  type CategoryDefinition,
   type CategoryKey,
 } from '../config/categoryConfig'
 import {
@@ -41,9 +41,9 @@ export function CategoryPage() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
 
-  const category: CategoryConfigEntry | null =
+  const category: CategoryDefinition | null =
     categoryKey && isCategoryKey(categoryKey)
-      ? categoryConfig[categoryKey]
+      ? (categoryConfig[categoryKey] as CategoryDefinition)
       : null
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
@@ -56,6 +56,8 @@ export function CategoryPage() {
       return
     }
 
+    const activeCategory = category
+
     let isCancelled = false
 
     async function loadRows() {
@@ -63,17 +65,17 @@ export function CategoryPage() {
       setError(null)
 
       const hasDateRange = Boolean(
-        category.dateField && fromDate.trim() && toDate.trim(),
+        activeCategory.dateField && fromDate.trim() && toDate.trim(),
       )
 
       const result = hasDateRange
         ? await getCategoryRowsByDateRange(
-            category.table,
-            category.dateField,
+            activeCategory.table,
+            activeCategory.dateField,
             fromDate,
             toDate,
           )
-        : await getCategoryRows(category.table)
+        : await getCategoryRows(activeCategory.table)
 
       if (isCancelled) {
         return
@@ -83,7 +85,7 @@ export function CategoryPage() {
         setRows([])
         setError(result.error)
       } else {
-        setRows(result.data)
+        setRows(result.data ?? [])
       }
 
       setIsLoading(false)

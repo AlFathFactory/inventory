@@ -155,9 +155,14 @@ export const categoryConfig = {
 } as const satisfies Record<string, CategoryConfigItem<ColumnMap>>
 
 export type CategoryKey = keyof typeof categoryConfig
+export type CategoryDefinition = CategoryConfigItem<ColumnMap>
 export type CategoryConfig = typeof categoryConfig
 export type CategoryConfigEntry<TKey extends CategoryKey = CategoryKey> =
   CategoryConfig[TKey]
+
+export const categoryEntries = Object.entries(categoryConfig) as Array<
+  [CategoryKey, CategoryDefinition]
+>
 
 export const categoryOptions = Object.entries(categoryConfig).map(
   ([key, config]) => ({

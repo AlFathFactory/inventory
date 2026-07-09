@@ -67,11 +67,12 @@ export function ImportExcelPage() {
   const [status, setStatus] = useState<ImportStatus | null>(null)
 
   const previewRows = preview ? buildPreviewTableRows(preview) : []
-  const canConfirmImport =
-    Boolean(preview) &&
-    preview.matchedSheets.length > 0 &&
-    preview.totalRows > 0 &&
-    !isImporting
+  const previewData = preview
+  const canConfirmImport = previewData
+    ? previewData.matchedSheets.length > 0 &&
+      previewData.totalRows > 0 &&
+      !isImporting
+    : false
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]

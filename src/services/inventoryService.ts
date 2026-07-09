@@ -81,7 +81,7 @@ export async function getCategoryRows<TRow extends InventoryRow = InventoryRow>(
   }
 
   try {
-    const { data, error } = await supabaseClient.from(tableName).select('*')
+    const { data, error } = await supabaseClient!.from(tableName).select('*')
 
     if (error) {
       return createFailure(error.message)
@@ -110,7 +110,7 @@ export async function getCategoryRowsByDateRange<
   }
 
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabaseClient!
       .from(tableName)
       .select('*')
       .gte(dateField, fromDate)
@@ -161,7 +161,7 @@ export async function searchCategoryRows<
     .join(',')
 
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabaseClient!
       .from(tableName)
       .select('*')
       .or(orFilter)
@@ -199,9 +199,9 @@ export async function insertRows<
   }
 
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabaseClient!
       .from(tableName)
-      .insert(rows)
+      .insert([...rows] as never)
       .select('*')
 
     if (error) {
@@ -230,7 +230,7 @@ export async function getLowStockRows<
   }
 
   try {
-    const { data, error } = await supabaseClient.from(tableName).select('*')
+    const { data, error } = await supabaseClient!.from(tableName).select('*')
 
     if (error) {
       return createFailure(error.message)
@@ -271,7 +271,7 @@ export async function getOutOfStockRows<
   }
 
   try {
-    const { data, error } = await supabaseClient.from(tableName).select('*')
+    const { data, error } = await supabaseClient!.from(tableName).select('*')
 
     if (error) {
       return createFailure(error.message)
