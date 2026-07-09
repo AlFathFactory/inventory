@@ -1,4 +1,8 @@
-import { supabaseClient } from '../lib/supabaseClient'
+import {
+  getSupabaseConfigError,
+  isSupabaseConfigured,
+  supabaseClient,
+} from '../lib/supabaseClient'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -34,6 +38,14 @@ function createFailure(message: string): ServiceFailure {
   }
 }
 
+function getClientOrFailure(): ServiceFailure | null {
+  if (!isSupabaseConfigured || !supabaseClient) {
+    return createFailure(getSupabaseConfigError())
+  }
+
+  return null
+}
+
 function normalizeError(error: unknown, fallbackMessage: string): string {
   if (error instanceof Error && error.message) {
     return error.message
@@ -62,6 +74,12 @@ function toComparableNumber(value: JsonValue): number | null {
 export async function getCategoryRows<TRow extends InventoryRow = InventoryRow>(
   tableName: string,
 ): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
   try {
     const { data, error } = await supabaseClient.from(tableName).select('*')
 
@@ -85,6 +103,12 @@ export async function getCategoryRowsByDateRange<
   fromDate: string,
   toDate: string,
 ): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
   try {
     const { data, error } = await supabaseClient
       .from(tableName)
@@ -115,6 +139,12 @@ export async function searchCategoryRows<
   searchFields: readonly (keyof TRow & string)[],
   searchTerm: string,
 ): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
   if (searchFields.length === 0) {
     return createFailure('At least one search field is required.')
   }
@@ -158,6 +188,12 @@ export async function insertRows<
   tableName: string,
   rows: readonly TInsertRow[],
 ): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
   if (rows.length === 0) {
     return createSuccess([])
   }
@@ -187,6 +223,12 @@ export async function getLowStockRows<
   stockField: keyof TRow & string,
   minQuantityField: keyof TRow & string,
 ): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
   try {
     const { data, error } = await supabaseClient.from(tableName).select('*')
 
@@ -222,6 +264,12 @@ export async function getOutOfStockRows<
   tableName: string,
   stockField: keyof TRow & string,
 ): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
   try {
     const { data, error } = await supabaseClient.from(tableName).select('*')
 

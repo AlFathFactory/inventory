@@ -1,0 +1,42 @@
+import type { DashboardOperation } from '../types'
+
+type RecentOperationsTableProps = {
+  rows: DashboardOperation[]
+}
+
+export function RecentOperationsTable({ rows }: RecentOperationsTableProps) {
+  if (rows.length === 0) {
+    return (
+      <div className="px-6 py-12 text-center text-sm text-slate-500">
+        لا توجد عمليات حديثة لعرضها.
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-right">
+        <thead className="bg-slate-50 text-sm font-semibold text-slate-800">
+          <tr>
+            <th className="px-6 py-5">التاريخ</th>
+            <th className="px-6 py-5">نوع العملية</th>
+            <th className="px-6 py-5">الصنف</th>
+            <th className="px-6 py-5">الكمية</th>
+            <th className="px-6 py-5">المستخدم</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+          {rows.map((row) => (
+            <tr key={row.id}>
+              <td className="px-6 py-5">{row.date}</td>
+              <td className="px-6 py-5">{row.operationType}</td>
+              <td className="px-6 py-5">{row.itemName}</td>
+              <td className="px-6 py-5">{row.quantity}</td>
+              <td className="px-6 py-5">{row.userName}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

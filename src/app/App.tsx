@@ -15,8 +15,28 @@ const router = createBrowserRouter([
         element: <DashboardPage />,
       },
       {
+        path: 'operations',
+        element: <DashboardPage />,
+      },
+      {
+        path: 'items',
+        element: <DashboardPage />,
+      },
+      {
+        path: 'projects',
+        element: <DashboardPage />,
+      },
+      {
         path: 'import',
         element: <ImportExcelPage />,
+      },
+      {
+        path: 'low-stock',
+        element: <DashboardPage />,
+      },
+      {
+        path: 'out-of-stock',
+        element: <DashboardPage />,
       },
       {
         path: 'category/:categoryKey',

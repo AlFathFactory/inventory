@@ -1,0 +1,78 @@
+import type { DashboardData } from '../types'
+
+export const dashboardDemo: DashboardData = {
+  isDemo: true,
+  stats: {
+    totalCategories: 9,
+    totalImportedFiles: 18,
+    totalMainRows: 1248,
+    lowStockItemsCount: 36,
+    outOfStockItemsCount: 11,
+    lastImportedFile: 'مخزن12 - 2025.xlsx',
+  },
+  alerts: [
+    {
+      id: 'alert-1',
+      category: 'مسامير',
+      itemName: 'مسمار 8 مم',
+      stockBalance: 18,
+      minQuantity: 50,
+      status: 'low',
+      actionLabel: 'إضافة',
+    },
+    {
+      id: 'alert-2',
+      category: 'الدهانات',
+      itemName: 'دهان أبيض',
+      stockBalance: 0,
+      minQuantity: 20,
+      status: 'out',
+      actionLabel: 'إضافة',
+    },
+    {
+      id: 'alert-3',
+      category: 'مستهلكات',
+      itemName: 'جوانتي لحام',
+      stockBalance: 12,
+      minQuantity: 30,
+      status: 'low',
+      actionLabel: 'إضافة',
+    },
+    {
+      id: 'alert-4',
+      category: 'اسطوانات',
+      itemName: 'غاز CO2',
+      stockBalance: 0,
+      minQuantity: 10,
+      status: 'out',
+      actionLabel: 'إضافة',
+    },
+  ],
+  recentOperations: [
+    {
+      id: 'operation-1',
+      date: '09/07',
+      operationType: 'إضافة',
+      itemName: 'مسمار 8 مم',
+      quantity: 50,
+      userName: 'أمين',
+    },
+    {
+      id: 'operation-2',
+      date: '09/07',
+      operationType: 'صرف',
+      itemName: 'دهان أبيض',
+      quantity: 12,
+      userName: 'أمين',
+    },
+    {
+      id: 'operation-3',
+      date: '08/07',
+      operationType: 'جرد',
+      itemName: 'غاز CO2',
+      quantity: 4,
+      userName: 'مدير',
+    },
+  ],
+  categoryCards: [],
+}
