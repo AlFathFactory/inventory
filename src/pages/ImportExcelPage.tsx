@@ -1,4 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
+import { TablePagination } from '../components/TablePagination'
+import { usePagination } from '../hooks/usePagination'
 import { insertRows, type InventoryRow } from '../services/inventoryService'
 import {
   parseInventoryExcel,
@@ -97,6 +99,7 @@ export function ImportExcelPage() {
     : false
 
   const previewTableRows = preview ? buildPreviewTableRows(preview) : []
+  const previewPagination = usePagination(previewTableRows, { initialPageSize: 10 })
   const metricCards = preview
     ? [
         {
@@ -307,10 +310,14 @@ export function ImportExcelPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {previewTableRows.map((row, index) => (
+                  {previewPagination.paginatedItems.map((row, index) => (
                     <tr
                       key={row.key}
-                      className={index % 2 === 0 ? 'bg-white' : 'bg-[#fcfcfd]'}
+                      className={
+                        (previewPagination.pageStart + index) % 2 === 1
+                          ? 'bg-white'
+                          : 'bg-[#fcfcfd]'
+                      }
                     >
                       <td className="px-4 py-3 text-[13px] text-slate-700">
                         {row.sheetName}
@@ -342,6 +349,16 @@ export function ImportExcelPage() {
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              currentPage={previewPagination.currentPage}
+              pageSize={previewPagination.pageSize}
+              totalItems={previewPagination.totalItems}
+              totalPages={previewPagination.totalPages}
+              pageStart={previewPagination.pageStart}
+              pageEnd={previewPagination.pageEnd}
+              onPageChange={previewPagination.setCurrentPage}
+              onPageSizeChange={previewPagination.setPageSize}
+            />
           </div>
 
           {preview.errors.length > 0 ? (

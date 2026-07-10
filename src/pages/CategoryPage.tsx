@@ -1,10 +1,12 @@
-import { useDeferredValue, useEffect, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { TablePagination } from '../components/TablePagination'
 import {
   categoryConfig,
   type CategoryDefinition,
   type CategoryKey,
 } from '../config/categoryConfig'
+import { usePagination } from '../hooks/usePagination'
 import {
   getCategoryRows,
   getCategoryRowsByDateRange,
@@ -98,20 +100,25 @@ export function CategoryPage() {
   }, [category, fromDate, toDate])
 
   const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase()
-  const filteredRows = rows.filter((row) => {
-    if (!normalizedSearchTerm || !category) {
-      return true
-    }
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (!normalizedSearchTerm || !category) {
+          return true
+        }
 
-    return category.searchableFields.some((field) => {
-      const fieldValue = row[field]
-      const displayValue = Array.isArray(fieldValue)
-        ? fieldValue.join(' ')
-        : String(fieldValue ?? '')
+        return category.searchableFields.some((field) => {
+          const fieldValue = row[field]
+          const displayValue = Array.isArray(fieldValue)
+            ? fieldValue.join(' ')
+            : String(fieldValue ?? '')
 
-      return displayValue.toLowerCase().includes(normalizedSearchTerm)
-    })
-  })
+          return displayValue.toLowerCase().includes(normalizedSearchTerm)
+        })
+      }),
+    [category, normalizedSearchTerm, rows],
+  )
+  const pagination = usePagination(filteredRows, { initialPageSize: 10 })
 
   const columnEntries = category ? Object.entries(category.columns) : []
   const hasStockStatus =
@@ -206,7 +213,7 @@ export function CategoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row, index) => {
+                {pagination.paginatedItems.map((row, index) => {
                   const stockStatus =
                     hasStockStatus && category.stockField && category.minQuantityField
                       ? getStockStatus(
@@ -217,7 +224,10 @@ export function CategoryPage() {
                       : null
 
                   return (
-                    <tr key={`${category.table}-${index}`} className="hover:bg-slate-50">
+                    <tr
+                      key={`${category.table}-${pagination.pageStart + index}`}
+                      className="hover:bg-slate-50"
+                    >
                       {hasStockStatus ? (
                         <td className="px-4 py-3 align-top text-sm">
                           {stockStatus ? (
@@ -250,6 +260,16 @@ export function CategoryPage() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            currentPage={pagination.currentPage}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            pageStart={pagination.pageStart}
+            pageEnd={pagination.pageEnd}
+            onPageChange={pagination.setCurrentPage}
+            onPageSizeChange={pagination.setPageSize}
+          />
         </div>
       ) : null}
     </section>

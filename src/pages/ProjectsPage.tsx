@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { TablePagination } from '../components/TablePagination'
+import { usePagination } from '../hooks/usePagination'
 
 type ProjectStatus = 'نشط' | 'مغلق'
 
@@ -86,6 +88,7 @@ export function ProjectsPage() {
       value.toLowerCase().includes(normalizedSearchTerm),
     )
   })
+  const pagination = usePagination(filteredProjects, { initialPageSize: 10 })
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -204,7 +207,7 @@ export function ProjectsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-              {filteredProjects.map((project) => (
+              {pagination.paginatedItems.map((project) => (
                 <tr
                   key={project.id}
                   className={selectedProjectId === project.id ? 'bg-blue-50/60' : undefined}
@@ -245,6 +248,16 @@ export function ProjectsPage() {
             </tbody>
           </table>
         </div>
+        <TablePagination
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+          pageStart={pagination.pageStart}
+          pageEnd={pagination.pageEnd}
+          onPageChange={pagination.setCurrentPage}
+          onPageSizeChange={pagination.setPageSize}
+        />
       </div>
 
       <div className="rounded-[30px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-7 shadow-[var(--app-shadow)] sm:px-8">

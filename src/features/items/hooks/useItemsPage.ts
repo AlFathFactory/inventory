@@ -96,7 +96,7 @@ export function useItemsPage() {
       status: nextStatus,
     }
 
-    setRows((currentRows) => [nextRow, ...currentRows].slice(0, 6))
+    setRows((currentRows) => [nextRow, ...currentRows])
     resetEditor()
   }
 
