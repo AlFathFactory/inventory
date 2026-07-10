@@ -54,6 +54,16 @@ function normalizeError(error: unknown, fallbackMessage: string): string {
   return fallbackMessage
 }
 
+function getNextDateValue(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+  const nextDate = new Date(year, month - 1, day + 1)
+  const nextYear = nextDate.getFullYear()
+  const nextMonth = String(nextDate.getMonth() + 1).padStart(2, '0')
+  const nextDay = String(nextDate.getDate()).padStart(2, '0')
+
+  return `${nextYear}-${nextMonth}-${nextDay}`
+}
+
 function escapeSearchTerm(searchTerm: string): string {
   return searchTerm.replaceAll('%', '\\%').replaceAll(',', '\\,')
 }
@@ -110,11 +120,12 @@ export async function getCategoryRowsByDateRange<
   }
 
   try {
+    const exclusiveToDate = getNextDateValue(toDate)
     const { data, error } = await supabaseClient!
       .from(tableName)
       .select('*')
       .gte(dateField, fromDate)
-      .lte(dateField, toDate)
+      .lt(dateField, exclusiveToDate)
       .order(dateField, { ascending: true })
 
     if (error) {
