@@ -57,7 +57,6 @@ export function CategoryPage() {
     }
 
     const activeCategory = category
-
     let isCancelled = false
 
     async function loadRows() {
@@ -120,60 +119,47 @@ export function CategoryPage() {
 
   if (!category) {
     return (
-      <section className="p-6 sm:p-8">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          تصنيف غير موجود
-        </h1>
+      <section>
+        <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-6 py-8 shadow-[var(--app-shadow)]">
+          <h1 className="text-2xl font-semibold text-slate-900">تصنيف غير موجود</h1>
+        </div>
       </section>
     )
   }
 
   return (
-    <section className="space-y-6 p-6 sm:p-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          {category.label}
-        </h1>
-        <p className="text-sm text-slate-500">جدول مرتبط بقاعدة بيانات Supabase</p>
-      </div>
-
-      <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
+    <section className="space-y-6">
+      <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 md:grid-cols-3">
         <label className="space-y-2">
-          <span className="block text-sm font-medium text-slate-700">
-            بحث
-          </span>
+          <span className="block text-sm font-medium text-slate-700">بحث</span>
           <input
             type="search"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="ابحث داخل الجدول"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+            className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
           />
         </label>
 
         {category.dateField ? (
           <>
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-slate-700">
-                من تاريخ
-              </span>
+              <span className="block text-sm font-medium text-slate-700">من تاريخ</span>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(event) => setFromDate(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </label>
 
             <label className="space-y-2">
-              <span className="block text-sm font-medium text-slate-700">
-                إلى تاريخ
-              </span>
+              <span className="block text-sm font-medium text-slate-700">إلى تاريخ</span>
               <input
                 type="date"
                 value={toDate}
                 onChange={(event) => setToDate(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </label>
           </>
@@ -181,28 +167,28 @@ export function CategoryPage() {
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
           جاري تحميل البيانات...
         </div>
       ) : null}
 
       {!isLoading && error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-10 text-center text-sm text-red-600">
+        <div className="rounded-[28px] border border-red-200 bg-red-50 px-4 py-10 text-center text-sm text-red-600">
           حدث خطأ أثناء تحميل البيانات: {error}
         </div>
       ) : null}
 
       {!isLoading && !error && filteredRows.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
           لا توجد بيانات لعرضها
         </div>
       ) : null}
 
       {!isLoading && !error && filteredRows.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-right">
-              <thead className="bg-slate-50">
+              <thead className="bg-[var(--app-panel-soft)]">
                 <tr>
                   {hasStockStatus ? (
                     <th className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-700">

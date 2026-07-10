@@ -157,36 +157,25 @@ export function ImportExcelPage() {
   }
 
   return (
-    <section className="space-y-6 p-6 sm:p-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">استيراد Excel</h1>
-        <p className="text-sm text-slate-500">
-          اختر ملف Excel لقراءة الشيتات ومراجعة البيانات قبل الحفظ.
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+    <section className="space-y-6">
+      <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-5 shadow-[var(--app-shadow)]">
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700">
-            اختر ملف Excel
-          </span>
+          <span className="text-sm font-medium text-slate-700">اختر ملف Excel</span>
           <input
             type="file"
             accept=".xlsx,.xls"
             onChange={handleFileChange}
-            className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:ms-0 file:me-4 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+            className="block w-full rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 py-3 text-sm text-slate-700 file:ms-0 file:me-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
           />
         </label>
 
         {selectedFileName ? (
-          <p className="mt-3 text-sm text-slate-500">
-            الملف المحدد: {selectedFileName}
-          </p>
+          <p className="mt-3 text-sm text-slate-500">الملف المحدد: {selectedFileName}</p>
         ) : null}
       </div>
 
       {isParsing ? (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
+        <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
           جاري تحليل ملف Excel...
         </div>
       ) : null}
@@ -194,7 +183,7 @@ export function ImportExcelPage() {
       {status ? (
         <div
           className={[
-            'rounded-2xl px-4 py-4 text-sm',
+            'rounded-[28px] px-4 py-4 text-sm',
             status.type === 'success'
               ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
               : 'border border-red-200 bg-red-50 text-red-700',
@@ -207,35 +196,35 @@ export function ImportExcelPage() {
       {preview ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
               <p className="text-sm text-slate-500">اسم الملف</p>
               <p className="mt-2 font-medium text-slate-900">{preview.fileName}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
               <p className="text-sm text-slate-500">الشيتات المطابقة</p>
               <p className="mt-2 font-medium text-slate-900">
                 {preview.matchedSheets.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
               <p className="text-sm text-slate-500">الشيتات المتجاهلة</p>
               <p className="mt-2 font-medium text-slate-900">
                 {preview.ignoredSheets.length}
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
               <p className="text-sm text-slate-500">إجمالي الصفوف</p>
               <p className="mt-2 font-medium text-slate-900">{preview.totalRows}</p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-4 py-3">
+          <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
+            <div className="border-b border-[var(--app-border)] px-4 py-3">
               <h2 className="font-medium text-slate-900">ملخص الشيتات المطابقة</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-right">
-                <thead className="bg-slate-50">
+                <thead className="bg-[var(--app-panel-soft)]">
                   <tr>
                     <th className="px-4 py-3 text-sm font-semibold text-slate-700">
                       اسم الشيت
@@ -254,18 +243,12 @@ export function ImportExcelPage() {
                 <tbody className="divide-y divide-slate-100">
                   {previewRows.map((row) => (
                     <tr key={`${row.table}-${row.sheetName}`}>
-                      <td className="px-4 py-3 text-sm text-slate-600">
-                        {row.sheetName}
-                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{row.sheetName}</td>
                       <td className="px-4 py-3 text-sm text-slate-600">
                         {row.categoryLabel}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">
-                        {row.table}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">
-                        {row.rowCount}
-                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{row.table}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{row.rowCount}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -274,60 +257,54 @@ export function ImportExcelPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
               <h2 className="font-medium text-slate-900">عدد الصفوف لكل فئة</h2>
               <div className="mt-4 space-y-3">
                 {previewRows.length > 0 ? (
                   previewRows.map((row) => (
                     <div
                       key={`${row.categoryKey}-count`}
-                      className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+                      className="flex items-center justify-between rounded-2xl bg-[var(--app-panel-soft)] px-4 py-3"
                     >
-                      <span className="text-sm text-slate-700">
-                        {row.categoryLabel}
-                      </span>
+                      <span className="text-sm text-slate-700">{row.categoryLabel}</span>
                       <span className="text-sm font-medium text-slate-900">
                         {row.rowCount}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    لا توجد شيتات مطابقة داخل الملف.
-                  </p>
+                  <p className="text-sm text-slate-500">لا توجد شيتات مطابقة داخل الملف.</p>
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
               <h2 className="font-medium text-slate-900">الشيتات المتجاهلة</h2>
               <div className="mt-4 space-y-3">
                 {preview.ignoredSheets.length > 0 ? (
                   preview.ignoredSheets.map((sheetName) => (
                     <div
                       key={sheetName}
-                      className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      className="rounded-2xl bg-[var(--app-panel-soft)] px-4 py-3 text-sm text-slate-700"
                     >
                       {sheetName}
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    لا توجد شيتات متجاهلة.
-                  </p>
+                  <p className="text-sm text-slate-500">لا توجد شيتات متجاهلة.</p>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
             <h2 className="font-medium text-slate-900">أخطاء التحليل</h2>
             <div className="mt-4 space-y-3">
               {preview.errors.length > 0 ? (
                 preview.errors.map((errorMessage, index) => (
                   <div
                     key={`${errorMessage}-${index}`}
-                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                    className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
                   >
                     {errorMessage}
                   </div>
@@ -343,7 +320,7 @@ export function ImportExcelPage() {
               type="button"
               onClick={handleConfirmImport}
               disabled={!canConfirmImport}
-              className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {isImporting ? 'جاري الاستيراد...' : 'تأكيد الاستيراد'}
             </button>

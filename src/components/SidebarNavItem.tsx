@@ -14,14 +14,14 @@ export function SidebarNavItem({ label, to, icon }: SidebarNavItemProps) {
       end={to === '/'}
       className={({ isActive }) =>
         [
-          'flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition-colors',
+          'flex h-9 items-center justify-between rounded-2xl px-[18px] text-sm font-medium transition-all',
           isActive
             ? 'bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
             : 'text-slate-100/90 hover:bg-white/8 hover:text-white',
         ].join(' ')
       }
     >
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
       {icon}
     </NavLink>
   )

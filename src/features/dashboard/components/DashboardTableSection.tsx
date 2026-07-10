@@ -12,14 +12,14 @@ export function DashboardTableSection({
   children,
 }: DashboardTableSectionProps) {
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-[2rem] font-bold tracking-tight text-slate-900">
+        <h2 className="text-[1.9rem] font-bold tracking-tight text-slate-900">
           {title}
         </h2>
         {action}
       </div>
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
         {children}
       </div>
     </section>

@@ -17,21 +17,24 @@ const navigationItems = [
 
 export function Sidebar() {
   return (
-    <aside className="w-full bg-[#1E2D7D] text-white lg:min-h-screen lg:w-[260px]">
-      <div className="flex h-full flex-col px-4 py-6 sm:px-5">
-        <div className="mb-8 text-center">
-          <h2 className="text-[2rem] font-bold tracking-tight">Inventory MVP</h2>
-          <p className="mt-2 text-sm text-blue-100/80">نظام إدارة المخزون</p>
+    <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
+      <div className="flex h-full flex-col px-[18px] py-7 sm:px-5">
+        <div className="mb-6 text-center">
+          <h2 className="text-[2rem] font-bold tracking-tight">مصنع الفتح</h2>
+          <p className="mt-2 text-sm text-blue-100/80">نظام إدارة المخزن</p>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-2 overflow-y-auto">
+        <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
           {navigationItems.map((item) => (
             <SidebarNavItem
               key={item.to}
               to={item.to}
               label={item.label}
               icon={
-                <span className="h-3 w-3 rounded-[4px] bg-[#6E7CFF]" aria-hidden="true" />
+                <span
+                  className="h-[14px] w-[14px] rounded-[4px] bg-[var(--app-sidebar-accent)]"
+                  aria-hidden="true"
+                />
               }
             />
           ))}
