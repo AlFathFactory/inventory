@@ -80,9 +80,7 @@ export function DashboardPage() {
         <InventoryAlertsTable rows={data.alerts} />
       </DashboardTableSection>
 
-      <DashboardTableSection title="آخر العمليات">
-        <RecentOperationsTable rows={data.recentOperations} />
-      </DashboardTableSection>
+
     </section>
   )
 }
