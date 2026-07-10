@@ -3,8 +3,8 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { CategoryPage } from '../pages/CategoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ImportExcelPage } from '../pages/ImportExcelPage'
+import { ItemsPage } from '../pages/ItemsPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
-import { OperationsPage } from '../pages/OperationsPage'
 
 const router = createBrowserRouter([
   {
@@ -16,12 +16,8 @@ const router = createBrowserRouter([
         element: <DashboardPage />,
       },
       {
-        path: 'operations',
-        element: <OperationsPage />,
-      },
-      {
         path: 'items',
-        element: <DashboardPage />,
+        element: <ItemsPage />,
       },
       {
         path: 'projects',

@@ -1,16 +1,16 @@
-import type { OperationTypeOption } from '../types'
+import type { ItemActionOption } from '../types'
 
-type OperationTypeCardProps = {
+type ItemsActionCardProps = {
   isActive: boolean
-  option: OperationTypeOption
+  option: ItemActionOption
   onClick: () => void
 }
 
-export function OperationTypeCard({
+export function ItemsActionCard({
   isActive,
   option,
   onClick,
-}: OperationTypeCardProps) {
+}: ItemsActionCardProps) {
   return (
     <button
       type="button"

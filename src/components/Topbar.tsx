@@ -11,13 +11,9 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     title: 'لوحة التحكم',
     subtitle: 'نظام CRUD كامل لإدارة المخزون والإنتاج',
   },
-  '/operations': {
-    title: 'العمليات',
-    subtitle: 'نظام CRUD كامل لإدارة المخزون والمشاريع والعمليات',
-  },
   '/items': {
     title: 'الأصناف',
-    subtitle: 'عرض سريع لكل الأصناف وربطها بحالة المخزون الحالية',
+    subtitle: 'نظام CRUD كامل لإدارة المخزون والمشاريع والعمليات',
   },
   '/projects': {
     title: 'المشاريع',

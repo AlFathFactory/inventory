@@ -3,7 +3,6 @@ import { SidebarNavItem } from './SidebarNavItem'
 
 const navigationItems = [
   { label: 'لوحة التحكم', to: '/' },
-  { label: 'العمليات', to: '/operations' },
   { label: 'الأصناف', to: '/items' },
   { label: 'المشاريع', to: '/projects' },
   { label: 'استيراد Excel', to: '/import' },
@@ -20,8 +19,8 @@ export function Sidebar() {
     <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
       <div className="flex h-full flex-col px-[18px] py-7 sm:px-5">
         <div className="mb-6 text-center">
-          <h2 className="text-[2rem] font-bold tracking-tight">مصنع الفتح</h2>
-          <p className="mt-2 text-sm text-blue-100/80">نظام إدارة المخزن</p>
+          <h2 className="text-[2rem] font-bold tracking-tight">Inventory MVP</h2>
+          <p className="mt-2 text-sm text-blue-100/80">نظام إدارة المخزون</p>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
