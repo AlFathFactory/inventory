@@ -4,6 +4,7 @@ import { CategoryPage } from '../pages/CategoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ImportExcelPage } from '../pages/ImportExcelPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { OperationsPage } from '../pages/OperationsPage'
 
 const router = createBrowserRouter([
   {
@@ -16,7 +17,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'operations',
-        element: <DashboardPage />,
+        element: <OperationsPage />,
       },
       {
         path: 'items',

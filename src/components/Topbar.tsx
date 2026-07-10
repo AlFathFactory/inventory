@@ -9,11 +9,11 @@ type TopbarCopy = {
 const topbarCopyByPath: Record<string, TopbarCopy> = {
   '/': {
     title: 'لوحة التحكم',
-    subtitle: 'نظام  كامل لإدارة المخزن والإنتاج',
+    subtitle: 'نظام CRUD كامل لإدارة المخزون والإنتاج',
   },
   '/operations': {
     title: 'العمليات',
-    subtitle: 'تابع أحدث حركات الصرف والإضافة والجرد في الوقت الفعلي',
+    subtitle: 'نظام CRUD كامل لإدارة المخزون والمشاريع والعمليات',
   },
   '/items': {
     title: 'الأصناف',
