@@ -18,6 +18,8 @@ import {
   getStockStatusLabel,
 } from '../utils/statusUtils'
 
+type DateFilterMode = 'single' | 'range'
+
 function isCategoryKey(value: string): value is CategoryKey {
   return value in categoryConfig
 }
@@ -34,12 +36,28 @@ function getDisplayValue(value: InventoryRow[string]) {
   return String(value)
 }
 
+function formatDateLabel(value: string) {
+  if (!value) {
+    return ''
+  }
+
+  const [year, month, day] = value.split('-')
+
+  if (!year || !month || !day) {
+    return value
+  }
+
+  return `${day}/${month}/${year}`
+}
+
 export function CategoryPage() {
   const { categoryKey } = useParams()
   const [rows, setRows] = useState<InventoryRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('single')
+  const [singleDate, setSingleDate] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
 
@@ -49,6 +67,21 @@ export function CategoryPage() {
       : null
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
+  const activeFromDate = dateFilterMode === 'single' ? singleDate : fromDate
+  const activeToDate = dateFilterMode === 'single' ? singleDate : toDate
+  const hasDateFilter = Boolean(
+    category?.dateField &&
+      activeFromDate.trim() &&
+      activeToDate.trim(),
+  )
+  const dateFilterSummary =
+    dateFilterMode === 'single'
+      ? singleDate
+        ? `تاريخ محدد: ${formatDateLabel(singleDate)}`
+        : 'اختر يومًا واحدًا للبحث السريع'
+      : fromDate && toDate
+        ? `الفترة: ${formatDateLabel(fromDate)} - ${formatDateLabel(toDate)}`
+        : 'اختر تاريخ البداية والنهاية'
 
   useEffect(() => {
     if (!category) {
@@ -65,16 +98,12 @@ export function CategoryPage() {
       setIsLoading(true)
       setError(null)
 
-      const hasDateRange = Boolean(
-        activeCategory.dateField && fromDate.trim() && toDate.trim(),
-      )
-
-      const result = hasDateRange
+      const result = hasDateFilter
         ? await getCategoryRowsByDateRange(
             activeCategory.table,
             activeCategory.dateField,
-            fromDate,
-            toDate,
+            activeFromDate,
+            activeToDate,
           )
         : await getCategoryRows(activeCategory.table)
 
@@ -97,7 +126,7 @@ export function CategoryPage() {
     return () => {
       isCancelled = true
     }
-  }, [category, fromDate, toDate])
+  }, [activeFromDate, activeToDate, category, hasDateFilter])
 
   const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase()
   const filteredRows = useMemo(
@@ -136,7 +165,12 @@ export function CategoryPage() {
 
   return (
     <section className="space-y-6">
-      <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 md:grid-cols-3">
+      <div
+        className={[
+          'grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4',
+          category.dateField ? 'md:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]' : 'md:grid-cols-1',
+        ].join(' ')}
+      >
         <label className="space-y-2">
           <span className="block text-sm font-medium text-slate-700">بحث</span>
           <input
@@ -149,27 +183,104 @@ export function CategoryPage() {
         </label>
 
         {category.dateField ? (
-          <>
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-slate-700">من تاريخ</span>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(event) => setFromDate(event.target.value)}
-                className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-              />
-            </label>
+          <div className="rounded-[24px] border border-[var(--app-border)] bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-right">
+                <span className="block text-sm font-medium text-slate-700">
+                  فلتر التاريخ
+                </span>
+                <p className="mt-1 text-xs text-[var(--app-text-muted)]">
+                  {dateFilterSummary}
+                </p>
+              </div>
 
-            <label className="space-y-2">
-              <span className="block text-sm font-medium text-slate-700">إلى تاريخ</span>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(event) => setToDate(event.target.value)}
-                className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-              />
-            </label>
-          </>
+              <button
+                type="button"
+                onClick={() => {
+                  setSingleDate('')
+                  setFromDate('')
+                  setToDate('')
+                }}
+                className="inline-flex h-9 items-center justify-center rounded-xl border border-[var(--app-border)] px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                مسح
+              </button>
+            </div>
+
+            <div className="mt-3 inline-flex rounded-2xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFilterMode('single')
+                  setFromDate('')
+                  setToDate('')
+                }}
+                className={[
+                  'rounded-[14px] px-4 py-2 text-sm font-medium transition',
+                  dateFilterMode === 'single'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900',
+                ].join(' ')}
+              >
+                يوم واحد
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFilterMode('range')
+                  setSingleDate('')
+                }}
+                className={[
+                  'rounded-[14px] px-4 py-2 text-sm font-medium transition',
+                  dateFilterMode === 'range'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900',
+                ].join(' ')}
+              >
+                فترة
+              </button>
+            </div>
+
+            {dateFilterMode === 'single' ? (
+              <label className="mt-3 block space-y-2">
+                <span className="block text-xs font-medium text-slate-500">
+                  اختر التاريخ
+                </span>
+                <input
+                  type="date"
+                  value={singleDate}
+                  onChange={(event) => setSingleDate(event.target.value)}
+                  className="w-full rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                />
+              </label>
+            ) : (
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="space-y-2">
+                  <span className="block text-xs font-medium text-slate-500">
+                    من تاريخ
+                  </span>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(event) => setFromDate(event.target.value)}
+                    className="w-full rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  />
+                </label>
+
+                <label className="space-y-2">
+                  <span className="block text-xs font-medium text-slate-500">
+                    إلى تاريخ
+                  </span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(event) => setToDate(event.target.value)}
+                    className="w-full rounded-2xl border border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
 
