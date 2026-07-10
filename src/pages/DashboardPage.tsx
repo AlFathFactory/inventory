@@ -79,8 +79,6 @@ export function DashboardPage() {
       >
         <InventoryAlertsTable rows={data.alerts} />
       </DashboardTableSection>
-
-
     </section>
   )
 }
