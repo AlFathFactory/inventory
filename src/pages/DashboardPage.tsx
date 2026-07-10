@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
 import { DashboardTableSection } from '../features/dashboard/components/DashboardTableSection'
 import { InventoryAlertsTable } from '../features/dashboard/components/InventoryAlertsTable'
-import { RecentOperationsTable } from '../features/dashboard/components/RecentOperationsTable'
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
 import {
   getSupabaseConfigError,
