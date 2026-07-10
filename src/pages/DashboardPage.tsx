@@ -4,12 +4,23 @@ import { DashboardTableSection } from '../features/dashboard/components/Dashboar
 import { InventoryAlertsTable } from '../features/dashboard/components/InventoryAlertsTable'
 import { RecentOperationsTable } from '../features/dashboard/components/RecentOperationsTable'
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
+import {
+  getSupabaseConfigError,
+  isSupabaseConfigured,
+} from '../lib/supabaseClient'
 
 export function DashboardPage() {
   const { data, isLoading, error } = useDashboardData()
+  const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
 
   return (
     <section className="space-y-8">
+      {configError ? (
+        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+          Supabase is not configured for this deployment. {configError}
+        </div>
+      ) : null}
+
       {error ? (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
           {error}
