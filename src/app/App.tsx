@@ -5,6 +5,7 @@ import { DashboardPage } from '../pages/DashboardPage'
 import { ImportExcelPage } from '../pages/ImportExcelPage'
 import { ItemsPage } from '../pages/ItemsPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { ProjectsPage } from '../pages/ProjectsPage'
 
 const router = createBrowserRouter([
   {
@@ -21,7 +22,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'projects',
-        element: <DashboardPage />,
+        element: <ProjectsPage />,
       },
       {
         path: 'import',

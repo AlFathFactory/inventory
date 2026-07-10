@@ -7,7 +7,6 @@ const navigationItems = [
   { label: 'المشاريع', to: '/projects' },
   { label: 'استيراد Excel', to: '/import' },
   { label: 'الأصناف القليلة', to: '/low-stock' },
-  { label: 'الأصناف المنتهية', to: '/out-of-stock' },
   ...categoryOptions.map((category) => ({
     label: category.label,
     to: category.route,
@@ -17,25 +16,15 @@ const navigationItems = [
 export function Sidebar() {
   return (
     <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
-      <div className="flex h-full flex-col px-[18px] py-7 sm:px-5">
-        <div className="mb-6 text-center">
-          <h2 className="text-[2rem] font-bold tracking-tight">Inventory MVP</h2>
-          <p className="mt-2 text-sm text-blue-100/80">نظام إدارة المخزون</p>
+      <div className="flex h-full flex-col px-[18px] pb-8 pt-7">
+        <div className="mb-6 text-right">
+          <h2 className="text-[18px] font-bold tracking-tight">Inventory MVP</h2>
+          <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المخزون</p>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
           {navigationItems.map((item) => (
-            <SidebarNavItem
-              key={item.to}
-              to={item.to}
-              label={item.label}
-              icon={
-                <span
-                  className="h-[14px] w-[14px] rounded-[4px] bg-[var(--app-sidebar-accent)]"
-                  aria-hidden="true"
-                />
-              }
-            />
+            <SidebarNavItem key={item.to} to={item.to} label={item.label} />
           ))}
         </nav>
       </div>

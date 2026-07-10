@@ -1,5 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
-import { categoryConfig, type CategoryKey } from '../config/categoryConfig'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { insertRows, type InventoryRow } from '../services/inventoryService'
 import {
   parseInventoryExcel,
@@ -23,8 +22,12 @@ type ImportLogRow = InventoryRow & {
   imported_at: string
 }
 
-function getCategoryLabel(categoryKey: CategoryKey) {
-  return categoryConfig[categoryKey].label
+type PreviewTableRow = {
+  key: string
+  sheetName: string
+  tableName: string
+  rowCount: number
+  status: 'ready' | 'error' | 'ignored'
 }
 
 function getRowsCountByTable(preview: ExcelImportPreview) {
@@ -52,27 +55,92 @@ function buildImportLogRow(
   }
 }
 
-function buildPreviewTableRows(preview: ExcelImportPreview) {
-  return preview.matchedSheets.map((sheet) => ({
-    ...sheet,
-    categoryLabel: getCategoryLabel(sheet.categoryKey),
-  }))
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('en-US').format(value)
+}
+
+function getSheetStatus(sheetName: string, errors: readonly string[]) {
+  return errors.some((errorMessage) => errorMessage.includes(`"${sheetName}"`))
+    ? 'error'
+    : 'ready'
+}
+
+function buildPreviewTableRows(preview: ExcelImportPreview): PreviewTableRow[] {
+  return [
+    ...preview.matchedSheets.map((sheet) => ({
+      key: `matched-${sheet.table}-${sheet.sheetName}`,
+      sheetName: sheet.sheetName,
+      tableName: sheet.table,
+      rowCount: sheet.rowCount,
+      status: getSheetStatus(sheet.sheetName, preview.errors) as PreviewTableRow['status'],
+    })),
+    ...preview.ignoredSheets.map((sheetName) => ({
+      key: `ignored-${sheetName}`,
+      sheetName,
+      tableName: 'غير معروف',
+      rowCount: 0,
+      status: 'ignored' as const,
+    })),
+  ]
 }
 
 export function ImportExcelPage() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
   const [preview, setPreview] = useState<ExcelImportPreview | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [status, setStatus] = useState<ImportStatus | null>(null)
 
-  const previewRows = preview ? buildPreviewTableRows(preview) : []
-  const previewData = preview
-  const canConfirmImport = previewData
-    ? previewData.matchedSheets.length > 0 &&
-      previewData.totalRows > 0 &&
-      !isImporting
+  const canConfirmImport = preview
+    ? preview.matchedSheets.length > 0 && preview.totalRows > 0 && !isImporting
     : false
+
+  const previewTableRows = preview ? buildPreviewTableRows(preview) : []
+  const metricCards = preview
+    ? [
+        {
+          label: 'الشيتات المعروفة',
+          value: preview.matchedSheets.length,
+          hint: 'تم التعرف عليها',
+          valueClassName: 'text-[var(--app-success)]',
+        },
+        {
+          label: 'الشيتات المتجاهلة',
+          value: preview.ignoredSheets.length,
+          hint: 'تحتاج مراجعة',
+          valueClassName: 'text-[var(--app-warning)]',
+        },
+        {
+          label: 'إجمالي الصفوف',
+          value: preview.totalRows,
+          hint: 'جاهزة للمعاينة',
+          valueClassName: 'text-[var(--app-primary)]',
+        },
+        {
+          label: 'الأخطاء',
+          value: preview.errors.length,
+          hint: preview.errors.length > 0 ? 'صفوف غير مكتملة' : 'لا توجد أخطاء',
+          valueClassName: 'text-[var(--app-danger)]',
+        },
+      ]
+    : []
+
+  function resetPreviewState() {
+    setSelectedFileName('')
+    setPreview(null)
+    setStatus(null)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  function handleOpenFilePicker() {
+    if (!isParsing && !isImporting) {
+      fileInputRef.current?.click()
+    }
+  }
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -157,36 +225,49 @@ export function ImportExcelPage() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-5 shadow-[var(--app-shadow)]">
-        <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700">اختر ملف Excel</span>
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileChange}
-            className="block w-full rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 py-3 text-sm text-slate-700 file:ms-0 file:me-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
-          />
+    <section className="space-y-8">
+      <div className="rounded-[24px] border border-dashed border-[var(--app-border-strong)] bg-[#fbfcff] px-6 py-10 text-center shadow-[var(--app-shadow)]">
+        <label className="sr-only" htmlFor="excel-import-input">
+          اختيار ملف Excel
         </label>
+        <input
+          id="excel-import-input"
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        <h2 className="text-[28px] font-bold tracking-tight text-[var(--app-primary)]">
+          اسحب ملف Excel هنا أو اختر من جهازك
+        </h2>
+        <p className="mt-3 text-[15px] text-[var(--app-text-muted)]">
+          هذه الميزة اختيارية لتسريع إدخال البيانات أو نقل ملفات قديمة
+        </p>
+        <button
+          type="button"
+          onClick={handleOpenFilePicker}
+          disabled={isParsing || isImporting}
+          className="mt-6 inline-flex h-[42px] min-w-[180px] items-center justify-center rounded-[12px] bg-[var(--app-primary)] px-6 text-[14px] font-semibold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isParsing ? 'جاري تحليل الملف...' : 'اختيار ملف'}
+        </button>
 
         {selectedFileName ? (
-          <p className="mt-3 text-sm text-slate-500">الملف المحدد: {selectedFileName}</p>
+          <p className="mt-4 text-sm text-[var(--app-text-muted)]">
+            الملف المحدد: {selectedFileName}
+          </p>
         ) : null}
       </div>
-
-      {isParsing ? (
-        <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
-          جاري تحليل ملف Excel...
-        </div>
-      ) : null}
 
       {status ? (
         <div
           className={[
-            'rounded-[28px] px-4 py-4 text-sm',
+            'rounded-[18px] border px-4 py-4 text-sm shadow-[var(--app-shadow)]',
             status.type === 'success'
-              ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border border-red-200 bg-red-50 text-red-700',
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700',
           ].join(' ')}
         >
           {status.message}
@@ -194,61 +275,68 @@ export function ImportExcelPage() {
       ) : null}
 
       {preview ? (
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-              <p className="text-sm text-slate-500">اسم الملف</p>
-              <p className="mt-2 font-medium text-slate-900">{preview.fileName}</p>
-            </div>
-            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-              <p className="text-sm text-slate-500">الشيتات المطابقة</p>
-              <p className="mt-2 font-medium text-slate-900">
-                {preview.matchedSheets.length}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-              <p className="text-sm text-slate-500">الشيتات المتجاهلة</p>
-              <p className="mt-2 font-medium text-slate-900">
-                {preview.ignoredSheets.length}
-              </p>
-            </div>
-            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-              <p className="text-sm text-slate-500">إجمالي الصفوف</p>
-              <p className="mt-2 font-medium text-slate-900">{preview.totalRows}</p>
-            </div>
+            {metricCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-6 py-4 text-right shadow-[var(--app-shadow)]"
+              >
+                <p className="text-[13px] font-medium text-[var(--app-text-muted)]">
+                  {card.label}
+                </p>
+                <p className={['mt-2 text-[30px] font-bold', card.valueClassName].join(' ')}>
+                  {formatNumber(card.value)}
+                </p>
+                <p className="mt-1 text-[12px] text-[var(--app-text-muted)]">
+                  {card.hint}
+                </p>
+              </div>
+            ))}
           </div>
 
-          <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
-            <div className="border-b border-[var(--app-border)] px-4 py-3">
-              <h2 className="font-medium text-slate-900">ملخص الشيتات المطابقة</h2>
-            </div>
+          <div className="overflow-hidden rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-right">
-                <thead className="bg-[var(--app-panel-soft)]">
+              <table className="min-w-full text-right text-[12px]">
+                <thead className="bg-[var(--app-panel-soft)] text-[#344054]">
                   <tr>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      اسم الشيت
-                    </th>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      الفئة
-                    </th>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      الجدول
-                    </th>
-                    <th className="px-4 py-3 text-sm font-semibold text-slate-700">
-                      عدد الصفوف
-                    </th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">اسم الشيت</th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">جدول Supabase</th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">عدد الصفوف</th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">الحالة</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {previewRows.map((row) => (
-                    <tr key={`${row.table}-${row.sheetName}`}>
-                      <td className="px-4 py-3 text-sm text-slate-600">{row.sheetName}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">
-                        {row.categoryLabel}
+                <tbody>
+                  {previewTableRows.map((row, index) => (
+                    <tr
+                      key={row.key}
+                      className={index % 2 === 0 ? 'bg-white' : 'bg-[#fcfcfd]'}
+                    >
+                      <td className="px-4 py-3 text-[13px] text-slate-700">
+                        {row.sheetName}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{row.table}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{row.rowCount}</td>
+                      <td className="px-4 py-3 text-[13px] text-slate-700">
+                        {row.tableName}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-slate-700">
+                        {row.rowCount > 0 ? formatNumber(row.rowCount) : '—'}
+                      </td>
+                      <td
+                        className={[
+                          'px-4 py-3 text-[13px] font-medium',
+                          row.status === 'ready'
+                            ? 'text-slate-800'
+                            : row.status === 'error'
+                              ? 'text-[var(--app-danger)]'
+                              : 'text-[var(--app-warning)]',
+                        ].join(' ')}
+                      >
+                        {row.status === 'ready'
+                          ? 'جاهز'
+                          : row.status === 'error'
+                            ? 'خطأ'
+                            : 'متجاهل'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -256,73 +344,35 @@ export function ImportExcelPage() {
             </div>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-              <h2 className="font-medium text-slate-900">عدد الصفوف لكل فئة</h2>
-              <div className="mt-4 space-y-3">
-                {previewRows.length > 0 ? (
-                  previewRows.map((row) => (
-                    <div
-                      key={`${row.categoryKey}-count`}
-                      className="flex items-center justify-between rounded-2xl bg-[var(--app-panel-soft)] px-4 py-3"
-                    >
-                      <span className="text-sm text-slate-700">{row.categoryLabel}</span>
-                      <span className="text-sm font-medium text-slate-900">
-                        {row.rowCount}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500">لا توجد شيتات مطابقة داخل الملف.</p>
-                )}
-              </div>
+          {preview.errors.length > 0 ? (
+            <div className="space-y-3">
+              {preview.errors.map((errorMessage, index) => (
+                <div
+                  key={`${errorMessage}-${index}`}
+                  className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-[var(--app-shadow)]"
+                >
+                  {errorMessage}
+                </div>
+              ))}
             </div>
+          ) : null}
 
-            <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-              <h2 className="font-medium text-slate-900">الشيتات المتجاهلة</h2>
-              <div className="mt-4 space-y-3">
-                {preview.ignoredSheets.length > 0 ? (
-                  preview.ignoredSheets.map((sheetName) => (
-                    <div
-                      key={sheetName}
-                      className="rounded-2xl bg-[var(--app-panel-soft)] px-4 py-3 text-sm text-slate-700"
-                    >
-                      {sheetName}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500">لا توجد شيتات متجاهلة.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)]">
-            <h2 className="font-medium text-slate-900">أخطاء التحليل</h2>
-            <div className="mt-4 space-y-3">
-              {preview.errors.length > 0 ? (
-                preview.errors.map((errorMessage, index) => (
-                  <div
-                    key={`${errorMessage}-${index}`}
-                    className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-                  >
-                    {errorMessage}
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">لا توجد أخطاء في التحليل.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-start">
+          <div className="flex flex-wrap items-center justify-start gap-4">
             <button
               type="button"
               onClick={handleConfirmImport}
               disabled={!canConfirmImport}
-              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex h-[42px] min-w-[220px] items-center justify-center rounded-[12px] bg-[var(--app-primary)] px-6 text-[14px] font-semibold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isImporting ? 'جاري الاستيراد...' : 'تأكيد الاستيراد'}
+            </button>
+            <button
+              type="button"
+              onClick={resetPreviewState}
+              disabled={isImporting}
+              className="inline-flex h-[42px] min-w-[150px] items-center justify-center rounded-[12px] border border-[var(--app-border)] bg-white px-6 text-[14px] font-semibold text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              إلغاء
             </button>
           </div>
         </div>

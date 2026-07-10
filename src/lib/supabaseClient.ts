@@ -11,6 +11,8 @@ export const supabaseClient = isSupabaseConfigured
   ? createClient(supabaseUrl, supabasePublishableKey)
   : null
 
+export const supabase = supabaseClient
+
 export function getSupabaseConfigError(): string {
   if (!supabaseUrl && !supabasePublishableKey) {
     return 'Supabase environment variables are missing.'

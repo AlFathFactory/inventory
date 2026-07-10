@@ -1,20 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --app-bg: #f4f7fb;
-  --app-bg-accent: #eef3ff;
+  --app-bg: #f5f7fb;
+  --app-bg-accent: #eef4ff;
   --app-panel: #ffffff;
-  --app-panel-soft: #f8faff;
-  --app-border: #dbe4f0;
-  --app-text: #111827;
+  --app-panel-soft: #f9fafb;
+  --app-border: #e4e7ec;
+  --app-border-strong: #b9c7f5;
+  --app-text: #101828;
   --app-text-muted: #667085;
-  --app-sidebar: #1e2d7d;
-  --app-sidebar-accent: #6e7cff;
-  --app-primary: #2563eb;
-  --app-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --app-sidebar: #0b1f66;
+  --app-sidebar-accent: #6172f3;
+  --app-primary: #155eef;
+  --app-primary-strong: #174cd3;
+  --app-success: #12b76a;
+  --app-warning: #f79009;
+  --app-danger: #f04438;
+  --app-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   color: var(--app-text);
   background-color: var(--app-bg);
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -41,7 +46,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(110, 124, 255, 0.12), transparent 26%),
+    radial-gradient(circle at top right, rgba(97, 114, 243, 0.1), transparent 24%),
     linear-gradient(180deg, var(--app-bg-accent) 0%, var(--app-bg) 18%, var(--app-bg) 100%);
 }
 

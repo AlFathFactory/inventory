@@ -21,11 +21,11 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
   },
   '/import': {
     title: 'استيراد Excel',
-    subtitle: 'حمّل ملف Excel وراجع النتائج قبل حفظها في قاعدة البيانات',
+    subtitle: 'نظام CRUD كامل لإدارة المخزون والمشاريع والعمليات',
   },
   '/low-stock': {
     title: 'الأصناف القليلة',
-    subtitle: 'كل الأصناف التي وصلت إلى الحد الأدنى أو اقتربت منه',
+    subtitle: 'كل الأصناف التي وصلت إلى الحد الأدنى أو تحتاج إلى متابعة',
   },
   '/out-of-stock': {
     title: 'الأصناف المنتهية',
@@ -63,22 +63,22 @@ export function Topbar() {
     }
 
   return (
-    <header className="px-5 pt-6 sm:px-7 lg:px-8 lg:pt-6">
-      <div className="flex flex-col-reverse gap-6 rounded-[30px] border border-[var(--app-border)] bg-[var(--app-panel)] px-6 py-5 shadow-[var(--app-shadow)] lg:flex-row lg:items-start lg:justify-between lg:px-7 lg:py-6">
+    <header className="px-6 pt-6 lg:px-8">
+      <div className="flex flex-col-reverse gap-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)] lg:h-[74px] lg:flex-row lg:items-center lg:justify-between lg:px-7">
         <label className="block lg:w-[260px]">
           <span className="sr-only">بحث سريع</span>
           <input
             type="search"
             placeholder="بحث سريع..."
-            className="h-[42px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-300"
+            className="h-[42px] w-full rounded-[12px] border border-[var(--app-border)] bg-white px-4 text-[13px] text-slate-700 outline-none placeholder:text-[var(--app-text-muted)] focus:border-slate-300"
           />
         </label>
 
         <div className="text-right">
-          <h1 className="text-[2rem] font-bold tracking-tight text-slate-900 lg:text-[2.15rem]">
+          <h1 className="text-[24px] font-bold tracking-tight text-slate-900">
             {copy.title}
           </h1>
-          <p className="mt-2 text-sm text-[var(--app-text-muted)]">
+          <p className="mt-1 text-[13px] text-[var(--app-text-muted)]">
             {copy.subtitle}
           </p>
         </div>
