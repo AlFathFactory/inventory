@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { DataFilters } from '../components/DataFilters'
+import { DataTable, type DataTableColumn } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
 import {
   categoryConfig,
@@ -120,9 +121,62 @@ export function CategoryPage() {
   )
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
 
-  const columnEntries = category ? Object.entries(category.columns) : []
-  const hasStockStatus =
-    Boolean(category?.stockField) && Boolean(category?.minQuantityField)
+  const columns = useMemo<DataTableColumn<InventoryRow>[]>(() => {
+    if (!category) {
+      return []
+    }
+
+    const nextColumns: DataTableColumn<InventoryRow>[] = []
+    const columnEntries = Object.entries(category.columns)
+    const hasStockStatus =
+      Boolean(category.stockField) && Boolean(category.minQuantityField)
+
+    if (hasStockStatus) {
+      nextColumns.push({
+        id: 'status',
+        header: 'الحالة',
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'align-top px-4 py-3',
+        renderCell: (row) => {
+          const stockStatus =
+            category.stockField && category.minQuantityField
+              ? getStockStatus(
+                  row,
+                  category.stockField,
+                  category.minQuantityField,
+                )
+              : null
+
+          return stockStatus ? (
+            <span
+              className={[
+                'inline-flex rounded-full px-3 py-1 text-xs font-medium',
+                getStockStatusClass(stockStatus),
+              ].join(' ')}
+            >
+              {getStockStatusLabel(stockStatus)}
+            </span>
+          ) : (
+            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+              غير محدد
+            </span>
+          )
+        },
+      })
+    }
+
+    columnEntries.forEach(([field, label]) => {
+      nextColumns.push({
+        id: field,
+        header: label,
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+        renderCell: (row) => getDisplayValue(row[field]),
+      })
+    })
+
+    return nextColumns
+  }, [category])
 
   if (!category) {
     return (
@@ -168,73 +222,15 @@ export function CategoryPage() {
 
       {!isLoading && !error && filteredRows.length > 0 ? (
         <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-right">
-              <thead className="bg-[var(--app-panel-soft)]">
-                <tr>
-                  {hasStockStatus ? (
-                    <th className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-700">
-                      الحالة
-                    </th>
-                  ) : null}
-                  {columnEntries.map(([field, label]) => (
-                    <th
-                      key={field}
-                      className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-700"
-                    >
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {pagination.paginatedItems.map((row, index) => {
-                  const stockStatus =
-                    hasStockStatus && category.stockField && category.minQuantityField
-                      ? getStockStatus(
-                          row,
-                          category.stockField,
-                          category.minQuantityField,
-                        )
-                      : null
-
-                  return (
-                    <tr
-                      key={`${category.table}-${pagination.pageStart + index}`}
-                      className="hover:bg-slate-50"
-                    >
-                      {hasStockStatus ? (
-                        <td className="px-4 py-3 align-top text-sm">
-                          {stockStatus ? (
-                            <span
-                              className={[
-                                'inline-flex rounded-full px-3 py-1 text-xs font-medium',
-                                getStockStatusClass(stockStatus),
-                              ].join(' ')}
-                            >
-                              {getStockStatusLabel(stockStatus)}
-                            </span>
-                          ) : (
-                            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                              غير محدد
-                            </span>
-                          )}
-                        </td>
-                      ) : null}
-                      {columnEntries.map(([field]) => (
-                        <td
-                          key={field}
-                          className="whitespace-nowrap px-4 py-3 text-sm text-slate-600"
-                        >
-                          {getDisplayValue(row[field])}
-                        </td>
-                      ))}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            rows={pagination.paginatedItems}
+            getRowKey={(_, index) => `${category.table}-${pagination.pageStart + index}`}
+            stickyHeader
+            maxHeightClassName="max-h-[70vh] overflow-auto"
+            tableClassName="divide-y divide-slate-200"
+            rowClassName="hover:bg-slate-50"
+          />
           <TablePagination
             currentPage={pagination.currentPage}
             pageSize={pagination.pageSize}

@@ -1,3 +1,4 @@
+import { DataTable, type DataTableColumn } from '../../../components/DataTable'
 import { TablePagination } from '../../../components/TablePagination'
 import { usePagination } from '../../../hooks/usePagination'
 import type { DashboardOperation } from '../types'
@@ -6,43 +7,52 @@ type RecentOperationsTableProps = {
   rows: DashboardOperation[]
 }
 
+const columns: DataTableColumn<DashboardOperation>[] = [
+  {
+    id: 'date',
+    header: 'التاريخ',
+    renderCell: (row) => row.date,
+  },
+  {
+    id: 'operationType',
+    header: 'نوع العملية',
+    renderCell: (row) => row.operationType,
+  },
+  {
+    id: 'itemName',
+    header: 'الصنف',
+    renderCell: (row) => row.itemName,
+  },
+  {
+    id: 'quantity',
+    header: 'الكمية',
+    renderCell: (row) => row.quantity,
+  },
+  {
+    id: 'userName',
+    header: 'المستخدم',
+    renderCell: (row) => row.userName,
+  },
+]
+
 export function RecentOperationsTable({ rows }: RecentOperationsTableProps) {
   const pagination = usePagination(rows, { initialPageSize: 5 })
 
   if (rows.length === 0) {
     return (
       <div className="px-6 py-12 text-center text-sm text-slate-500">
-        Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¹Ù…Ù„ÙŠØ§Øª Ø­Ø¯ÙŠØ«Ø© Ù„Ø¹Ø±Ø¶Ù‡Ø§.
+        لا توجد عمليات حديثة لعرضها.
       </div>
     )
   }
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-right">
-          <thead className="bg-[var(--app-panel-soft)] text-sm font-semibold text-slate-800">
-            <tr>
-              <th className="px-6 py-4">Ø§Ù„ØªØ§Ø±ÙŠØ®</th>
-              <th className="px-6 py-4">Ù†ÙˆØ¹ Ø§Ù„Ø¹Ù…Ù„ÙŠØ©</th>
-              <th className="px-6 py-4">Ø§Ù„ØµÙ†Ù</th>
-              <th className="px-6 py-4">Ø§Ù„ÙƒÙ…ÙŠØ©</th>
-              <th className="px-6 py-4">Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-            {pagination.paginatedItems.map((row) => (
-              <tr key={row.id}>
-                <td className="px-6 py-3.5">{row.date}</td>
-                <td className="px-6 py-3.5">{row.operationType}</td>
-                <td className="px-6 py-3.5">{row.itemName}</td>
-                <td className="px-6 py-3.5">{row.quantity}</td>
-                <td className="px-6 py-3.5">{row.userName}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        rows={pagination.paginatedItems}
+        getRowKey={(row) => row.id}
+      />
 
       <TablePagination
         currentPage={pagination.currentPage}
