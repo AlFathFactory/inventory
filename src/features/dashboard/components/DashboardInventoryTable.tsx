@@ -1,4 +1,5 @@
 import { DataTable, type DataTableColumn } from '../../../components/DataTable'
+import { InventoryDateCell } from '../../../components/InventoryDateCell'
 import { TablePagination } from '../../../components/TablePagination'
 import {
   getStockStatusClass,
@@ -43,7 +44,13 @@ const columns: DataTableColumn<DashboardInventoryRow>[] = [
   {
     id: 'dateLabel',
     header: 'التاريخ',
-    renderCell: (row) => row.dateLabel,
+    renderCell: (row) => (
+      <InventoryDateCell
+        dateLabel={row.dateLabel}
+        hasAdded={row.addedQuantity !== null && row.addedQuantity !== 0}
+        hasIssued={row.issuedQuantity !== null && row.issuedQuantity !== 0}
+      />
+    ),
   },
   {
     id: 'addedQuantity',

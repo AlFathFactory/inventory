@@ -1,6 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { DataFilters } from '../components/DataFilters'
+import {
+  hasNonZeroValue,
+  InventoryDateCell,
+} from '../components/InventoryDateCell'
 import { DataTable, type DataTableColumn } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
 import {
@@ -137,7 +141,16 @@ export function CategoryPage() {
         header: label,
         headerClassName: 'px-4 py-3 text-slate-700',
         cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
-        renderCell: (row) => getDisplayValue(row[field]),
+        renderCell: (row) =>
+          field === category.dateField ? (
+            <InventoryDateCell
+              dateLabel={getDisplayValue(row[field])}
+              hasAdded={hasNonZeroValue(row.added)}
+              hasIssued={hasNonZeroValue(row.issued)}
+            />
+          ) : (
+            getDisplayValue(row[field])
+          ),
       })
     })
 
