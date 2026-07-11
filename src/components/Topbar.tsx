@@ -9,11 +9,11 @@ type TopbarCopy = {
 const topbarCopyByPath: Record<string, TopbarCopy> = {
   '/': {
     title: 'لوحة التحكم',
-    subtitle: 'نظام CRUD كامل لإدارة المخزون والإنتاج',
+    subtitle: 'نظام كامل لإدارة المخزون والإنتاج',
   },
   '/items': {
     title: 'الأصناف',
-    subtitle: 'نظام CRUD كامل لإدارة المخزون والمشاريع والعمليات',
+    subtitle: 'نظام كامل لإدارة المخزون والمشاريع والعمليات',
   },
   '/projects': {
     title: 'المشاريع',
@@ -21,7 +21,7 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
   },
   '/import': {
     title: 'استيراد Excel',
-    subtitle: 'نظام CRUD كامل لإدارة المخزون والمشاريع والعمليات',
+    subtitle: 'نظام كامل لإدارة المخزون والمشاريع والعمليات',
   },
   '/low-stock': {
     title: 'الأصناف القليلة',

@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
+import { DashboardInventoryFilters } from '../features/dashboard/components/DashboardInventoryFilters'
+import { DashboardInventoryTable } from '../features/dashboard/components/DashboardInventoryTable'
 import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
 import { DashboardTableSection } from '../features/dashboard/components/DashboardTableSection'
-import { InventoryAlertsTable } from '../features/dashboard/components/InventoryAlertsTable'
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
+import { useDashboardInventoryTable } from '../features/dashboard/hooks/useDashboardInventoryTable'
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
@@ -10,6 +12,7 @@ import {
 
 export function DashboardPage() {
   const { data, isLoading, error } = useDashboardData()
+  const inventoryTable = useDashboardInventoryTable(data.inventoryRows)
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
 
   return (
@@ -59,14 +62,8 @@ export function DashboardPage() {
         />
       </div>
 
-      {isLoading ? (
-        <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
-          جاري تحميل بيانات لوحة التحكم...
-        </div>
-      ) : null}
-
       <DashboardTableSection
-        title="الأصناف الحرجة"
+        title="جدول البحث الشامل"
         action={
           <Link
             to="/import"
@@ -76,7 +73,51 @@ export function DashboardPage() {
           </Link>
         }
       >
-        <InventoryAlertsTable rows={data.alerts} />
+        <div className="space-y-5 p-4 md:p-6">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                ابحث داخل جميع أصناف المخزن من مكان واحد
+              </p>
+              <p className="text-sm text-[var(--app-text-muted)]">
+                يمكنك التصفية بالقسم أو التاريخ والبحث النصي في كل الصفوف.
+              </p>
+            </div>
+            <p className="text-sm text-slate-500">
+              النتائج: {inventoryTable.filteredRows.length}
+            </p>
+          </div>
+
+          <DashboardInventoryFilters
+            searchValue={inventoryTable.filters.searchTerm}
+            categoryValue={inventoryTable.filters.categoryKey}
+            fromDate={inventoryTable.filters.fromDate}
+            toDate={inventoryTable.filters.toDate}
+            onSearchChange={inventoryTable.setSearchTerm}
+            onCategoryChange={inventoryTable.setCategoryKey}
+            onFromDateChange={inventoryTable.setFromDate}
+            onToDateChange={inventoryTable.setToDate}
+            onClear={inventoryTable.clearFilters}
+          />
+
+          {isLoading ? (
+            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
+              جاري تحميل بيانات لوحة التحكم...
+            </div>
+          ) : (
+            <DashboardInventoryTable
+              rows={inventoryTable.pagination.paginatedItems}
+              currentPage={inventoryTable.pagination.currentPage}
+              pageSize={inventoryTable.pagination.pageSize}
+              totalItems={inventoryTable.pagination.totalItems}
+              totalPages={inventoryTable.pagination.totalPages}
+              pageStart={inventoryTable.pagination.pageStart}
+              pageEnd={inventoryTable.pagination.pageEnd}
+              onPageChange={inventoryTable.pagination.setCurrentPage}
+              onPageSizeChange={inventoryTable.pagination.setPageSize}
+            />
+          )}
+        </div>
       </DashboardTableSection>
     </section>
   )

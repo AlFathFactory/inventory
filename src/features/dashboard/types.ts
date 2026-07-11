@@ -17,29 +17,25 @@ export type CategoryCard = {
   rowCount: number
 }
 
-export type DashboardInventoryAlert = {
+export type DashboardInventoryRow = {
   id: string
-  category: string
+  categoryKey: CategoryKey
+  categoryLabel: string
   itemName: string
-  stockBalance: number
-  minQuantity: number
-  status: 'out' | 'low' | 'safe'
-  actionLabel: string
-}
-
-export type DashboardOperation = {
-  id: string
-  date: string
-  operationType: string
-  itemName: string
-  quantity: number
-  userName: string
+  projectName: string | null
+  dateValue: string | null
+  dateLabel: string
+  addedQuantity: number | null
+  issuedQuantity: number | null
+  stockBalance: number | null
+  minQuantity: number | null
+  status: 'out' | 'low' | 'safe' | null
+  searchText: string
 }
 
 export type DashboardData = {
   stats: DashboardStats
-  alerts: DashboardInventoryAlert[]
-  recentOperations: DashboardOperation[]
+  inventoryRows: DashboardInventoryRow[]
   categoryCards: CategoryCard[]
   isDemo: boolean
 }

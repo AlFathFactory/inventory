@@ -12,15 +12,9 @@ import {
   getOutOfStockRows,
   type InventoryRow,
 } from '../../../services/inventoryService'
-import { getStockStatus } from '../../../utils/statusUtils'
 import { dashboardDemo } from '../data/dashboardDemo'
-import type {
-  CategoryCard,
-  DashboardData,
-  DashboardInventoryAlert,
-  DashboardOperation,
-  DashboardStats,
-} from '../types'
+import type { CategoryCard, DashboardData, DashboardStats } from '../types'
+import { buildDashboardInventoryRows } from '../utils/dashboardInventoryRows'
 
 type DashboardState = {
   data: DashboardData
@@ -72,124 +66,6 @@ function createInitialCards(): CategoryCard[] {
 
 function extractStringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
-}
-
-function extractNumberValue(value: unknown): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    const parsedValue = Number(value)
-    return Number.isFinite(parsedValue) ? parsedValue : 0
-  }
-
-  return 0
-}
-
-function formatOperationDate(value: unknown): string {
-  const dateValue = extractStringValue(value)
-
-  if (!dateValue) {
-    return '—'
-  }
-
-  const date = new Date(dateValue)
-  if (Number.isNaN(date.getTime())) {
-    return dateValue
-  }
-
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `${day}/${month}`
-}
-
-function buildRecentOperations(
-  rowsByCategory: Array<{
-    category: CategoryDefinition
-    rows: InventoryRow[]
-  }>,
-): DashboardOperation[] {
-  const operations: Array<DashboardOperation & { timestamp: number }> = []
-
-  rowsByCategory.forEach(({ category, rows }) => {
-    rows.forEach((row, index) => {
-      const rawDate = row[category.dateField]
-      const timestamp = extractStringValue(rawDate)
-        ? new Date(String(rawDate)).getTime()
-        : 0
-
-      if (!timestamp) {
-        return
-      }
-
-      const addedValue = extractNumberValue(row.added)
-      const issuedValue = extractNumberValue(row.issued)
-
-      let operationType = 'جرد'
-      let quantity = 0
-
-      if (addedValue > 0) {
-        operationType = 'إضافة'
-        quantity = addedValue
-      } else if (issuedValue > 0) {
-        operationType = 'صرف'
-        quantity = issuedValue
-      }
-
-      const itemName =
-        extractStringValue(row.item_name) ??
-        extractStringValue(row.type_name) ??
-        category.label
-
-      operations.push({
-        id: `${category.table}-${index}`,
-        date: formatOperationDate(rawDate),
-        operationType,
-        itemName,
-        quantity,
-        userName: extractStringValue(row.project) ?? 'النظام',
-        timestamp,
-      })
-    })
-  })
-
-  return operations
-    .sort((first, second) => second.timestamp - first.timestamp)
-    .slice(0, 4)
-    .map(({ timestamp: _timestamp, ...operation }) => operation)
-}
-
-function buildAlerts(
-  rowsByCategory: Array<{
-    category: StockCategoryDefinition
-    rows: InventoryRow[]
-  }>,
-): DashboardInventoryAlert[] {
-  return rowsByCategory
-    .flatMap(({ category, rows }) =>
-      rows.map((row, index) => {
-        const itemName =
-          extractStringValue(row.item_name) ??
-          extractStringValue(row.type_name) ??
-          extractStringValue(row.code) ??
-          'عنصر غير مسمى'
-
-        return {
-          id: `${category.table}-alert-${index}`,
-          category: category.label,
-          itemName,
-          stockBalance: extractNumberValue(row[category.stockField]),
-          minQuantity: extractNumberValue(row[category.minQuantityField]),
-          status:
-            getStockStatus(row, category.stockField, category.minQuantityField) ??
-            'safe',
-          actionLabel: 'إضافة',
-        }
-      }),
-    )
-    .sort((first, second) => first.stockBalance - second.stockBalance)
-    .slice(0, 4)
 }
 
 export function useDashboardData(): DashboardState {
@@ -322,6 +198,7 @@ export function useDashboardData(): DashboardState {
         .sort((firstRow, secondRow) => {
           const firstDate = extractStringValue(firstRow.imported_at)
           const secondDate = extractStringValue(secondRow.imported_at)
+
           return (
             new Date(secondDate ?? 0).getTime() - new Date(firstDate ?? 0).getTime()
           )
@@ -345,15 +222,9 @@ export function useDashboardData(): DashboardState {
           : null,
       }
 
-      const recentOperations = buildRecentOperations(
-        categoryRowResults.map(({ category, result }) => ({
-          category,
-          rows: result.data ?? [],
-        })),
-      )
-
-      const alerts = buildAlerts(
-        lowStockResults.map(({ category, result }) => ({
+      const inventoryRows = buildDashboardInventoryRows(
+        categoryRowResults.map(({ key, category, result }) => ({
+          categoryKey: key,
           category,
           rows: result.data ?? [],
         })),
@@ -362,8 +233,7 @@ export function useDashboardData(): DashboardState {
       const shouldFallbackToDemo =
         categoryCards.every((card) => card.rowCount === 0) &&
         totalImportedFiles === 0 &&
-        alerts.length === 0 &&
-        recentOperations.length === 0
+        inventoryRows.length === 0
 
       setState({
         data: shouldFallbackToDemo
@@ -375,8 +245,7 @@ export function useDashboardData(): DashboardState {
           : {
               stats,
               categoryCards,
-              alerts,
-              recentOperations,
+              inventoryRows,
               isDemo: false,
             },
         isLoading: false,
