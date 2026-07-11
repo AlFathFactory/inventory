@@ -18,6 +18,7 @@ type DataTableProps<Row> = {
   theadClassName?: string
   tbodyClassName?: string
   rowClassName?: string | ((row: Row, index: number) => string)
+  onRowClick?: (row: Row, index: number) => void
 }
 
 function joinClassNames(...values: Array<string | false | null | undefined>) {
@@ -36,6 +37,7 @@ export function DataTable<Row>({
   theadClassName,
   tbodyClassName,
   rowClassName,
+  onRowClick,
 }: DataTableProps<Row>) {
   const headerCellClassName = stickyHeader
     ? 'sticky top-0 z-10 bg-[var(--app-panel-soft)]'
@@ -79,11 +81,13 @@ export function DataTable<Row>({
           {rows.map((row, index) => (
             <tr
               key={getRowKey(row, index)}
-              className={
+              onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+              className={joinClassNames(
                 typeof rowClassName === 'function'
                   ? rowClassName(row, index)
-                  : rowClassName
-              }
+                  : rowClassName,
+                onRowClick ? 'cursor-pointer' : '',
+              )}
             >
               {columns.map((column) => (
                 <td

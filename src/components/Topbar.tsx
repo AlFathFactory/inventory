@@ -44,7 +44,7 @@ function getCategoryTopbarCopy(pathname: string): TopbarCopy | null {
     return null
   }
 
-  const categoryKey = pathname.slice(prefix.length) as CategoryKey
+  const categoryKey = pathname.slice(prefix.length).split('/')[0] as CategoryKey
   const category = categoryConfig[categoryKey]
 
   if (!category) {

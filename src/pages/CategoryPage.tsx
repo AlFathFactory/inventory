@@ -1,10 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { DataFilters } from '../components/DataFilters'
-import {
-  hasNonZeroValue,
-  InventoryDateCell,
-} from '../components/InventoryDateCell'
 import { DataTable, type DataTableColumn } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
 import {
@@ -14,25 +10,16 @@ import {
 } from '../config/categoryConfig'
 import { usePagination } from '../hooks/usePagination'
 import {
-  getCategoryRows,
-  getCategoryRowsByDateRange,
-  type InventoryRow,
-} from '../services/inventoryService'
-import {
-  getStockStatus,
-  getStockStatusClass,
-  getStockStatusLabel,
-} from '../utils/statusUtils'
+  getCategorySummaryItems,
+  type CategorySummaryItem,
+} from '../services/itemsService'
+import { getStockStatusClass } from '../utils/statusUtils'
 
 function isCategoryKey(value: string): value is CategoryKey {
   return value in categoryConfig
 }
 
-function getDisplayValue(value: InventoryRow[string]) {
-  if (Array.isArray(value)) {
-    return value.join(', ')
-  }
-
+function getDisplayValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') {
     return '—'
   }
@@ -40,14 +27,26 @@ function getDisplayValue(value: InventoryRow[string]) {
   return String(value)
 }
 
+function getStatusBadgeClass(status: string | null) {
+  switch (status) {
+    case 'آمن':
+      return getStockStatusClass('safe')
+    case 'قليل':
+      return getStockStatusClass('low')
+    case 'منتهي':
+      return getStockStatusClass('out')
+    default:
+      return 'bg-slate-100 text-slate-700'
+  }
+}
+
 export function CategoryPage() {
   const { categoryKey } = useParams()
-  const [rows, setRows] = useState<InventoryRow[]>([])
+  const navigate = useNavigate()
+  const [rows, setRows] = useState<CategorySummaryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
 
   const category: CategoryDefinition | null =
     categoryKey && isCategoryKey(categoryKey)
@@ -55,9 +54,6 @@ export function CategoryPage() {
       : null
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
-  const hasDateFilter = Boolean(
-    category?.dateField && fromDate.trim() && toDate.trim(),
-  )
 
   useEffect(() => {
     if (!category) {
@@ -67,21 +63,14 @@ export function CategoryPage() {
       return
     }
 
-    const activeCategory = category
     let isCancelled = false
+    const activeCategory = category
 
     async function loadRows() {
       setIsLoading(true)
       setError(null)
 
-      const result = hasDateFilter
-        ? await getCategoryRowsByDateRange(
-            activeCategory.table,
-            activeCategory.dateField,
-            fromDate,
-            toDate,
-          )
-        : await getCategoryRows(activeCategory.table)
+      const result = await getCategorySummaryItems(activeCategory.table)
 
       if (isCancelled) {
         return
@@ -102,94 +91,85 @@ export function CategoryPage() {
     return () => {
       isCancelled = true
     }
-  }, [category, fromDate, hasDateFilter, toDate])
+  }, [category])
 
   const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase()
   const filteredRows = useMemo(
     () =>
       rows.filter((row) => {
-        if (!normalizedSearchTerm || !category) {
+        if (!normalizedSearchTerm) {
           return true
         }
 
-        return category.searchableFields.some((field) => {
-          const fieldValue = row[field]
-          const displayValue = Array.isArray(fieldValue)
-            ? fieldValue.join(' ')
-            : String(fieldValue ?? '')
-
-          return displayValue.toLowerCase().includes(normalizedSearchTerm)
-        })
+        return [row.project_name, row.item_name, row.status]
+          .map((value) => String(value ?? '').toLowerCase())
+          .some((value) => value.includes(normalizedSearchTerm))
       }),
-    [category, normalizedSearchTerm, rows],
+    [normalizedSearchTerm, rows],
   )
+
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
 
-  const columns = useMemo<DataTableColumn<InventoryRow>[]>(() => {
-    if (!category) {
-      return []
-    }
-
-    const nextColumns: DataTableColumn<InventoryRow>[] = []
-    const columnEntries = Object.entries(category.columns)
-    const hasStockStatus =
-      Boolean(category.stockField) && Boolean(category.minQuantityField)
-
-    columnEntries.forEach(([field, label]) => {
-      nextColumns.push({
-        id: field,
-        header: label,
+  const columns = useMemo<DataTableColumn<CategorySummaryItem>[]>(
+    () => [
+      {
+        id: 'project_name',
+        header: 'مشروع',
         headerClassName: 'px-4 py-3 text-slate-700',
         cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
-        renderCell: (row) =>
-          field === category.dateField ? (
-            <InventoryDateCell
-              dateLabel={getDisplayValue(row[field])}
-              hasAdded={hasNonZeroValue(row.added)}
-              hasIssued={hasNonZeroValue(row.issued)}
-            />
-          ) : (
-            getDisplayValue(row[field])
-          ),
-      })
-    })
-
-    if (hasStockStatus) {
-      nextColumns.push({
+        renderCell: (row) => getDisplayValue(row.project_name),
+      },
+      {
+        id: 'item_name',
+        header: 'صنف',
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'px-4 py-3 font-semibold text-slate-800',
+        renderCell: (row) => getDisplayValue(row.item_name),
+      },
+      {
+        id: 'stock_balance',
+        header: 'رصيد مخزني',
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+        renderCell: (row) => getDisplayValue(row.stock_balance),
+      },
+      {
+        id: 'min_quantity',
+        header: 'الحد الأدنى',
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+        renderCell: (row) => getDisplayValue(row.min_quantity),
+      },
+      {
         id: 'status',
         header: 'الحالة',
         headerClassName: 'px-4 py-3 text-slate-700',
         cellClassName: 'align-top px-4 py-3',
-        renderCell: (row) => {
-          const stockStatus =
-            category.stockField && category.minQuantityField
-              ? getStockStatus(
-                  row,
-                  category.stockField,
-                  category.minQuantityField,
-                )
-              : null
-
-          return stockStatus ? (
-            <span
-              className={[
-                'inline-flex rounded-full px-3 py-1 text-xs font-medium',
-                getStockStatusClass(stockStatus),
-              ].join(' ')}
-            >
-              {getStockStatusLabel(stockStatus)}
-            </span>
-          ) : (
-            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-              غير محدد
-            </span>
-          )
-        },
-      })
-    }
-
-    return nextColumns
-  }, [category])
+        renderCell: (row) => (
+          <span
+            className={[
+              'inline-flex rounded-full px-3 py-1 text-xs font-medium',
+              getStatusBadgeClass(row.status),
+            ].join(' ')}
+          >
+            {row.status || 'غير محدد'}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: 'إجراءات',
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'px-4 py-3',
+        renderCell: () => (
+          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+            عرض التفاصيل
+          </span>
+        ),
+      },
+    ],
+    [],
+  )
 
   if (!category) {
     return (
@@ -202,17 +182,11 @@ export function CategoryPage() {
   }
 
   return (
-    <section className="space-y-6">
+    <section dir="rtl" className="space-y-6">
       <DataFilters
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="ابحث داخل الجدول"
-        showDateFilter={Boolean(category.dateField)}
-        dateRange={{ fromDate, toDate }}
-        onDateRangeChange={({ fromDate: nextFromDate, toDate: nextToDate }) => {
-          setFromDate(nextFromDate)
-          setToDate(nextToDate)
-        }}
+        searchPlaceholder="ابحث باسم المشروع أو الصنف أو الحالة"
       />
 
       {isLoading ? (
@@ -238,11 +212,19 @@ export function CategoryPage() {
           <DataTable
             columns={columns}
             rows={pagination.paginatedItems}
-            getRowKey={(_, index) => `${category.table}-${pagination.pageStart + index}`}
+            getRowKey={(row) => `${category.table}-${row.item_id}`}
             stickyHeader
             maxHeightClassName="max-h-[70vh] overflow-auto"
             tableClassName="divide-y divide-slate-200"
             rowClassName="hover:bg-slate-50"
+            onRowClick={(row) => {
+              navigate(`/category/${categoryKey}/item/${row.item_id}`, {
+                state: {
+                  tableName: row.table_name,
+                  categoryName: row.category_name,
+                },
+              })
+            }}
           />
           <TablePagination
             currentPage={pagination.currentPage}
