@@ -4,6 +4,7 @@ import { CategoryPage } from '../pages/CategoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ImportExcelPage } from '../pages/ImportExcelPage'
 import { ItemsPage } from '../pages/ItemsPage'
+import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
 
@@ -30,7 +31,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'low-stock',
-        element: <DashboardPage />,
+        element: <LowStockPage />,
       },
       {
         path: 'out-of-stock',

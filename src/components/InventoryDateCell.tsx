@@ -38,7 +38,7 @@ export function InventoryDateCell({
           {hasIssued ? (
             <span
               aria-label="صرف"
-              className="h-2.5 w-2.5 rounded-full bg-red-500"
+              className="h-2.5 w-2.5 rounded-full bg-orange-500"
             />
           ) : null}
         </span>
