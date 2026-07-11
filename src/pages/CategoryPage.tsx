@@ -131,6 +131,16 @@ export function CategoryPage() {
     const hasStockStatus =
       Boolean(category.stockField) && Boolean(category.minQuantityField)
 
+    columnEntries.forEach(([field, label]) => {
+      nextColumns.push({
+        id: field,
+        header: label,
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+        renderCell: (row) => getDisplayValue(row[field]),
+      })
+    })
+
     if (hasStockStatus) {
       nextColumns.push({
         id: 'status',
@@ -164,16 +174,6 @@ export function CategoryPage() {
         },
       })
     }
-
-    columnEntries.forEach(([field, label]) => {
-      nextColumns.push({
-        id: field,
-        header: label,
-        headerClassName: 'px-4 py-3 text-slate-700',
-        cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
-        renderCell: (row) => getDisplayValue(row[field]),
-      })
-    })
 
     return nextColumns
   }, [category])

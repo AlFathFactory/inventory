@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/fonts.css";
 
 :root {
   --app-bg: #f5f7fb;
@@ -17,9 +18,10 @@
   --app-warning: #f79009;
   --app-danger: #f04438;
   --app-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --app-font-family: "IBM Plex Sans Arabic Custom", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: var(--app-text);
   background-color: var(--app-bg);
-  font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--app-font-family);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
