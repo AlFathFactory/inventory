@@ -31,7 +31,11 @@ type PreviewTableRow = {
   key: string
   sheetName: string
   tableName: string
-  rowCount: number
+  parserType: string
+  parsedRows: number
+  parsedItems: number
+  parsedMovements: number
+  skippedRows: number
   status: 'ready' | 'error' | 'ignored'
 }
 
@@ -54,7 +58,7 @@ function buildImportLogRow(
     matched_sheets: preview.matchedSheets.map((sheet) => sheet.sheetName),
     ignored_sheets: preview.ignoredSheets,
     rows_by_table: getRowsCountByTable(preview),
-    parsing_errors: preview.errors,
+    parsing_errors: [...preview.errors, ...preview.warnings],
     status,
     imported_at: new Date().toISOString(),
   }
@@ -71,22 +75,21 @@ function getSheetStatus(sheetName: string, errors: readonly string[]) {
 }
 
 function buildPreviewTableRows(preview: ExcelImportPreview): PreviewTableRow[] {
-  return [
-    ...preview.matchedSheets.map((sheet) => ({
-      key: `matched-${sheet.table}-${sheet.sheetName}`,
-      sheetName: sheet.sheetName,
-      tableName: sheet.table,
-      rowCount: sheet.rowCount,
-      status: getSheetStatus(sheet.sheetName, preview.errors) as PreviewTableRow['status'],
-    })),
-    ...preview.ignoredSheets.map((sheetName) => ({
-      key: `ignored-${sheetName}`,
-      sheetName,
-      tableName: 'غير معروف',
-      rowCount: 0,
-      status: 'ignored' as const,
-    })),
-  ]
+  return preview.sheetDiagnoses.map((sheet) => ({
+    key: `${sheet.originalSheetName}-${sheet.targetTable ?? 'ignored'}`,
+    sheetName: sheet.originalSheetName,
+    tableName: sheet.targetTable ?? 'غير معروف',
+    parserType: sheet.parserType ?? 'غير مدعوم',
+    parsedRows: preview.matchedSheets.find(
+      (matched) => matched.sheetName === sheet.originalSheetName,
+    )?.rowCount ?? 0,
+    parsedItems: sheet.parsedItemsCount,
+    parsedMovements: sheet.parsedMovementsCount,
+    skippedRows: sheet.skippedRowsCount,
+    status: sheet.matchedCategory
+      ? getSheetStatus(sheet.originalSheetName, preview.errors) as PreviewTableRow['status']
+      : 'ignored',
+  }))
 }
 
 export function ImportExcelPage() {
@@ -128,6 +131,12 @@ export function ImportExcelPage() {
           value: preview.errors.length,
           hint: preview.errors.length > 0 ? 'صفوف غير مكتملة' : 'لا توجد أخطاء',
           valueClassName: 'text-[var(--app-danger)]',
+        },
+        {
+          label: 'التحذيرات',
+          value: preview.warnings.length,
+          hint: preview.warnings.length > 0 ? 'تحتاج مراجعة قبل الحفظ' : 'لا توجد تحذيرات',
+          valueClassName: 'text-[var(--app-warning)]',
         },
       ]
     : []
@@ -193,6 +202,8 @@ export function ImportExcelPage() {
     if (importResult.error) {
       importErrors.push(importResult.error)
     }
+
+    importErrors.push(...(importResult.data?.errors ?? []))
 
     const importLogStatus = importErrors.length === 0 ? 'success' : 'failed'
     const importLogResult = await insertRows<ImportLogRow>('imports', [
@@ -272,7 +283,7 @@ export function ImportExcelPage() {
 
       {preview ? (
         <div className="space-y-8">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {metricCards.map((card) => (
               <div
                 key={card.label}
@@ -298,7 +309,9 @@ export function ImportExcelPage() {
                   <tr>
                     <th className="px-4 py-3 text-[12px] font-semibold">اسم الشيت</th>
                     <th className="px-4 py-3 text-[12px] font-semibold">جدول Supabase</th>
-                    <th className="px-4 py-3 text-[12px] font-semibold">عدد الصفوف</th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">نوع التحليل</th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">صفوف / أصناف / حركات</th>
+                    <th className="px-4 py-3 text-[12px] font-semibold">صفوف متخطاة</th>
                     <th className="px-4 py-3 text-[12px] font-semibold">الحالة</th>
                   </tr>
                 </thead>
@@ -319,7 +332,13 @@ export function ImportExcelPage() {
                         {row.tableName}
                       </td>
                       <td className="px-4 py-3 text-[13px] text-slate-700">
-                        {row.rowCount > 0 ? formatNumber(row.rowCount) : '—'}
+                        {row.parserType}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-slate-700">
+                        {formatNumber(row.parsedRows)} / {formatNumber(row.parsedItems)} / {formatNumber(row.parsedMovements)}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] text-slate-700">
+                        {formatNumber(row.skippedRows)}
                       </td>
                       <td
                         className={[
@@ -362,6 +381,19 @@ export function ImportExcelPage() {
                   className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-[var(--app-shadow)]"
                 >
                   {errorMessage}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {preview.warnings.length > 0 ? (
+            <div className="space-y-3">
+              {preview.warnings.map((warningMessage, index) => (
+                <div
+                  key={`${warningMessage}-${index}`}
+                  className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-[var(--app-shadow)]"
+                >
+                  {warningMessage}
                 </div>
               ))}
             </div>

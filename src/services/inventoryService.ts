@@ -29,6 +29,10 @@ export type ServiceResult<TData> = Promise<ServiceSuccess<TData> | ServiceFailur
 export type InventoryImportResult = {
   importedRowCount: number
   processedItemCount: number
+  insertedItemsCount: number
+  updatedItemsCount: number
+  insertedMovementsCount: number
+  errors: string[]
 }
 
 function createSuccess<TData>(data: TData): ServiceSuccess<TData> {
@@ -98,12 +102,38 @@ function normalizeItemKeyPart(value: string): string {
     .replace(/\s+/g, ' ')
 }
 
-function buildItemKey(tableName: string, projectName: string, itemName: string) {
-  return [
+function buildItemKey(tableName: string, row: ParsedInventoryRow) {
+  const category = getCategoryByTable(tableName)
+  const itemNameField = String(category?.itemNameField ?? 'item_name')
+  const identityParts = [
     normalizeItemKeyPart(tableName),
-    normalizeItemKeyPart(projectName),
-    normalizeItemKeyPart(itemName),
-  ].join('::')
+    normalizeItemKeyPart(toText(row.project)),
+    normalizeItemKeyPart(toText(row[itemNameField])),
+  ]
+
+  if (tableName === 'screws' || tableName === 'stock_screws') {
+    identityParts.push(
+      normalizeItemKeyPart(toText(row.din)),
+      normalizeItemKeyPart(toText(row.code_number)),
+    )
+  }
+
+  if (tableName === 'cones4_materials') {
+    identityParts.push(normalizeItemKeyPart(toText(row.weight)))
+  }
+
+  if (tableName === 'cutting_discs') {
+    identityParts.push(normalizeItemKeyPart(toText(row.code)))
+  }
+
+  if (tableName === 'long_welding_gloves') {
+    identityParts.push(
+      normalizeItemKeyPart(toText(row.received_by)),
+      normalizeItemKeyPart(toText(row.received_date)),
+    )
+  }
+
+  return identityParts.join('::')
 }
 
 function getRowDateValue(row: ParsedInventoryRow): string {
@@ -173,7 +203,7 @@ function buildItemPayload(
   )
 
   const payload: Record<string, JsonValue> = {
-    item_key: buildItemKey(tableName, projectName, itemName),
+    item_key: buildItemKey(tableName, latestRow),
   }
 
   Object.keys(category.columns).forEach((columnKey) => {
@@ -235,7 +265,7 @@ async function upsertImportedItem(
       throw new Error(insertError?.message || `Failed to insert item into "${tableName}".`)
     }
 
-    return insertedItem as InventoryRow
+    return { item: insertedItem as InventoryRow, wasCreated: true }
   }
 
   const { data: updatedItem, error: updateError } = await supabaseClient!
@@ -249,7 +279,7 @@ async function upsertImportedItem(
     throw new Error(updateError?.message || `Failed to update item in "${tableName}".`)
   }
 
-  return updatedItem as InventoryRow
+  return { item: updatedItem as InventoryRow, wasCreated: false }
 }
 
 async function insertImportedMovements(
@@ -341,7 +371,7 @@ async function insertImportedMovements(
   })
 
   if (operations.length === 0) {
-    return
+    return 0
   }
 
   const { error: insertError } = await supabaseClient!
@@ -351,6 +381,8 @@ async function insertImportedMovements(
   if (insertError) {
     throw new Error(insertError.message)
   }
+
+  return operations.length
 }
 
 export async function importInventoryRowsFromExcel(
@@ -365,6 +397,10 @@ export async function importInventoryRowsFromExcel(
   try {
     let importedRowCount = 0
     let processedItemCount = 0
+    let insertedItemsCount = 0
+    let updatedItemsCount = 0
+    let insertedMovementsCount = 0
+    const errors: string[] = []
 
     for (const [tableName, rawRows] of Object.entries(rowsByTable)) {
       const category = getCategoryByTable(tableName)
@@ -378,13 +414,12 @@ export async function importInventoryRowsFromExcel(
 
       rawRows.forEach((row, index) => {
         const itemName = toText(row[itemNameField])
-        const projectName = toText(row.project)
 
         if (!itemName) {
           return
         }
 
-        const itemKey = buildItemKey(tableName, projectName, itemName)
+        const itemKey = buildItemKey(tableName, row)
         const rowWithOrder = {
           ...row,
           __import_order: index,
@@ -396,16 +431,36 @@ export async function importInventoryRowsFromExcel(
       })
 
       for (const groupedItemRows of groupedRows.values()) {
-        const itemRecord = await upsertImportedItem(tableName, groupedItemRows)
-        await insertImportedMovements(tableName, groupedItemRows, itemRecord)
-        processedItemCount += 1
-        importedRowCount += groupedItemRows.length
+        try {
+          const upsertResult = await upsertImportedItem(tableName, groupedItemRows)
+          const movementCount = await insertImportedMovements(
+            tableName,
+            groupedItemRows,
+            upsertResult.item,
+          )
+          processedItemCount += 1
+          importedRowCount += groupedItemRows.length
+          insertedMovementsCount += movementCount
+          if (upsertResult.wasCreated) {
+            insertedItemsCount += 1
+          } else {
+            updatedItemsCount += 1
+          }
+        } catch (error) {
+          errors.push(
+            `${tableName}: ${normalizeError(error, 'Failed to import an item.')}`,
+          )
+        }
       }
     }
 
     return createSuccess({
       importedRowCount,
       processedItemCount,
+      insertedItemsCount,
+      updatedItemsCount,
+      insertedMovementsCount,
+      errors,
     })
   } catch (error) {
     return createFailure(

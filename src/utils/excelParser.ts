@@ -6,6 +6,8 @@ import {
 } from '../config/categoryConfig'
 
 type ParsedCellValue = string | number | boolean | null
+type RawSheetRow = unknown[]
+type ParserType = 'stock-matrix' | 'custody-records' | 'cylinder-matrix'
 
 export type ParsedInventoryRow = Record<string, ParsedCellValue> & {
   source_file: string
@@ -13,6 +15,20 @@ export type ParsedInventoryRow = Record<string, ParsedCellValue> & {
 }
 
 export type ParsedRowsByTable = Record<string, ParsedInventoryRow[]>
+
+export type SheetImportDiagnosis = {
+  originalSheetName: string
+  normalizedSheetName: string
+  matchedCategory: CategoryKey | null
+  targetTable: string | null
+  parserType: ParserType | null
+  sourceRowCount: number
+  parsedItemsCount: number
+  parsedMovementsCount: number
+  skippedRowsCount: number
+  warnings: string[]
+  errors: string[]
+}
 
 export type ExcelImportPreview = {
   fileName: string
@@ -26,713 +42,445 @@ export type ExcelImportPreview = {
   totalRows: number
   rowsByTable: ParsedRowsByTable
   errors: string[]
-}
-
-type RawSheetRow = unknown[]
-
-type HeaderMapping = {
-  columnIndex: number
-  columnKey: string
-}
-
-type MatrixOperationColumn = {
-  columnIndex: number
-  operation: 'issued' | 'added'
-  transactionDate: string | null
+  warnings: string[]
+  sheetDiagnoses: SheetImportDiagnosis[]
 }
 
 const arabicDigitMap: Record<string, string> = {
-  '٠': '0',
-  '١': '1',
-  '٢': '2',
-  '٣': '3',
-  '٤': '4',
-  '٥': '5',
-  '٦': '6',
-  '٧': '7',
-  '٨': '8',
-  '٩': '9',
-  '۰': '0',
-  '۱': '1',
-  '۲': '2',
-  '۳': '3',
-  '۴': '4',
-  '۵': '5',
-  '۶': '6',
-  '۷': '7',
-  '۸': '8',
-  '۹': '9',
+  '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+  '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+  '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+  '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
 }
 
-const categoryEntries = Object.entries(categoryConfig) as Array<
-  [CategoryKey, CategoryConfigEntry]
->
-
-const columnAliases: Record<string, string[]> = {
-  project: ['مشروع', 'المشروع', 'الاسم'],
-  item_name: ['صنف', 'الصنف', 'الاسم', 'name'],
-  transaction_date: ['تاريخ', 'التاريخ', 'تاربخ', 'التاريخالاستلام'],
-  issued: ['صرف'],
-  added: ['اضافه', 'إضافة', 'المضاف', 'اضافة'],
-  total_added: ['اجماليالمضاف', 'اجمالىالمضاف'],
-  total_issued: ['اجماليالصرف', 'اجمالىصرف', 'اجماليصرف'],
-  stock_balance: ['الكميةرصيدمخزني', 'رصيدمخزني', 'رصيدمخزنى', 'رصيد'],
-  min_quantity: ['الحدالأدنى', 'الحدالادنى'],
-  type_name: ['نوع', 'النوع', 'type'],
-  weight: ['وزن', 'الوزن'],
-  total_weight: ['إجماليوزن', 'اجماليوزن'],
-  din: ['din'],
-  code_number: ['codenumber', 'coodnumber'],
-  code: ['code', 'م'],
-  received_by: ['اسماللياخذالصاروخ', 'اسمصاحبالصاروخ', 'اسمشخصاللياستلم', 'الاسم'],
-  received_date: ['تاريخالاستلام', 'التاريخ'],
-  scrapped_date: ['تاريخالتكهين', 'تكهين'],
-  gas_balance: ['رصيد'],
-  empty_count: ['فارغ'],
-  full_count: ['ملي', 'مليبوتجاز'],
-  notes: ['ملاحظات'],
-}
-
-const sheetAliases: Record<CategoryKey, string[]> = {
+const sheetAliases: Record<CategoryKey, readonly string[]> = {
   consumables: ['مستهلكات'],
-  paints: ['الدهانات'],
-  cones4_materials: ['خاماتكونز4', 'خاماتكونز 4'],
-  screws: ['مسامير', 'مساميرrotterdam'],
-  stock_screws: ['مساميراستوك', 'مساميراستوكrotterdam'],
-  raw_materials: ['خامات', 'خاماتالفتح', 'amset3'],
+  paints: ['الدهانات', 'دهانات'],
+  cones4_materials: ['خامات كونز4', 'خامات كونز 4', 'كونز4', 'كونز 4'],
+  screws: ['مسامير', 'مساميرrotterdam', 'روتردام', 'rotterdam'],
+  stock_screws: ['مسامير استوك', 'مساميراستوك', 'مساميراستوكrotterdam', 'مسامير استوك rotterdam'],
+  raw_materials: ['خامات', 'خامات +الفتح amset3', 'خامات الفتح', 'الفتح amset3', 'amset3'],
   cutting_discs: ['صواريخ', 'صواربخ'],
-  cylinders: ['اسطوانات', 'اسطواناتغازات'],
-  long_welding_gloves: ['جوانتىلحامطويل', 'جاونتيحامطويل', 'جوانتيحامطويل'],
+  cylinders: ['اسطوانات', 'اسطوانات غازات', 'غازات'],
+  long_welding_gloves: ['جوانتى لحام طويل', 'جوانتي لحام طويل'],
 }
 
-function normalizeArabicDigits(value: string): string {
-  return value.replace(/[٠-٩۰-۹]/g, (digit) => arabicDigitMap[digit] ?? digit)
-}
+const stockMatrixCategories = new Set<CategoryKey>([
+  'consumables',
+  'paints',
+  'cones4_materials',
+  'screws',
+  'stock_screws',
+  'raw_materials',
+])
 
-function normalizeText(value: string): string {
-  return normalizeArabicDigits(value)
+export function normalizeArabicText(value: string | null | undefined): string {
+  return (value ?? '')
+    .replace(/[\u200B-\u200D\uFEFF\u2060]/g, '')
+    .replace(/[٠-٩۰-۹]/g, (digit) => arabicDigitMap[digit] ?? digit)
     .replace(/[أإآ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
-    .replace(/[^\p{L}\p{N}]+/gu, '')
+    .replace(/\s*\+\s*/g, '+')
+    .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
 }
 
-function isDateField(
-  supabaseColumnKey: string,
-  category: CategoryConfigEntry,
-): boolean {
-  if (supabaseColumnKey === category.dateField) {
-    return true
-  }
-
-  return supabaseColumnKey.endsWith('_date')
+function compactText(value: string | null | undefined): string {
+  return normalizeArabicText(value).replace(/[^\p{L}\p{N}+]/gu, '')
 }
 
-function isRowEmpty(row: Record<string, ParsedCellValue>): boolean {
-  return Object.values(row).every((value) => {
-    if (value === null) {
-      return true
-    }
+export function getCategoryBySheetName(sheetName: string): {
+  key: CategoryKey
+  label: string
+  table: string
+  parserType: ParserType
+} | null {
+  const normalized = compactText(sheetName)
 
-    if (typeof value === 'string') {
-      return value.trim() === ''
-    }
+  const candidates = (Object.entries(categoryConfig) as Array<
+    [CategoryKey, CategoryConfigEntry]
+  >).flatMap(([key, category]) =>
+    [category.label, ...(sheetAliases[key] ?? [])].map((alias) => ({
+      key,
+      category,
+      alias: compactText(alias),
+    })),
+  ).sort((left, right) => right.alias.length - left.alias.length)
 
-    if (typeof value === 'number') {
-      return value === 0
-    }
-
-    return false
-  })
-}
-
-function formatDateValue(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function parseExcelSerialDate(value: number): string | null {
-  const parsedDate = XLSX.SSF.parse_date_code(value)
-
-  if (!parsedDate) {
-    return null
-  }
-
-  const date = new Date(
-    parsedDate.y,
-    Math.max(parsedDate.m - 1, 0),
-    parsedDate.d,
-  )
-
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-
-  return formatDateValue(date)
-}
-
-function tryConvertToNumber(value: string): number | null {
-  const normalizedValue = normalizeArabicDigits(value)
-    .replace(/[٬,]/g, '')
-    .replace(/٫/g, '.')
-    .trim()
-
-  if (!normalizedValue) {
-    return null
-  }
-
-  if (!/^-?\d+(\.\d+)?$/.test(normalizedValue)) {
-    return null
-  }
-
-  const parsedNumber = Number(normalizedValue)
-
-  return Number.isFinite(parsedNumber) ? parsedNumber : null
-}
-
-function tryConvertToDate(value: string): string | null {
-  const normalizedValue = normalizeArabicDigits(value).trim()
-
-  if (!normalizedValue) {
-    return null
-  }
-
-  const normalizedSeparators = normalizedValue.replace(/[.\u2212]/g, '/')
-  const parsedDate = new Date(normalizedSeparators)
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return null
-  }
-
-  return formatDateValue(parsedDate)
-}
-
-function convertCellValue(
-  value: unknown,
-  supabaseColumnKey: string,
-  category: CategoryConfigEntry,
-): ParsedCellValue {
-  if (value === null || value === undefined || value === '') {
-    return null
-  }
-
-  if (value instanceof Date) {
-    return formatDateValue(value)
-  }
-
-  if (typeof value === 'number') {
-    if (isDateField(supabaseColumnKey, category)) {
-      return parseExcelSerialDate(value) ?? value
-    }
-
-    return Number.isFinite(value) ? value : null
-  }
-
-  if (typeof value === 'boolean') {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    const normalizedString = normalizeArabicDigits(value).trim()
-
-    if (!normalizedString) {
-      return null
-    }
-
-    if (isDateField(supabaseColumnKey, category)) {
-      const parsedDate = tryConvertToDate(normalizedString)
-      if (parsedDate) {
-        return parsedDate
-      }
-    }
-
-    const parsedNumber = tryConvertToNumber(normalizedString)
-    if (parsedNumber !== null) {
-      return parsedNumber
-    }
-
-    return normalizedString
-  }
-
-  return String(value)
-}
-
-function getCategoryBySheetName(sheetName: string) {
-  const normalizedSheetName = normalizeText(sheetName)
-
-  return categoryEntries.find(([key, category]) => {
-    const normalizedLabel = normalizeText(category.label)
-    const aliases = sheetAliases[key] ?? []
-
-    if (normalizedSheetName === normalizedLabel) {
-      return true
-    }
-
-    if (aliases.some((alias) => normalizedSheetName.includes(normalizeText(alias)))) {
-      return true
-    }
-
-    return normalizedSheetName.includes(normalizedLabel)
-  })
-}
-
-function getColumnKeyByArabicHeader(
-  headerLabel: string,
-  category: CategoryConfigEntry,
-): string | null {
-  const normalizedHeader = normalizeText(headerLabel)
-
-  const matchedEntry = Object.entries(category.columns).find(([key, label]) => {
-    if (normalizeText(label) === normalizedHeader) {
-      return true
-    }
-
-    return (columnAliases[key] ?? []).some(
-      (alias) => normalizeText(alias) === normalizedHeader,
-    )
-  })
-
-  return matchedEntry?.[0] ?? null
-}
-
-function getComparableCellText(value: unknown): string {
-  if (value instanceof Date) {
-    return formatDateValue(value)
-  }
-
-  if (value === null || value === undefined) {
-    return ''
-  }
-
-  return String(value)
-}
-
-function isOperationLabel(value: unknown): value is 'صرف' | 'اضافه' | 'إضافة' {
-  const normalizedValue = normalizeText(getComparableCellText(value))
-  return normalizedValue === 'صرف' || normalizedValue === 'اضافه'
-}
-
-function isDateLikeValue(value: unknown): boolean {
-  if (value instanceof Date) {
-    return true
-  }
-
-  if (typeof value === 'number') {
-    return value >= 1 && value <= 31
-  }
-
-  if (typeof value !== 'string') {
-    return false
-  }
-
-  return tryConvertToDate(value) !== null || tryConvertToNumber(value) !== null
-}
-
-function getHeaderRows(sheetRows: RawSheetRow[]): {
-  primaryHeaderRow: RawSheetRow
-  secondaryHeaderRow: RawSheetRow | null
-  dataRows: RawSheetRow[]
-} {
-  const firstRow = sheetRows[0] ?? []
-  const secondRow = sheetRows[1] ?? []
-  const operationCount = secondRow.filter((cell) => isOperationLabel(cell)).length
-
-  if (operationCount >= 4) {
+  const candidate = candidates.find(({ alias }) => normalized.includes(alias))
+  if (candidate) {
     return {
-      primaryHeaderRow: firstRow,
-      secondaryHeaderRow: secondRow,
-      dataRows: sheetRows.slice(2),
+      key: candidate.key,
+      label: candidate.category.label,
+      table: candidate.category.table,
+      parserType: stockMatrixCategories.has(candidate.key)
+        ? 'stock-matrix'
+        : candidate.key === 'cylinders'
+          ? 'cylinder-matrix'
+          : 'custody-records',
     }
-  }
-
-  return {
-    primaryHeaderRow: firstRow,
-    secondaryHeaderRow: null,
-    dataRows: sheetRows.slice(1),
-  }
-}
-
-function resolveMatrixDateValue(
-  value: unknown,
-  monthAnchor: string | null,
-): string | null {
-  if (value instanceof Date) {
-    return formatDateValue(value)
-  }
-
-  if (typeof value === 'string') {
-    return tryConvertToDate(value)
-  }
-
-  if (typeof value === 'number') {
-    if (value >= 1 && value <= 31 && monthAnchor) {
-      const anchorDate = new Date(monthAnchor)
-      if (!Number.isNaN(anchorDate.getTime())) {
-        return formatDateValue(
-          new Date(anchorDate.getFullYear(), anchorDate.getMonth(), value),
-        )
-      }
-    }
-
-    return parseExcelSerialDate(value)
   }
 
   return null
 }
 
-function buildFlatHeaderMappings(
-  headerRow: RawSheetRow,
-  category: CategoryConfigEntry,
-  sheetName: string,
-  errors: string[],
-): HeaderMapping[] {
-  return headerRow.reduce<HeaderMapping[]>((mappings, headerCell, columnIndex) => {
-    const headerLabel = getComparableCellText(headerCell).trim()
+function cellText(value: unknown): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
 
-    if (!headerLabel) {
-      return mappings
-    }
-
-    const columnKey = getColumnKeyByArabicHeader(headerLabel, category)
-
-    if (!columnKey) {
-      errors.push(
-        `Sheet "${sheetName}" has an unmapped column "${headerLabel}" at position ${columnIndex + 1}.`,
-      )
-      return mappings
-    }
-
-    mappings.push({
-      columnIndex,
-      columnKey,
-    })
-
-    return mappings
-  }, [])
+  return String(value).trim()
 }
 
-function buildRowsFromFlatSheet(
-  sheetRows: RawSheetRow[],
-  category: CategoryConfigEntry,
+function toNumber(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  const normalized = cellText(value)
+    .replace(/[٠-٩۰-۹]/g, (digit) => arabicDigitMap[digit] ?? digit)
+    .replace(/[٬,]/g, '')
+    .replace(/٫/g, '.')
+
+  if (!normalized || !/^-?\d+(\.\d+)?$/.test(normalized)) {
+    return null
+  }
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function formatDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function toDate(value: unknown): string | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatDate(value)
+  }
+
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value)
+    return parsed ? formatDate(new Date(parsed.y, parsed.m - 1, parsed.d)) : null
+  }
+
+  const text = cellText(value)
+  if (!text) {
+    return null
+  }
+
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/)
+  if (!match) {
+    return null
+  }
+
+  const [, month, day, yearValue] = match
+  const year = Number(yearValue.length === 2 ? `20${yearValue}` : yearValue)
+  const date = new Date(year, Number(month) - 1, Number(day))
+  return Number.isNaN(date.getTime()) ? null : formatDate(date)
+}
+
+function operationType(value: unknown): 'issued' | 'added' | null {
+  const normalized = compactText(cellText(value))
+  if (normalized === compactText('صرف')) {
+    return 'issued'
+  }
+  if (normalized === compactText('اضافه') || normalized === compactText('إضافة')) {
+    return 'added'
+  }
+  return null
+}
+
+function findOperationStart(header: RawSheetRow): number {
+  return header.findIndex((cell) => operationType(cell) !== null)
+}
+
+function itemField(category: CategoryKey): 'item_name' | 'type_name' {
+  return category === 'cones4_materials' ? 'type_name' : 'item_name'
+}
+
+function matrixStaticValues(category: CategoryKey, row: RawSheetRow): Record<string, ParsedCellValue> {
+  switch (category) {
+    case 'consumables':
+      return { project: cellText(row[0]) || null, item_name: cellText(row[1]) || null }
+    case 'paints':
+      return { item_name: cellText(row[0]) || null }
+    case 'cones4_materials':
+      return {
+        project: cellText(row[0]) || null,
+        type_name: cellText(row[3]) || cellText(row[0]) || null,
+        weight: toNumber(row[5]),
+        total_weight: toNumber(row[row.length - 1]),
+      }
+    case 'screws':
+      return {
+        project: cellText(row[0]) || null,
+        item_name: cellText(row[1]) || null,
+        din: cellText(row[2]) || null,
+        code_number: cellText(row[3]) || null,
+      }
+    case 'stock_screws':
+      return {
+        item_name: cellText(row[0]) || null,
+        din: cellText(row[1]) || null,
+        code_number: cellText(row[2]) || null,
+      }
+    case 'raw_materials':
+      return { item_name: cellText(row[0]) || null }
+    default:
+      return {}
+  }
+}
+
+function parseStockMatrix(
+  rows: RawSheetRow[],
+  category: CategoryKey,
   fileName: string,
   sheetName: string,
-  errors: string[],
+  diagnosis: SheetImportDiagnosis,
 ): ParsedInventoryRow[] {
-  if (sheetRows.length === 0) {
+  const firstHeader = rows[0] ?? []
+  const secondHeader = rows[1] ?? []
+  const operationStart = findOperationStart(secondHeader)
+  const baseDateColumn = operationStart - 1
+  const baseDate = toDate(secondHeader[baseDateColumn])
+
+  if (operationStart < 1 || !baseDate) {
+    diagnosis.errors.push('لم يتم العثور على تاريخ البداية أو أعمدة صرف/إضافة في جدول الحركات.')
     return []
   }
 
-  const [headerRow, ...dataRows] = sheetRows
+  const result: ParsedInventoryRow[] = []
+  const summaryStart = secondHeader.length - 3
+  const nameField = itemField(category)
 
-  if (!Array.isArray(headerRow) || headerRow.length === 0) {
-    errors.push(`Sheet "${sheetName}" is missing a header row.`)
-    return []
-  }
-
-  const headerMappings = buildFlatHeaderMappings(
-    headerRow,
-    category,
-    sheetName,
-    errors,
-  )
-
-  return dataRows.reduce<ParsedInventoryRow[]>((rows, currentRow) => {
-    if (!Array.isArray(currentRow)) {
-      return rows
+  rows.slice(2).forEach((row) => {
+    const values = matrixStaticValues(category, row)
+    const name = cellText(values[nameField])
+    if (!name) {
+      diagnosis.skippedRowsCount += 1
+      return
     }
 
-    const parsedRow: Record<string, ParsedCellValue> = {}
+    const summary = {
+      total_added: toNumber(row[summaryStart]),
+      total_issued: toNumber(row[summaryStart + 1]),
+      stock_balance: toNumber(row[summaryStart + 2]),
+    }
+    const openingQuantity = toNumber(row[baseDateColumn])
 
-    headerMappings.forEach((mapping) => {
-      parsedRow[mapping.columnKey] = convertCellValue(
-        currentRow[mapping.columnIndex],
-        mapping.columnKey,
-        category,
-      )
-    })
-
-    if (isRowEmpty(parsedRow)) {
-      return rows
+    if (openingQuantity !== null && openingQuantity !== 0) {
+      result.push({
+        ...values,
+        ...summary,
+        transaction_date: baseDate,
+        added: openingQuantity,
+        issued: 0,
+        source_file: fileName,
+        source_sheet: sheetName,
+      })
     }
 
-    rows.push({
-      ...parsedRow,
-      source_file: fileName,
-      source_sheet: sheetName,
-    })
-
-    return rows
-  }, [])
-}
-
-function buildMatrixStructure(
-  primaryHeaderRow: RawSheetRow,
-  secondaryHeaderRow: RawSheetRow,
-  category: CategoryConfigEntry,
-) {
-  const operationStartIndex = secondaryHeaderRow.findIndex((cell) =>
-    isOperationLabel(cell),
-  )
-
-  const operationColumns: MatrixOperationColumn[] = []
-  const staticColumnMappings: HeaderMapping[] = []
-  const summaryColumnMappings: HeaderMapping[] = []
-
-  const monthAnchor =
-    operationStartIndex > 0
-      ? resolveMatrixDateValue(
-          secondaryHeaderRow[operationStartIndex - 1],
-          null,
-        )
-      : null
-
-  let currentTransactionDate: string | null = null
-
-  secondaryHeaderRow.forEach((secondaryCell, columnIndex) => {
-    if (columnIndex < operationStartIndex) {
-      const headerLabel = getComparableCellText(secondaryCell).trim()
-      const columnKey = getColumnKeyByArabicHeader(headerLabel, category)
-
-      if (columnKey) {
-        staticColumnMappings.push({
-          columnIndex,
-          columnKey,
-        })
+    for (let columnIndex = operationStart; columnIndex < summaryStart; columnIndex += 1) {
+      const operation = operationType(secondHeader[columnIndex])
+      const quantity = toNumber(row[columnIndex])
+      if (!operation || quantity === null || quantity === 0) {
+        continue
       }
 
-      return
-    }
+      const day = toNumber(firstHeader[columnIndex]) ?? toNumber(firstHeader[columnIndex - 1])
+      const anchor = new Date(`${baseDate}T00:00:00`)
+      const transactionDate = day === null
+        ? baseDate
+        : formatDate(new Date(anchor.getFullYear(), anchor.getMonth() + 1, day))
 
-    const primaryCell = primaryHeaderRow[columnIndex]
-
-    if (isDateLikeValue(primaryCell)) {
-      currentTransactionDate = resolveMatrixDateValue(primaryCell, monthAnchor)
-    }
-
-    if (isOperationLabel(secondaryCell)) {
-      operationColumns.push({
-        columnIndex,
-        operation: normalizeText(getComparableCellText(secondaryCell)) === 'صرف'
-          ? 'issued'
-          : 'added',
-        transactionDate: currentTransactionDate,
+      result.push({
+        ...values,
+        ...summary,
+        transaction_date: transactionDate,
+        added: operation === 'added' ? quantity : 0,
+        issued: operation === 'issued' ? quantity : 0,
+        source_file: fileName,
+        source_sheet: sheetName,
       })
-      return
     }
 
-    const summaryHeader =
-      getComparableCellText(primaryCell).trim() ||
-      getComparableCellText(secondaryCell).trim()
-
-    const summaryColumnKey = getColumnKeyByArabicHeader(summaryHeader, category)
-
-    if (summaryColumnKey) {
-      summaryColumnMappings.push({
-        columnIndex,
-        columnKey: summaryColumnKey,
-      })
+    if (openingQuantity === null && !result.some((parsed) => parsed.source_sheet === sheetName && cellText(parsed[nameField]) === name)) {
+      diagnosis.skippedRowsCount += 1
     }
   })
 
-  return {
-    staticColumnMappings,
-    summaryColumnMappings,
-    operationColumns,
-  }
+  return result
 }
 
-function buildRowsFromMatrixSheet(
-  sheetRows: RawSheetRow[],
-  category: CategoryConfigEntry,
-  fileName: string,
-  sheetName: string,
-  errors: string[],
-): ParsedInventoryRow[] {
-  if (sheetRows.length < 2) {
-    return []
-  }
-
-  const { primaryHeaderRow, secondaryHeaderRow, dataRows } = getHeaderRows(sheetRows)
-
-  if (!secondaryHeaderRow) {
-    return buildRowsFromFlatSheet(sheetRows, category, fileName, sheetName, errors)
-  }
-
-  const { staticColumnMappings, summaryColumnMappings, operationColumns } =
-    buildMatrixStructure(primaryHeaderRow, secondaryHeaderRow, category)
-
-  return dataRows.reduce<ParsedInventoryRow[]>((rows, currentRow) => {
-    if (!Array.isArray(currentRow)) {
-      return rows
+function parseCuttingDiscs(rows: RawSheetRow[], fileName: string, sheetName: string): ParsedInventoryRow[] {
+  return rows.slice(1).flatMap((row) => {
+    const code = cellText(row[0])
+    const typeName = cellText(row[1])
+    if (!code || !typeName) {
+      return []
     }
-
-    const staticValues: Record<string, ParsedCellValue> = {}
-    const summaryValues: Record<string, ParsedCellValue> = {}
-
-    staticColumnMappings.forEach((mapping) => {
-      staticValues[mapping.columnKey] = convertCellValue(
-        currentRow[mapping.columnIndex],
-        mapping.columnKey,
-        category,
-      )
-    })
-
-    summaryColumnMappings.forEach((mapping) => {
-      summaryValues[mapping.columnKey] = convertCellValue(
-        currentRow[mapping.columnIndex],
-        mapping.columnKey,
-        category,
-      )
-    })
-
-    const transactionRows = operationColumns.reduce<ParsedInventoryRow[]>(
-      (transactionAccumulator, operationColumn) => {
-        const rawValue = currentRow[operationColumn.columnIndex]
-        const numericValue = convertCellValue(
-          rawValue,
-          operationColumn.operation,
-          category,
-        )
-
-        if (numericValue === null || numericValue === 0) {
-          return transactionAccumulator
-        }
-
-        transactionAccumulator.push({
-          ...staticValues,
-          ...summaryValues,
-          transaction_date: operationColumn.transactionDate,
-          issued: operationColumn.operation === 'issued' ? numericValue : 0,
-          added: operationColumn.operation === 'added' ? numericValue : 0,
-          source_file: fileName,
-          source_sheet: sheetName,
-        })
-
-        return transactionAccumulator
-      },
-      [],
-    )
-
-    if (transactionRows.length > 0) {
-      rows.push(...transactionRows)
-      return rows
-    }
-
-    const fallbackRow: Record<string, ParsedCellValue> = {
-      ...staticValues,
-      ...summaryValues,
-    }
-
-    if (category.dateField && !(category.dateField in fallbackRow)) {
-      fallbackRow[category.dateField] = null
-    }
-
-    if ('issued' in category.columns && !('issued' in fallbackRow)) {
-      fallbackRow.issued = 0
-    }
-
-    if ('added' in category.columns && !('added' in fallbackRow)) {
-      fallbackRow.added = 0
-    }
-
-    if (isRowEmpty(fallbackRow)) {
-      return rows
-    }
-
-    rows.push({
-      ...fallbackRow,
+    return [{
+      code,
+      type_name: typeName,
+      received_by: cellText(row[2]) || null,
+      received_date: toDate(row[3]),
+      scrapped_date: toDate(row[4]),
       source_file: fileName,
       source_sheet: sheetName,
+    }]
+  })
+}
+
+function parseLongWeldingGloves(rows: RawSheetRow[], fileName: string, sheetName: string): ParsedInventoryRow[] {
+  const header = rows[0] ?? []
+  return rows.slice(1).flatMap((row) => {
+    const receivedDate = toDate(row[0])
+    const receivedBy = cellText(row[1])
+    return header.slice(2).flatMap((headerCell, offset) => {
+      const quantity = toNumber(row[offset + 2])
+      const typeName = cellText(headerCell)
+      if (!receivedDate || !receivedBy || !typeName || quantity === null || quantity <= 0) {
+        return []
+      }
+      return [{
+        type_name: typeName,
+        received_by: receivedBy,
+        received_date: receivedDate,
+        source_file: fileName,
+        source_sheet: sheetName,
+      }]
     })
-
-    return rows
-  }, [])
+  })
 }
 
-function shouldUseMatrixParsing(sheetRows: RawSheetRow[]): boolean {
-  const secondRow = sheetRows[1] ?? []
-  const operationCount = secondRow.filter((cell) => isOperationLabel(cell)).length
-  return operationCount >= 4
-}
+function parseCylinders(rows: RawSheetRow[], fileName: string, sheetName: string): ParsedInventoryRow[] {
+  const groupHeader = rows[0] ?? []
+  const fieldHeader = rows[1] ?? []
+  const groups: Array<{ typeName: string; full?: number; empty?: number; balance?: number }> = []
+  let currentType = ''
 
-export async function parseInventoryExcel(
-  file: File,
-): Promise<ExcelImportPreview> {
-  const arrayBuffer = await file.arrayBuffer()
-  const workbook = XLSX.read(arrayBuffer, {
-    type: 'array',
-    cellDates: true,
+  fieldHeader.forEach((field, columnIndex) => {
+    const headerType = cellText(groupHeader[columnIndex])
+    if (headerType) {
+      currentType = headerType
+    }
+    const normalizedField = compactText(cellText(field))
+    if (!currentType) {
+      return
+    }
+    let group = groups.at(-1)
+    if (!group || group.typeName !== currentType) {
+      group = { typeName: currentType }
+      groups.push(group)
+    }
+    if (normalizedField.includes(compactText('ملي'))) group.full = columnIndex
+    if (normalizedField.includes(compactText('فارغ'))) group.empty = columnIndex
+    if (normalizedField.includes(compactText('رصيد'))) group.balance = columnIndex
   })
 
+  return rows.slice(2).flatMap((row) => {
+    const transactionDate = toDate(row[0])
+    if (!transactionDate) {
+      return []
+    }
+    return groups.flatMap((group) => {
+      const full = group.full === undefined ? null : toNumber(row[group.full])
+      const empty = group.empty === undefined ? null : toNumber(row[group.empty])
+      const balance = group.balance === undefined ? null : toNumber(row[group.balance])
+      if (full === null && empty === null && balance === null) {
+        return []
+      }
+      return [{
+        type_name: group.typeName,
+        full_count: full,
+        empty_count: empty,
+        gas_balance: balance,
+        transaction_date: transactionDate,
+        notes: cellText(row.at(-1)) || null,
+        source_file: fileName,
+        source_sheet: sheetName,
+      }]
+    })
+  })
+}
+
+function countItems(rows: readonly ParsedInventoryRow[], category: CategoryKey): number {
+  const nameField = itemField(category)
+  return new Set(rows.map((row) => `${cellText(row.project)}::${cellText(row[nameField])}`)).size
+}
+
+export async function parseInventoryExcel(file: File): Promise<ExcelImportPreview> {
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
   const rowsByTable: ParsedRowsByTable = {}
   const matchedSheets: ExcelImportPreview['matchedSheets'] = []
   const ignoredSheets: string[] = []
+  const sheetDiagnoses: SheetImportDiagnosis[] = []
   const errors: string[] = []
+  const warnings: string[] = []
   let totalRows = 0
 
   workbook.SheetNames.forEach((sheetName) => {
-    const matchedCategoryEntry = getCategoryBySheetName(sheetName)
+    const match = getCategoryBySheetName(sheetName)
+    const diagnosis: SheetImportDiagnosis = {
+      originalSheetName: sheetName,
+      normalizedSheetName: normalizeArabicText(sheetName),
+      matchedCategory: match?.key ?? null,
+      targetTable: match?.table ?? null,
+      parserType: match?.parserType ?? null,
+      sourceRowCount: 0,
+      parsedItemsCount: 0,
+      parsedMovementsCount: 0,
+      skippedRowsCount: 0,
+      warnings: [],
+      errors: [],
+    }
+    sheetDiagnoses.push(diagnosis)
 
-    if (!matchedCategoryEntry) {
+    if (!match) {
       ignoredSheets.push(sheetName)
+      diagnosis.warnings.push('لم يتم العثور على فئة أو جدول Supabase مطابق لاسم الشيت.')
+      warnings.push(`Sheet "${sheetName}" was skipped: ${diagnosis.warnings[0]}`)
       return
     }
 
-    const [categoryKey, category] = matchedCategoryEntry
-    const worksheet = workbook.Sheets[sheetName]
+    try {
+      const worksheet = workbook.Sheets[sheetName]
+      if (!worksheet) {
+        throw new Error('تعذر قراءة محتوى الشيت من ملف Excel.')
+      }
+      const rows = XLSX.utils.sheet_to_json<RawSheetRow>(worksheet, {
+        header: 1,
+        defval: null,
+        raw: true,
+        blankrows: false,
+      })
+      diagnosis.sourceRowCount = Math.max(rows.length - (match.parserType === 'stock-matrix' || match.parserType === 'cylinder-matrix' ? 2 : 1), 0)
+      const parsedRows = match.parserType === 'stock-matrix'
+        ? parseStockMatrix(rows, match.key, file.name, sheetName, diagnosis)
+        : match.key === 'cutting_discs'
+          ? parseCuttingDiscs(rows, file.name, sheetName)
+          : match.key === 'long_welding_gloves'
+            ? parseLongWeldingGloves(rows, file.name, sheetName)
+            : parseCylinders(rows, file.name, sheetName)
 
-    if (!worksheet) {
-      errors.push(`Sheet "${sheetName}" could not be read from the workbook.`)
-      return
+      if (match.key === 'cylinders') {
+        diagnosis.warnings.push('تم تحليل أرصدة الأسطوانات كسجلات حالة؛ لم يتم إنشاء حركات إضافة أو صرف.')
+        warnings.push(`Sheet "${sheetName}": ${diagnosis.warnings[0]}`)
+      }
+      diagnosis.parsedItemsCount = countItems(parsedRows, match.key)
+      diagnosis.parsedMovementsCount = parsedRows.filter((row) => toNumber(row.added) !== null || toNumber(row.issued) !== null).length
+      rowsByTable[match.table] = [...(rowsByTable[match.table] ?? []), ...parsedRows]
+      totalRows += parsedRows.length
+      matchedSheets.push({ sheetName, categoryKey: match.key, table: match.table, rowCount: parsedRows.length })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'خطأ غير معروف أثناء تحليل الشيت.'
+      diagnosis.errors.push(message)
+      errors.push(`Sheet "${sheetName}": ${message}`)
     }
-
-    const sheetRows = XLSX.utils.sheet_to_json<RawSheetRow>(worksheet, {
-      header: 1,
-      defval: null,
-      raw: true,
-      blankrows: false,
-    })
-
-    const parsedRows = shouldUseMatrixParsing(sheetRows)
-      ? buildRowsFromMatrixSheet(
-          sheetRows,
-          category,
-          file.name,
-          sheetName,
-          errors,
-        )
-      : buildRowsFromFlatSheet(
-          sheetRows,
-          category,
-          file.name,
-          sheetName,
-          errors,
-        )
-
-    rowsByTable[category.table] = (rowsByTable[category.table] ?? []).concat(
-      parsedRows,
-    )
-    totalRows += parsedRows.length
-
-    matchedSheets.push({
-      sheetName,
-      categoryKey,
-      table: category.table,
-      rowCount: parsedRows.length,
-    })
   })
 
-  return {
-    fileName: file.name,
-    matchedSheets,
-    ignoredSheets,
-    totalRows,
-    rowsByTable,
-    errors,
-  }
+  return { fileName: file.name, matchedSheets, ignoredSheets, totalRows, rowsByTable, errors, warnings, sheetDiagnoses }
 }
