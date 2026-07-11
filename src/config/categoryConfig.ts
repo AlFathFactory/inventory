@@ -9,6 +9,8 @@ type CategoryConfigItem<TColumns extends ColumnMap> = {
   dateField: keyof TColumns
   stockField?: keyof TColumns
   minQuantityField?: keyof TColumns
+  itemNameField?: keyof TColumns
+  operationsEnabled?: boolean
 }
 
 const sharedInventoryColumns = {
@@ -47,6 +49,8 @@ export const categoryConfig = {
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
+    itemNameField: 'item_name',
+    operationsEnabled: true,
   },
   paints: {
     label: 'الدهانات',
@@ -57,6 +61,8 @@ export const categoryConfig = {
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
+    itemNameField: 'item_name',
+    operationsEnabled: true,
   },
   cones4_materials: {
     label: 'خامات كونز4',
@@ -79,6 +85,8 @@ export const categoryConfig = {
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
+    itemNameField: 'type_name',
+    operationsEnabled: true,
   },
   screws: {
     label: 'مسامير',
@@ -89,6 +97,8 @@ export const categoryConfig = {
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
+    itemNameField: 'item_name',
+    operationsEnabled: true,
   },
   stock_screws: {
     label: 'مسامير استوك',
@@ -99,6 +109,8 @@ export const categoryConfig = {
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
+    itemNameField: 'item_name',
+    operationsEnabled: true,
   },
   raw_materials: {
     label: 'خامات',
@@ -109,6 +121,8 @@ export const categoryConfig = {
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
+    itemNameField: 'item_name',
+    operationsEnabled: true,
   },
   cutting_discs: {
     label: 'صواريخ',
@@ -119,10 +133,12 @@ export const categoryConfig = {
       type_name: 'type',
       received_by: 'اسم اللي اخد الصاروخ',
       received_date: 'تاريخ الاستلام',
-      scrapped_date: 'تاريخ التكهين',
+      scrapped_date: 'تاريخ التكهيت',
     },
     searchableFields: ['code', 'type_name', 'received_by'],
     dateField: 'received_date',
+    itemNameField: 'type_name',
+    operationsEnabled: false,
   },
   cylinders: {
     label: 'اسطوانات',
@@ -139,6 +155,8 @@ export const categoryConfig = {
     searchableFields: ['type_name', 'notes'],
     dateField: 'transaction_date',
     stockField: 'gas_balance',
+    itemNameField: 'type_name',
+    operationsEnabled: true,
   },
   long_welding_gloves: {
     label: 'جاونتي لحام طويل',
@@ -151,6 +169,8 @@ export const categoryConfig = {
     },
     searchableFields: ['type_name', 'received_by'],
     dateField: 'received_date',
+    itemNameField: 'type_name',
+    operationsEnabled: false,
   },
 } as const satisfies Record<string, CategoryConfigItem<ColumnMap>>
 
@@ -164,11 +184,27 @@ export const categoryEntries = Object.entries(categoryConfig) as Array<
   [CategoryKey, CategoryDefinition]
 >
 
-export const categoryOptions = Object.entries(categoryConfig).map(
-  ([key, config]) => ({
-    key: key as CategoryKey,
+export const categoryOptions = categoryEntries.map(([key, config]) => ({
+  key,
+  label: config.label,
+  route: config.route,
+  table: config.table,
+}))
+
+export const operationCategoryOptions = categoryEntries
+  .filter(([, config]) => config.operationsEnabled)
+  .map(([key, config]) => ({
+    key,
     label: config.label,
-    route: config.route,
     table: config.table,
-  }),
-)
+    itemNameField: (config.itemNameField ?? 'item_name') as string,
+    stockField: (config.stockField ?? 'stock_balance') as string,
+  }))
+
+export function getCategoryByTable(tableName: string) {
+  return categoryEntries.find(([, config]) => config.table === tableName)?.[1] ?? null
+}
+
+export function getCategoryByLabel(label: string) {
+  return categoryEntries.find(([, config]) => config.label === label)?.[1] ?? null
+}

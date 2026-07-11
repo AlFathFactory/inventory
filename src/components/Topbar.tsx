@@ -19,6 +19,10 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     title: 'المشاريع',
     subtitle: 'مراجعة الأصناف حسب المشاريع وربط البيانات التشغيلية بها',
   },
+  '/operations': {
+    title: 'مركز عمليات المخزون',
+    subtitle: 'إدارة الإضافة والصرف والجرد مع تحديث الرصيد وسجل الحركات',
+  },
   '/import': {
     title: 'استيراد Excel',
     subtitle: 'نظام كامل لإدارة المخزون والمشاريع والعمليات',

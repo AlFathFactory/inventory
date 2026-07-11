@@ -6,6 +6,7 @@ import { ImportExcelPage } from '../pages/ImportExcelPage'
 import { ItemsPage } from '../pages/ItemsPage'
 import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { OperationsPage } from '../pages/OperationsPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
 
 const router = createBrowserRouter([
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
       {
         path: 'projects',
         element: <ProjectsPage />,
+      },
+      {
+        path: 'operations',
+        element: <OperationsPage />,
       },
       {
         path: 'import',

@@ -80,6 +80,25 @@ function AlertIcon({ className = '' }: IconProps) {
   )
 }
 
+function OperationsIcon({ className = '' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+    >
+      <path d="M8 7h10" />
+      <path d="M8 12h10" />
+      <path d="M8 17h10" />
+      <path d="m5 7 1.5 1.5L9 6" />
+      <path d="m5 17 1.5 1.5L9 16" />
+      <path d="m5 12 1.5 1.5L9 11" />
+    </svg>
+  )
+}
+
 function DropletIcon({ className = '' }: IconProps) {
   return (
     <svg
@@ -183,6 +202,8 @@ function getSidebarIcon(path: string) {
       return <BoxIcon className={iconClassName} />
     case '/projects':
       return <FolderIcon className={iconClassName} />
+    case '/operations':
+      return <OperationsIcon className={iconClassName} />
     case '/import':
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
@@ -214,6 +235,7 @@ const navigationItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'الأصناف', to: '/items' },
   { label: 'المشاريع', to: '/projects' },
+  { label: 'مركز العمليات', to: '/operations' },
   { label: 'استيراد Excel', to: '/import' },
   { label: 'الأصناف القليلة', to: '/low-stock' },
   ...categoryOptions.map((category) => ({
@@ -227,8 +249,8 @@ export function Sidebar() {
     <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
       <div className="flex h-full flex-col px-[18px] pb-8 pt-7">
         <div className="mb-6 text-right">
-          <h2 className="text-[18px] font-bold tracking-tight">مصنع الفـتــــــــــــح</h2>
-          <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المخـــــــــــــــــزون</p>
+          <h2 className="text-[18px] font-bold tracking-tight">مصنع الفتح</h2>
+          <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المخزون</p>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
