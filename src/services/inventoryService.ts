@@ -3,6 +3,8 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
+import { getCategoryByTable } from '../config/categoryConfig'
+import type { ParsedInventoryRow, ParsedRowsByTable } from '../utils/excelParser'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -23,6 +25,11 @@ export type ServiceFailure = {
 }
 
 export type ServiceResult<TData> = Promise<ServiceSuccess<TData> | ServiceFailure>
+
+export type InventoryImportResult = {
+  importedRowCount: number
+  processedItemCount: number
+}
 
 function createSuccess<TData>(data: TData): ServiceSuccess<TData> {
   return {
@@ -52,6 +59,359 @@ function normalizeError(error: unknown, fallbackMessage: string): string {
   }
 
   return fallbackMessage
+}
+
+function toText(value: JsonValue | undefined): string {
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+
+  return ''
+}
+
+function toNumberValue(value: JsonValue | undefined): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const normalizedValue = Number(value)
+    return Number.isFinite(normalizedValue) ? normalizedValue : null
+  }
+
+  return null
+}
+
+function toNonNegativeNumber(value: JsonValue | undefined): number {
+  const parsedValue = toNumberValue(value)
+  return parsedValue !== null && parsedValue > 0 ? parsedValue : 0
+}
+
+function normalizeItemKeyPart(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function buildItemKey(tableName: string, projectName: string, itemName: string) {
+  return [
+    normalizeItemKeyPart(tableName),
+    normalizeItemKeyPart(projectName),
+    normalizeItemKeyPart(itemName),
+  ].join('::')
+}
+
+function getRowDateValue(row: ParsedInventoryRow): string {
+  const transactionDate = toText(row.transaction_date)
+  return transactionDate || ''
+}
+
+function sortRowsByDateAsc(left: ParsedInventoryRow, right: ParsedInventoryRow) {
+  const leftDate = getRowDateValue(left)
+  const rightDate = getRowDateValue(right)
+
+  if (leftDate !== rightDate) {
+    return leftDate.localeCompare(rightDate)
+  }
+
+  const leftOrder = toNumberValue(left.__import_order as JsonValue | undefined) ?? 0
+  const rightOrder = toNumberValue(right.__import_order as JsonValue | undefined) ?? 0
+
+  return leftOrder - rightOrder
+}
+
+function setIfPresent(
+  target: Record<string, JsonValue>,
+  key: string,
+  value: JsonValue | undefined,
+) {
+  if (value !== null && value !== undefined && value !== '') {
+    target[key] = value
+  }
+}
+
+function buildItemPayload(
+  tableName: string,
+  rows: readonly ParsedInventoryRow[],
+): Record<string, JsonValue> {
+  const category = getCategoryByTable(tableName)
+
+  if (!category) {
+    throw new Error(`Unknown category table "${tableName}".`)
+  }
+
+  const latestRow = [...rows].sort(sortRowsByDateAsc).at(-1)
+
+  if (!latestRow) {
+    throw new Error(`No import rows found for table "${tableName}".`)
+  }
+
+  const itemNameField = String(category.itemNameField ?? 'item_name')
+  const itemName = toText(latestRow[itemNameField])
+  const projectName = toText(latestRow.project)
+
+  if (!itemName) {
+    throw new Error(`Missing item name for table "${tableName}".`)
+  }
+
+  const latestStockBalance = toNumberValue(latestRow.stock_balance)
+  const latestGasBalance = toNumberValue(latestRow.gas_balance)
+  const latestTotalAdded = toNumberValue(latestRow.total_added)
+  const latestTotalIssued = toNumberValue(latestRow.total_issued)
+  const fallbackTotalAdded = rows.reduce(
+    (sum, row) => sum + toNonNegativeNumber(row.added),
+    0,
+  )
+  const fallbackTotalIssued = rows.reduce(
+    (sum, row) => sum + toNonNegativeNumber(row.issued),
+    0,
+  )
+
+  const payload: Record<string, JsonValue> = {
+    item_key: buildItemKey(tableName, projectName, itemName),
+  }
+
+  Object.keys(category.columns).forEach((columnKey) => {
+    setIfPresent(payload, columnKey, latestRow[columnKey])
+  })
+
+  payload[itemNameField] = itemName
+
+  if ('project' in category.columns || projectName) {
+    payload.project = projectName
+  }
+
+  if (latestStockBalance !== null) {
+    payload.stock_balance = latestStockBalance
+  }
+
+  if (latestGasBalance !== null) {
+    payload.gas_balance = latestGasBalance
+  }
+
+  payload.total_added = latestTotalAdded ?? fallbackTotalAdded
+  payload.total_issued = latestTotalIssued ?? fallbackTotalIssued
+
+  return payload
+}
+
+async function upsertImportedItem(
+  tableName: string,
+  rows: readonly ParsedInventoryRow[],
+) {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    throw new Error(clientFailure.error)
+  }
+
+  const itemPayload = buildItemPayload(tableName, rows)
+  const itemKey = toText(itemPayload.item_key)
+
+  const { data: existingItem, error: fetchError } = await supabaseClient!
+    .from(tableName)
+    .select('*')
+    .eq('item_key', itemKey)
+    .limit(1)
+    .maybeSingle()
+
+  if (fetchError) {
+    throw new Error(fetchError.message)
+  }
+
+  if (!existingItem) {
+    const { data: insertedItem, error: insertError } = await supabaseClient!
+      .from(tableName)
+      .insert(itemPayload as never)
+      .select('*')
+      .single()
+
+    if (insertError || !insertedItem) {
+      throw new Error(insertError?.message || `Failed to insert item into "${tableName}".`)
+    }
+
+    return insertedItem as InventoryRow
+  }
+
+  const { data: updatedItem, error: updateError } = await supabaseClient!
+    .from(tableName)
+    .update(itemPayload as never)
+    .eq('id', existingItem.id)
+    .select('*')
+    .single()
+
+  if (updateError || !updatedItem) {
+    throw new Error(updateError?.message || `Failed to update item in "${tableName}".`)
+  }
+
+  return updatedItem as InventoryRow
+}
+
+async function insertImportedMovements(
+  tableName: string,
+  rows: readonly ParsedInventoryRow[],
+  itemRecord: InventoryRow,
+) {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    throw new Error(clientFailure.error)
+  }
+
+  const category = getCategoryByTable(tableName)
+
+  if (!category) {
+    throw new Error(`Unknown category table "${tableName}".`)
+  }
+
+  const itemNameField = String(category.itemNameField ?? 'item_name')
+  const itemName = toText(itemRecord[itemNameField] ?? rows[0]?.[itemNameField])
+  const projectName = toText(itemRecord.project ?? rows[0]?.project)
+  const operations: Record<string, JsonValue>[] = []
+  const sortedRows = [...rows].sort(sortRowsByDateAsc)
+  const firstRow = sortedRows[0]
+
+  let runningBalance =
+    toNumberValue(firstRow?.stock_balance) !== null
+      ? (toNumberValue(firstRow?.stock_balance) ?? 0) -
+        toNonNegativeNumber(firstRow?.added) +
+        toNonNegativeNumber(firstRow?.issued)
+      : 0
+
+  sortedRows.forEach((row) => {
+    const addedQuantity = toNonNegativeNumber(row.added)
+    const issuedQuantity = toNonNegativeNumber(row.issued)
+    const rowBalance = toNumberValue(row.stock_balance)
+    const operationDate = toText(row.transaction_date)
+
+    if (rowBalance !== null) {
+      runningBalance = rowBalance - addedQuantity + issuedQuantity
+    }
+
+    if (addedQuantity > 0) {
+      const previousBalance = runningBalance
+      const newBalance = previousBalance + addedQuantity
+
+      operations.push({
+        table_name: tableName,
+        category_name: category.label,
+        category_label: category.label,
+        item_id: itemRecord.id ?? null,
+        item_name: itemName,
+        item_label: itemName,
+        project_name: projectName,
+        project: projectName,
+        operation_type: 'add',
+        quantity: addedQuantity,
+        operation_date: operationDate || null,
+        previous_balance: previousBalance,
+        new_balance: newBalance,
+      })
+
+      runningBalance = newBalance
+    }
+
+    if (issuedQuantity > 0) {
+      const previousBalance = runningBalance
+      const newBalance = previousBalance - issuedQuantity
+
+      operations.push({
+        table_name: tableName,
+        category_name: category.label,
+        category_label: category.label,
+        item_id: itemRecord.id ?? null,
+        item_name: itemName,
+        item_label: itemName,
+        project_name: projectName,
+        project: projectName,
+        operation_type: 'issue',
+        quantity: issuedQuantity,
+        operation_date: operationDate || null,
+        previous_balance: previousBalance,
+        new_balance: newBalance,
+      })
+
+      runningBalance = newBalance
+    }
+  })
+
+  if (operations.length === 0) {
+    return
+  }
+
+  const { error: insertError } = await supabaseClient!
+    .from('inventory_operations')
+    .insert(operations as never)
+
+  if (insertError) {
+    throw new Error(insertError.message)
+  }
+}
+
+export async function importInventoryRowsFromExcel(
+  rowsByTable: ParsedRowsByTable,
+): ServiceResult<InventoryImportResult> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
+  try {
+    let importedRowCount = 0
+    let processedItemCount = 0
+
+    for (const [tableName, rawRows] of Object.entries(rowsByTable)) {
+      const category = getCategoryByTable(tableName)
+
+      if (!category || rawRows.length === 0) {
+        continue
+      }
+
+      const itemNameField = String(category.itemNameField ?? 'item_name')
+      const groupedRows = new Map<string, ParsedInventoryRow[]>()
+
+      rawRows.forEach((row, index) => {
+        const itemName = toText(row[itemNameField])
+        const projectName = toText(row.project)
+
+        if (!itemName) {
+          return
+        }
+
+        const itemKey = buildItemKey(tableName, projectName, itemName)
+        const rowWithOrder = {
+          ...row,
+          __import_order: index,
+        } satisfies ParsedInventoryRow
+
+        const existingRows = groupedRows.get(itemKey) ?? []
+        existingRows.push(rowWithOrder)
+        groupedRows.set(itemKey, existingRows)
+      })
+
+      for (const groupedItemRows of groupedRows.values()) {
+        const itemRecord = await upsertImportedItem(tableName, groupedItemRows)
+        await insertImportedMovements(tableName, groupedItemRows, itemRecord)
+        processedItemCount += 1
+        importedRowCount += groupedItemRows.length
+      }
+    }
+
+    return createSuccess({
+      importedRowCount,
+      processedItemCount,
+    })
+  } catch (error) {
+    return createFailure(
+      normalizeError(error, 'Failed to import inventory rows from Excel.'),
+    )
+  }
 }
 
 function getNextDateValue(value: string): string {

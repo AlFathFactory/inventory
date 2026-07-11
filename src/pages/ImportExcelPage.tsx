@@ -1,11 +1,14 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { TablePagination } from '../components/TablePagination'
 import { usePagination } from '../hooks/usePagination'
-import { insertRows, type InventoryRow } from '../services/inventoryService'
+import {
+  importInventoryRowsFromExcel,
+  insertRows,
+  type InventoryRow,
+} from '../services/inventoryService'
 import {
   parseInventoryExcel,
   type ExcelImportPreview,
-  type ParsedInventoryRow,
 } from '../utils/excelParser'
 
 type ImportStatus = {
@@ -185,20 +188,10 @@ export function ImportExcelPage() {
     setStatus(null)
 
     const importErrors: string[] = []
+    const importResult = await importInventoryRowsFromExcel(preview.rowsByTable)
 
-    for (const [tableName, rows] of Object.entries(preview.rowsByTable)) {
-      if (rows.length === 0) {
-        continue
-      }
-
-      const result = await insertRows<ParsedInventoryRow>(
-        tableName,
-        rows as readonly ParsedInventoryRow[],
-      )
-
-      if (result.error) {
-        importErrors.push(`فشل استيراد جدول ${tableName}: ${result.error}`)
-      }
+    if (importResult.error) {
+      importErrors.push(importResult.error)
     }
 
     const importLogStatus = importErrors.length === 0 ? 'success' : 'failed'
@@ -220,7 +213,7 @@ export function ImportExcelPage() {
     } else {
       setStatus({
         type: 'success',
-        message: `تم استيراد ${preview.totalRows} صف بنجاح من الملف ${preview.fileName}.`,
+        message: `تم استيراد ${importResult.data?.importedRowCount ?? preview.totalRows} حركة لعدد ${importResult.data?.processedItemCount ?? 0} صنف من الملف ${preview.fileName}.`,
       })
     }
 
