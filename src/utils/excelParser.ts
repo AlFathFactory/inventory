@@ -9,6 +9,11 @@ type ParsedCellValue = string | number | boolean | null
 type RawSheetRow = unknown[]
 type ParserType = 'stock-matrix' | 'custody-records' | 'cylinder-matrix'
 
+type RawMaterialsSheetContext = {
+  projectName: string | null
+  materialSource: string | null
+}
+
 export type ParsedInventoryRow = Record<string, ParsedCellValue> & {
   source_file: string
   source_sheet: string
@@ -47,28 +52,31 @@ export type ExcelImportPreview = {
 }
 
 const arabicDigitMap: Record<string, string> = {
-  '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
-  '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
-  '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
-  '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
-}
-
-const sheetAliases: Record<CategoryKey, readonly string[]> = {
-  consumables: ['مستهلكات'],
-  paints: ['الدهانات', 'دهانات'],
-  cones4_materials: ['خامات كونز4', 'خامات كونز 4', 'كونز4', 'كونز 4'],
-  screws: ['مسامير', 'مساميرrotterdam', 'روتردام', 'rotterdam'],
-  stock_screws: ['مسامير استوك', 'مساميراستوك', 'مساميراستوكrotterdam', 'مسامير استوك rotterdam'],
-  raw_materials: ['خامات', 'خامات +الفتح amset3', 'خامات الفتح', 'الفتح amset3', 'amset3'],
-  cutting_discs: ['صواريخ', 'صواربخ'],
-  cylinders: ['اسطوانات', 'اسطوانات غازات', 'غازات'],
-  long_welding_gloves: ['جوانتى لحام طويل', 'جوانتي لحام طويل'],
+  '٠': '0',
+  '١': '1',
+  '٢': '2',
+  '٣': '3',
+  '٤': '4',
+  '٥': '5',
+  '٦': '6',
+  '٧': '7',
+  '٨': '8',
+  '٩': '9',
+  '۰': '0',
+  '۱': '1',
+  '۲': '2',
+  '۳': '3',
+  '۴': '4',
+  '۵': '5',
+  '۶': '6',
+  '۷': '7',
+  '۸': '8',
+  '۹': '9',
 }
 
 const stockMatrixCategories = new Set<CategoryKey>([
   'consumables',
   'paints',
-  'cones4_materials',
   'screws',
   'stock_screws',
   'raw_materials',
@@ -101,29 +109,32 @@ export function getCategoryBySheetName(sheetName: string): {
 
   const candidates = (Object.entries(categoryConfig) as Array<
     [CategoryKey, CategoryConfigEntry]
-  >).flatMap(([key, category]) =>
-    [category.label, ...(sheetAliases[key] ?? [])].map((alias) => ({
-      key,
-      category,
-      alias: compactText(alias),
-    })),
-  ).sort((left, right) => right.alias.length - left.alias.length)
+  >)
+    .flatMap(([key, category]) =>
+      [category.label, ...(category.aliases ?? [])].map((alias) => ({
+        key,
+        category,
+        alias: compactText(alias),
+      })),
+    )
+    .sort((left, right) => right.alias.length - left.alias.length)
 
   const candidate = candidates.find(({ alias }) => normalized.includes(alias))
-  if (candidate) {
-    return {
-      key: candidate.key,
-      label: candidate.category.label,
-      table: candidate.category.table,
-      parserType: stockMatrixCategories.has(candidate.key)
-        ? 'stock-matrix'
-        : candidate.key === 'cylinders'
-          ? 'cylinder-matrix'
-          : 'custody-records',
-    }
+
+  if (!candidate) {
+    return null
   }
 
-  return null
+  return {
+    key: candidate.key,
+    label: candidate.category.label,
+    table: candidate.category.table,
+    parserType: stockMatrixCategories.has(candidate.key)
+      ? 'stock-matrix'
+      : candidate.key === 'cylinders'
+        ? 'cylinder-matrix'
+        : 'custody-records',
+  }
 }
 
 function cellText(value: unknown): string {
@@ -184,12 +195,18 @@ function toDate(value: unknown): string | null {
 
 function operationType(value: unknown): 'issued' | 'added' | null {
   const normalized = compactText(cellText(value))
+
   if (normalized === compactText('صرف')) {
     return 'issued'
   }
-  if (normalized === compactText('اضافه') || normalized === compactText('إضافة')) {
+
+  if (
+    normalized === compactText('اضافه') ||
+    normalized === compactText('إضافة')
+  ) {
     return 'added'
   }
+
   return null
 }
 
@@ -197,23 +214,56 @@ function findOperationStart(header: RawSheetRow): number {
   return header.findIndex((cell) => operationType(cell) !== null)
 }
 
-function itemField(category: CategoryKey): 'item_name' | 'type_name' {
-  return category === 'cones4_materials' ? 'type_name' : 'item_name'
+function getRawMaterialsSheetContext(sheetName: string): RawMaterialsSheetContext {
+  const normalizedSheetName = normalizeArabicText(sheetName)
+
+  if (normalizedSheetName.includes('كونز')) {
+    return {
+      projectName: 'خامات كونز4',
+      materialSource: 'خامات كونز4',
+    }
+  }
+
+  if (
+    normalizedSheetName.includes('الفتح') ||
+    normalizedSheetName.includes('amset3')
+  ) {
+    return {
+      projectName: 'خامات الفتح amset3',
+      materialSource: null,
+    }
+  }
+
+  return {
+    projectName: null,
+    materialSource: null,
+  }
 }
 
-function matrixStaticValues(category: CategoryKey, row: RawSheetRow): Record<string, ParsedCellValue> {
+function getRawMaterialItemName(
+  row: RawSheetRow,
+  sheetContext: RawMaterialsSheetContext,
+) {
+  if (sheetContext.materialSource === 'خامات كونز4') {
+    return cellText(row[3]) || cellText(row[0]) || null
+  }
+
+  return cellText(row[0]) || cellText(row[3]) || null
+}
+
+function matrixStaticValues(
+  category: CategoryKey,
+  row: RawSheetRow,
+  sheetName: string,
+): Record<string, ParsedCellValue> {
   switch (category) {
     case 'consumables':
-      return { project: cellText(row[0]) || null, item_name: cellText(row[1]) || null }
-    case 'paints':
-      return { item_name: cellText(row[0]) || null }
-    case 'cones4_materials':
       return {
         project: cellText(row[0]) || null,
-        type_name: cellText(row[3]) || cellText(row[0]) || null,
-        weight: toNumber(row[5]),
-        total_weight: toNumber(row[row.length - 1]),
+        item_name: cellText(row[1]) || null,
       }
+    case 'paints':
+      return { item_name: cellText(row[0]) || null }
     case 'screws':
       return {
         project: cellText(row[0]) || null,
@@ -227,8 +277,24 @@ function matrixStaticValues(category: CategoryKey, row: RawSheetRow): Record<str
         din: cellText(row[1]) || null,
         code_number: cellText(row[2]) || null,
       }
-    case 'raw_materials':
-      return { item_name: cellText(row[0]) || null }
+    case 'raw_materials': {
+      const sheetContext = getRawMaterialsSheetContext(sheetName)
+      const rowProject = cellText(row[0]) || null
+
+      return {
+        project: sheetContext.projectName ?? rowProject,
+        item_name: getRawMaterialItemName(row, sheetContext),
+        weight:
+          sheetContext.materialSource === 'خامات كونز4' ? toNumber(row[5]) : null,
+        length:
+          sheetContext.materialSource === 'خامات كونز4' ? toNumber(row[6]) : null,
+        width:
+          sheetContext.materialSource === 'خامات كونز4' ? toNumber(row[7]) : null,
+        th:
+          sheetContext.materialSource === 'خامات كونز4' ? toNumber(row[8]) : null,
+        material_source: sheetContext.materialSource,
+      }
+    }
     default:
       return {}
   }
@@ -248,17 +314,19 @@ function parseStockMatrix(
   const baseDate = toDate(secondHeader[baseDateColumn])
 
   if (operationStart < 1 || !baseDate) {
-    diagnosis.errors.push('لم يتم العثور على تاريخ البداية أو أعمدة صرف/إضافة في جدول الحركات.')
+    diagnosis.errors.push(
+      'لم يتم العثور على تاريخ البداية أو أعمدة صرف/إضافة في جدول الحركات.',
+    )
     return []
   }
 
   const result: ParsedInventoryRow[] = []
   const summaryStart = secondHeader.length - 3
-  const nameField = itemField(category)
 
   rows.slice(2).forEach((row) => {
-    const values = matrixStaticValues(category, row)
-    const name = cellText(values[nameField])
+    const values = matrixStaticValues(category, row, sheetName)
+    const name = cellText(values.item_name)
+
     if (!name) {
       diagnosis.skippedRowsCount += 1
       return
@@ -286,15 +354,18 @@ function parseStockMatrix(
     for (let columnIndex = operationStart; columnIndex < summaryStart; columnIndex += 1) {
       const operation = operationType(secondHeader[columnIndex])
       const quantity = toNumber(row[columnIndex])
+
       if (!operation || quantity === null || quantity === 0) {
         continue
       }
 
-      const day = toNumber(firstHeader[columnIndex]) ?? toNumber(firstHeader[columnIndex - 1])
+      const day =
+        toNumber(firstHeader[columnIndex]) ?? toNumber(firstHeader[columnIndex - 1])
       const anchor = new Date(`${baseDate}T00:00:00`)
-      const transactionDate = day === null
-        ? baseDate
-        : formatDate(new Date(anchor.getFullYear(), anchor.getMonth() + 1, day))
+      const transactionDate =
+        day === null
+          ? baseDate
+          : formatDate(new Date(anchor.getFullYear(), anchor.getMonth() + 1, day))
 
       result.push({
         ...values,
@@ -307,7 +378,14 @@ function parseStockMatrix(
       })
     }
 
-    if (openingQuantity === null && !result.some((parsed) => parsed.source_sheet === sheetName && cellText(parsed[nameField]) === name)) {
+    const hasExistingMovement = result.some(
+      (parsed) =>
+        parsed.source_sheet === sheetName &&
+        cellText(parsed.item_name) === name &&
+        cellText(parsed.project) === cellText(values.project),
+    )
+
+    if (openingQuantity === null && !hasExistingMovement) {
       diagnosis.skippedRowsCount += 1
     }
   })
@@ -315,51 +393,78 @@ function parseStockMatrix(
   return result
 }
 
-function parseCuttingDiscs(rows: RawSheetRow[], fileName: string, sheetName: string): ParsedInventoryRow[] {
+function parseCuttingDiscs(
+  rows: RawSheetRow[],
+  fileName: string,
+  sheetName: string,
+): ParsedInventoryRow[] {
   return rows.slice(1).flatMap((row) => {
     const code = cellText(row[0])
     const typeName = cellText(row[1])
+
     if (!code || !typeName) {
       return []
     }
-    return [{
-      code,
-      type_name: typeName,
-      received_by: cellText(row[2]) || null,
-      received_date: toDate(row[3]),
-      scrapped_date: toDate(row[4]),
-      source_file: fileName,
-      source_sheet: sheetName,
-    }]
+
+    return [
+      {
+        code,
+        type_name: typeName,
+        received_by: cellText(row[2]) || null,
+        received_date: toDate(row[3]),
+        scrapped_date: toDate(row[4]),
+        source_file: fileName,
+        source_sheet: sheetName,
+      },
+    ]
   })
 }
 
-function parseLongWeldingGloves(rows: RawSheetRow[], fileName: string, sheetName: string): ParsedInventoryRow[] {
+function parseLongWeldingGloves(
+  rows: RawSheetRow[],
+  fileName: string,
+  sheetName: string,
+): ParsedInventoryRow[] {
   const header = rows[0] ?? []
+
   return rows.slice(1).flatMap((row) => {
     const receivedDate = toDate(row[0])
     const receivedBy = cellText(row[1])
+
     return header.slice(2).flatMap((headerCell, offset) => {
       const quantity = toNumber(row[offset + 2])
       const typeName = cellText(headerCell)
+
       if (!receivedDate || !receivedBy || !typeName || quantity === null || quantity <= 0) {
         return []
       }
-      return [{
-        type_name: typeName,
-        received_by: receivedBy,
-        received_date: receivedDate,
-        source_file: fileName,
-        source_sheet: sheetName,
-      }]
+
+      return [
+        {
+          type_name: typeName,
+          received_by: receivedBy,
+          received_date: receivedDate,
+          source_file: fileName,
+          source_sheet: sheetName,
+        },
+      ]
     })
   })
 }
 
-function parseCylinders(rows: RawSheetRow[], fileName: string, sheetName: string): ParsedInventoryRow[] {
+function parseCylinders(
+  rows: RawSheetRow[],
+  fileName: string,
+  sheetName: string,
+): ParsedInventoryRow[] {
   const groupHeader = rows[0] ?? []
   const fieldHeader = rows[1] ?? []
-  const groups: Array<{ typeName: string; full?: number; empty?: number; balance?: number }> = []
+  const groups: Array<{
+    typeName: string
+    full?: number
+    empty?: number
+    balance?: number
+  }> = []
   let currentType = ''
 
   fieldHeader.forEach((field, columnIndex) => {
@@ -367,53 +472,85 @@ function parseCylinders(rows: RawSheetRow[], fileName: string, sheetName: string
     if (headerType) {
       currentType = headerType
     }
+
     const normalizedField = compactText(cellText(field))
     if (!currentType) {
       return
     }
+
     let group = groups.at(-1)
     if (!group || group.typeName !== currentType) {
       group = { typeName: currentType }
       groups.push(group)
     }
-    if (normalizedField.includes(compactText('ملي'))) group.full = columnIndex
-    if (normalizedField.includes(compactText('فارغ'))) group.empty = columnIndex
-    if (normalizedField.includes(compactText('رصيد'))) group.balance = columnIndex
+
+    if (normalizedField.includes(compactText('ملي'))) {
+      group.full = columnIndex
+    }
+
+    if (normalizedField.includes(compactText('فارغ'))) {
+      group.empty = columnIndex
+    }
+
+    if (normalizedField.includes(compactText('رصيد'))) {
+      group.balance = columnIndex
+    }
   })
 
   return rows.slice(2).flatMap((row) => {
     const transactionDate = toDate(row[0])
+
     if (!transactionDate) {
       return []
     }
+
     return groups.flatMap((group) => {
       const full = group.full === undefined ? null : toNumber(row[group.full])
       const empty = group.empty === undefined ? null : toNumber(row[group.empty])
       const balance = group.balance === undefined ? null : toNumber(row[group.balance])
+
       if (full === null && empty === null && balance === null) {
         return []
       }
-      return [{
-        type_name: group.typeName,
-        full_count: full,
-        empty_count: empty,
-        gas_balance: balance,
-        transaction_date: transactionDate,
-        notes: cellText(row.at(-1)) || null,
-        source_file: fileName,
-        source_sheet: sheetName,
-      }]
+
+      return [
+        {
+          type_name: group.typeName,
+          full_count: full,
+          empty_count: empty,
+          gas_balance: balance,
+          transaction_date: transactionDate,
+          notes: cellText(row.at(-1)) || null,
+          source_file: fileName,
+          source_sheet: sheetName,
+        },
+      ]
     })
   })
 }
 
-function countItems(rows: readonly ParsedInventoryRow[], category: CategoryKey): number {
-  const nameField = itemField(category)
-  return new Set(rows.map((row) => `${cellText(row.project)}::${cellText(row[nameField])}`)).size
+function countItems(rows: readonly ParsedInventoryRow[]): number {
+  return new Set(
+    rows.map(
+      (row) =>
+        [
+          cellText(row.project),
+          cellText(row.item_name),
+          cellText(row.weight),
+          cellText(row.length),
+          cellText(row.width),
+          cellText(row.th),
+          cellText(row.material_source),
+        ].join('::'),
+    ),
+  ).size
 }
 
 export async function parseInventoryExcel(file: File): Promise<ExcelImportPreview> {
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
+  const workbook = XLSX.read(await file.arrayBuffer(), {
+    type: 'array',
+    cellDates: true,
+  })
   const rowsByTable: ParsedRowsByTable = {}
   const matchedSheets: ExcelImportPreview['matchedSheets'] = []
   const ignoredSheets: string[] = []
@@ -451,36 +588,70 @@ export async function parseInventoryExcel(file: File): Promise<ExcelImportPrevie
       if (!worksheet) {
         throw new Error('تعذر قراءة محتوى الشيت من ملف Excel.')
       }
+
       const rows = XLSX.utils.sheet_to_json<RawSheetRow>(worksheet, {
         header: 1,
         defval: null,
         raw: true,
         blankrows: false,
       })
-      diagnosis.sourceRowCount = Math.max(rows.length - (match.parserType === 'stock-matrix' || match.parserType === 'cylinder-matrix' ? 2 : 1), 0)
-      const parsedRows = match.parserType === 'stock-matrix'
-        ? parseStockMatrix(rows, match.key, file.name, sheetName, diagnosis)
-        : match.key === 'cutting_discs'
-          ? parseCuttingDiscs(rows, file.name, sheetName)
-          : match.key === 'long_welding_gloves'
-            ? parseLongWeldingGloves(rows, file.name, sheetName)
-            : parseCylinders(rows, file.name, sheetName)
+
+      diagnosis.sourceRowCount = Math.max(
+        rows.length -
+          (match.parserType === 'stock-matrix' || match.parserType === 'cylinder-matrix'
+            ? 2
+            : 1),
+        0,
+      )
+
+      const parsedRows =
+        match.parserType === 'stock-matrix'
+          ? parseStockMatrix(rows, match.key, file.name, sheetName, diagnosis)
+          : match.key === 'cutting_discs'
+            ? parseCuttingDiscs(rows, file.name, sheetName)
+            : match.key === 'long_welding_gloves'
+              ? parseLongWeldingGloves(rows, file.name, sheetName)
+              : parseCylinders(rows, file.name, sheetName)
 
       if (match.key === 'cylinders') {
-        diagnosis.warnings.push('تم تحليل أرصدة الأسطوانات كسجلات حالة؛ لم يتم إنشاء حركات إضافة أو صرف.')
+        diagnosis.warnings.push(
+          'تم تحليل أرصدة الأسطوانات كسجلات حالة؛ لم يتم إنشاء حركات إضافة أو صرف.',
+        )
         warnings.push(`Sheet "${sheetName}": ${diagnosis.warnings[0]}`)
       }
-      diagnosis.parsedItemsCount = countItems(parsedRows, match.key)
-      diagnosis.parsedMovementsCount = parsedRows.filter((row) => toNumber(row.added) !== null || toNumber(row.issued) !== null).length
+
+      diagnosis.parsedItemsCount = countItems(parsedRows)
+      diagnosis.parsedMovementsCount = parsedRows.filter(
+        (row) => toNumber(row.added) !== null || toNumber(row.issued) !== null,
+      ).length
+
       rowsByTable[match.table] = [...(rowsByTable[match.table] ?? []), ...parsedRows]
       totalRows += parsedRows.length
-      matchedSheets.push({ sheetName, categoryKey: match.key, table: match.table, rowCount: parsedRows.length })
+      matchedSheets.push({
+        sheetName,
+        categoryKey: match.key,
+        table: match.table,
+        rowCount: parsedRows.length,
+      })
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'خطأ غير معروف أثناء تحليل الشيت.'
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'خطأ غير معروف أثناء تحليل الشيت.'
+
       diagnosis.errors.push(message)
       errors.push(`Sheet "${sheetName}": ${message}`)
     }
   })
 
-  return { fileName: file.name, matchedSheets, ignoredSheets, totalRows, rowsByTable, errors, warnings, sheetDiagnoses }
+  return {
+    fileName: file.name,
+    matchedSheets,
+    ignoredSheets,
+    totalRows,
+    rowsByTable,
+    errors,
+    warnings,
+    sheetDiagnoses,
+  }
 }

@@ -775,6 +775,16 @@ export function OperationsPage() {
                     {balanceAfterOperation.toLocaleString()}
                   </div>
                 </div>
+                {selectedCategory?.key === 'raw_materials' && selectedItem
+                  ? selectedCategory.attributeFields.map((field) => (
+                      <div key={field} className="flex items-center justify-between gap-3">
+                        <span>{selectedCategory.columns[field] ?? field}</span>
+                        <span className="font-semibold text-slate-900">
+                          {String(selectedItem[field] ?? '-')}
+                        </span>
+                      </div>
+                    ))
+                  : null}
               </div>
             </section>
 

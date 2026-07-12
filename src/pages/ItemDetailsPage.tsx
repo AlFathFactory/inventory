@@ -592,6 +592,22 @@ export function ItemDetailsPage() {
               />
             </div>
 
+            {category.table === 'raw_materials' ? (
+              <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                {(category.attributeFields ?? []).map((field) => (
+                  <SummaryCard
+                    key={String(field)}
+                    label={category.columns[field] ?? String(field)}
+                    value={getDisplayText(
+                      (
+                        details as Record<string, string | number | null | undefined>
+                      )[String(field)],
+                    )}
+                  />
+                ))}
+              </div>
+            ) : null}
+
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {monthlyMovementSummaries.length === 0 ? (
                 <div className="rounded-[24px] border border-dashed border-[var(--app-border)] px-5 py-6 text-sm text-slate-500 md:col-span-2 xl:col-span-3">

@@ -121,8 +121,14 @@ function buildItemKey(
     )
   }
 
-  if (tableName === 'cones4_materials') {
-    identityParts.push(normalizeItemKeyPart(toText(row.weight)))
+  if (tableName === 'raw_materials') {
+    identityParts.push(
+      normalizeItemKeyPart(toText(row.weight)),
+      normalizeItemKeyPart(toText(row.length)),
+      normalizeItemKeyPart(toText(row.width)),
+      normalizeItemKeyPart(toText(row.th)),
+      normalizeItemKeyPart(toText(row.material_source)),
+    )
   }
 
   if (tableName === 'cutting_discs') {

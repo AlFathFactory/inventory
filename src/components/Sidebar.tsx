@@ -212,8 +212,6 @@ function getSidebarIcon(path: string) {
       return <LayersIcon className={iconClassName} />
     case '/category/paints':
       return <DropletIcon className={iconClassName} />
-    case '/category/cones4_materials':
-      return <LayersIcon className={iconClassName} />
     case '/category/screws':
       return <NutIcon className={iconClassName} />
     case '/category/stock_screws':

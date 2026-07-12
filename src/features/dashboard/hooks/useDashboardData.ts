@@ -35,7 +35,6 @@ type StockCategoryDefinition = CategoryDefinition & {
 const mainInventoryTables = new Set([
   'consumables',
   'paints',
-  'cones4_materials',
   'screws',
   'stock_screws',
   'raw_materials',

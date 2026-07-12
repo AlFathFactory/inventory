@@ -11,6 +11,8 @@ type CategoryConfigItem<TColumns extends ColumnMap> = {
   table: string
   route: string
   columns: TColumns
+  aliases?: readonly string[]
+  optionalFields?: readonly (keyof TColumns)[]
   attributeFields?: readonly (keyof TColumns)[]
   createFields?: readonly CategoryCreateField<TColumns>[]
   searchableFields: readonly (keyof TColumns)[]
@@ -29,7 +31,7 @@ const sharedInventoryColumns = {
   added: 'إضافة',
   total_added: 'إجمالي المضاف',
   total_issued: 'إجمالي الصرف',
-  stock_balance: 'الكمية رصيد مخزني',
+  stock_balance: 'رصيد مخزني',
   min_quantity: 'الحد الأدنى',
 } as const
 
@@ -43,7 +45,7 @@ const screwColumns = {
   added: 'إضافة',
   total_added: 'إجمالي المضاف',
   total_issued: 'إجمالي الصرف',
-  stock_balance: 'الكمية رصيد مخزني',
+  stock_balance: 'رصيد مخزني',
   min_quantity: 'الحد الأدنى',
 } as const
 
@@ -52,6 +54,7 @@ export const categoryConfig = {
     label: 'مستهلكات',
     table: 'consumables',
     route: '/category/consumables',
+    aliases: ['مستهلكات'],
     columns: sharedInventoryColumns,
     attributeFields: [],
     createFields: [
@@ -71,6 +74,7 @@ export const categoryConfig = {
     label: 'الدهانات',
     table: 'paints',
     route: '/category/paints',
+    aliases: ['الدهانات', 'دهانات'],
     columns: sharedInventoryColumns,
     attributeFields: [],
     createFields: [
@@ -86,42 +90,11 @@ export const categoryConfig = {
     itemNameField: 'item_name',
     operationsEnabled: true,
   },
-  cones4_materials: {
-    label: 'خامات كونز4',
-    table: 'cones4_materials',
-    route: '/category/cones4_materials',
-    columns: {
-      project: 'مشروع',
-      type_name: 'نوع',
-      weight: 'وزن',
-      transaction_date: 'تاريخ',
-      issued: 'صرف',
-      added: 'إضافة',
-      total_added: 'إجمالي المضاف',
-      total_issued: 'إجمالي الصرف',
-      stock_balance: 'الكمية رصيد مخزني',
-      total_weight: 'إجمالي وزن',
-      min_quantity: 'الحد الأدنى',
-    },
-    attributeFields: ['weight', 'total_weight'],
-    createFields: [
-      { key: 'project', required: true },
-      { key: 'type_name', required: true },
-      { key: 'weight', inputType: 'number', required: true },
-      { key: 'stock_balance', inputType: 'number', required: true },
-      { key: 'min_quantity', inputType: 'number' },
-    ],
-    searchableFields: ['project', 'type_name'],
-    dateField: 'transaction_date',
-    stockField: 'stock_balance',
-    minQuantityField: 'min_quantity',
-    itemNameField: 'type_name',
-    operationsEnabled: true,
-  },
   screws: {
     label: 'مسامير',
     table: 'screws',
     route: '/category/screws',
+    aliases: ['مسامير', 'مساميرrotterdam', 'روتردام', 'rotterdam'],
     columns: screwColumns,
     attributeFields: ['din', 'code_number'],
     createFields: [
@@ -143,6 +116,12 @@ export const categoryConfig = {
     label: 'مسامير استوك',
     table: 'stock_screws',
     route: '/category/stock_screws',
+    aliases: [
+      'مسامير استوك',
+      'مساميراستوك',
+      'مساميراستوكrotterdam',
+      'مسامير استوك rotterdam',
+    ],
     columns: screwColumns,
     attributeFields: ['din', 'code_number'],
     createFields: [
@@ -164,15 +143,57 @@ export const categoryConfig = {
     label: 'خامات',
     table: 'raw_materials',
     route: '/category/raw_materials',
-    columns: sharedInventoryColumns,
-    attributeFields: [],
+    aliases: [
+      'خامات',
+      'خامات كونز4',
+      'خامات كونز 4',
+      'كونز4',
+      'كونز 4',
+      'خامات +الفتح amset3',
+      'خامات الفتح',
+      'الفتح amset3',
+      'amset3',
+    ],
+    columns: {
+      project: 'اسم المشروع',
+      item_name: 'اسم الصنف / نوع الخامة',
+      transaction_date: 'تاريخ',
+      issued: 'صرف',
+      added: 'إضافة',
+      total_added: 'إجمالي المضاف',
+      total_issued: 'إجمالي الصرف',
+      stock_balance: 'الكمية',
+      min_quantity: 'الحد الأدنى',
+      weight: 'وزن',
+      length: 'LENGTH',
+      width: 'WIDTH',
+      th: 'TH',
+      material_source: 'material_source',
+      notes: 'ملاحظات',
+    },
+    optionalFields: ['weight', 'length', 'width', 'th', 'material_source'],
+    attributeFields: ['weight', 'length', 'width', 'th', 'material_source'],
     createFields: [
       { key: 'project', required: true },
       { key: 'item_name', required: true },
       { key: 'stock_balance', inputType: 'number', required: true },
       { key: 'min_quantity', inputType: 'number' },
+      { key: 'weight', inputType: 'number' },
+      { key: 'length', inputType: 'number' },
+      { key: 'width', inputType: 'number' },
+      { key: 'th', inputType: 'number' },
+      { key: 'material_source' },
+      { key: 'notes', inputType: 'textarea' },
     ],
-    searchableFields: ['project', 'item_name'],
+    searchableFields: [
+      'project',
+      'item_name',
+      'material_source',
+      'weight',
+      'length',
+      'width',
+      'th',
+    ],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
     minQuantityField: 'min_quantity',
@@ -183,6 +204,7 @@ export const categoryConfig = {
     label: 'صواريخ',
     table: 'cutting_discs',
     route: '/category/cutting_discs',
+    aliases: ['صواريخ', 'صواربخ'],
     columns: {
       code: 'code',
       type_name: 'type',
@@ -200,6 +222,7 @@ export const categoryConfig = {
     label: 'اسطوانات',
     table: 'cylinders',
     route: '/category/cylinders',
+    aliases: ['اسطوانات', 'اسطوانات غازات', 'غازات'],
     columns: {
       type_name: 'نوع',
       gas_balance: 'رصيد',
@@ -223,9 +246,10 @@ export const categoryConfig = {
     operationsEnabled: true,
   },
   long_welding_gloves: {
-    label: 'جاونتي لحام طويل',
+    label: 'جوانتي لحام طويل',
     table: 'long_welding_gloves',
     route: '/category/long_welding_gloves',
+    aliases: ['جوانتى لحام طويل', 'جوانتي لحام طويل'],
     columns: {
       type_name: 'نوع',
       received_by: 'اسم الشخص اللي استلم',
@@ -264,6 +288,8 @@ export const operationCategoryOptions = categoryEntries
     table: config.table,
     itemNameField: (config.itemNameField ?? 'item_name') as string,
     stockField: (config.stockField ?? 'stock_balance') as string,
+    attributeFields: (config.attributeFields ?? []) as readonly string[],
+    columns: config.columns,
   }))
 
 export function getCategoryByTable(tableName: string) {

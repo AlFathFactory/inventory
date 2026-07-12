@@ -152,7 +152,16 @@ export function CategoryPage() {
           return true
         }
 
-        return [row.project_name, row.item_name, row.status]
+        return [
+          row.project_name,
+          row.item_name,
+          row.status,
+          row.material_source,
+          row.weight,
+          row.length,
+          row.width,
+          row.th,
+        ]
           .map((value) => String(value ?? '').toLowerCase())
           .some((value) => value.includes(normalizedSearchTerm))
       }),
@@ -424,6 +433,38 @@ export function CategoryPage() {
           </span>
         ),
       },
+      ...(category?.table === 'raw_materials'
+        ? [
+            {
+              id: 'weight',
+              header: 'وزن',
+              headerClassName: 'px-4 py-3 text-slate-700',
+              cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+              renderCell: (row: CategorySummaryItem) => getDisplayValue(row.weight),
+            },
+            {
+              id: 'length',
+              header: 'LENGTH',
+              headerClassName: 'px-4 py-3 text-slate-700',
+              cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+              renderCell: (row: CategorySummaryItem) => getDisplayValue(row.length),
+            },
+            {
+              id: 'width',
+              header: 'WIDTH',
+              headerClassName: 'px-4 py-3 text-slate-700',
+              cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+              renderCell: (row: CategorySummaryItem) => getDisplayValue(row.width),
+            },
+            {
+              id: 'th',
+              header: 'TH',
+              headerClassName: 'px-4 py-3 text-slate-700',
+              cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+              renderCell: (row: CategorySummaryItem) => getDisplayValue(row.th),
+            },
+          ]
+        : []),
       {
         id: 'actions',
         header: 'الإجراءات',

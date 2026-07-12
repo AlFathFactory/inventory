@@ -16,6 +16,12 @@ export type CategorySummaryItem = {
   status: string | null
   total_added: number | string | null
   total_issued: number | string | null
+  weight?: number | string | null
+  length?: number | string | null
+  width?: number | string | null
+  th?: number | string | null
+  material_source?: string | null
+  notes?: string | null
   source_rows_count: number | string | null
   updated_at: string | null
   created_at: string | null
