@@ -234,7 +234,7 @@ const navigationItems = [
   { label: 'الأصناف', to: '/items' },
   { label: 'المشاريع', to: '/projects' },
   { label: 'مركز العمليات', to: '/operations' },
-  { label: 'استيراد Excel', to: '/import' },
+  { label: 'استيراد البيانات', to: '/import' },
   { label: 'الأصناف القليلة', to: '/low-stock' },
   ...categoryOptions.map((category) => ({
     label: category.label,

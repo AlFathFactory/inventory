@@ -24,7 +24,7 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     subtitle: 'إدارة الإضافة والصرف والجرد مع تحديث الرصيد وسجل الحركات',
   },
   '/import': {
-    title: 'استيراد Excel',
+    title: 'استيراد البيانات',
     subtitle: 'نظام كامل لإدارة المخزون والمشاريع والعمليات',
   },
   '/low-stock': {

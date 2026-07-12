@@ -3,6 +3,7 @@ import { TablePagination } from '../components/TablePagination'
 import { usePagination } from '../hooks/usePagination'
 import {
   importInventoryRowsFromExcel,
+  importNormalizedInventoryJson,
   insertRows,
   type InventoryRow,
 } from '../services/inventoryService'
@@ -10,6 +11,7 @@ import {
   parseInventoryExcel,
   type ExcelImportPreview,
 } from '../utils/excelParser'
+import { parseNormalizedInventoryJson, type NormalizedInventoryImport } from '../utils/jsonImportParser'
 
 type ImportStatus = {
   type: 'success' | 'error'
@@ -96,13 +98,12 @@ export function ImportExcelPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
   const [preview, setPreview] = useState<ExcelImportPreview | null>(null)
+  const [jsonDocument, setJsonDocument] = useState<NormalizedInventoryImport | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [status, setStatus] = useState<ImportStatus | null>(null)
 
-  const canConfirmImport = preview
-    ? preview.matchedSheets.length > 0 && preview.totalRows > 0 && !isImporting
-    : false
+  const canConfirmImport = !isImporting && (jsonDocument !== null || Boolean(preview?.matchedSheets.length && preview.totalRows > 0))
 
   const previewTableRows = preview ? buildPreviewTableRows(preview) : []
   const previewPagination = usePagination(previewTableRows, { initialPageSize: 10 })
@@ -144,6 +145,7 @@ export function ImportExcelPage() {
   function resetPreviewState() {
     setSelectedFileName('')
     setPreview(null)
+    setJsonDocument(null)
     setStatus(null)
 
     if (fileInputRef.current) {
@@ -162,6 +164,7 @@ export function ImportExcelPage() {
 
     setStatus(null)
     setPreview(null)
+    setJsonDocument(null)
 
     if (!file) {
       setSelectedFileName('')
@@ -172,15 +175,18 @@ export function ImportExcelPage() {
     setIsParsing(true)
 
     try {
-      const parsedPreview = await parseInventoryExcel(file)
-      setPreview(parsedPreview)
+      if (file.name.toLowerCase().endsWith('.json')) {
+        setJsonDocument(await parseNormalizedInventoryJson(file))
+      } else {
+        setPreview(await parseInventoryExcel(file))
+      }
     } catch (error) {
       setStatus({
         type: 'error',
         message:
           error instanceof Error
             ? error.message
-            : 'حدث خطأ أثناء قراءة ملف Excel.',
+            : 'حدث خطأ أثناء قراءة الملف.',
       })
     } finally {
       setIsParsing(false)
@@ -189,7 +195,7 @@ export function ImportExcelPage() {
   }
 
   async function handleConfirmImport() {
-    if (!preview || preview.matchedSheets.length === 0) {
+    if (!jsonDocument && (!preview || preview.matchedSheets.length === 0)) {
       return
     }
 
@@ -197,7 +203,9 @@ export function ImportExcelPage() {
     setStatus(null)
 
     const importErrors: string[] = []
-    const importResult = await importInventoryRowsFromExcel(preview.rowsByTable)
+    const importResult = jsonDocument
+      ? await importNormalizedInventoryJson(jsonDocument)
+      : await importInventoryRowsFromExcel(preview!.rowsByTable)
 
     if (importResult.error) {
       importErrors.push(importResult.error)
@@ -207,7 +215,18 @@ export function ImportExcelPage() {
 
     const importLogStatus = importErrors.length === 0 ? 'success' : 'failed'
     const importLogResult = await insertRows<ImportLogRow>('imports', [
-      buildImportLogRow(preview, importLogStatus),
+      jsonDocument ? {
+        file_name: selectedFileName,
+        total_rows: jsonDocument.items.length + jsonDocument.movements.length,
+        matched_sheets: [], ignored_sheets: [],
+        rows_by_table: jsonDocument.items.reduce<Record<string, number>>((result, item) => {
+          result[item.table_name] = (result[item.table_name] ?? 0) + 1
+          return result
+        }, {}),
+        parsing_errors: jsonDocument.warnings,
+        status: importLogStatus,
+        imported_at: new Date().toISOString(),
+      } : buildImportLogRow(preview!, importLogStatus),
     ])
 
     if (importLogResult.error) {
@@ -224,7 +243,7 @@ export function ImportExcelPage() {
     } else {
       setStatus({
         type: 'success',
-        message: `تم استيراد ${importResult.data?.importedRowCount ?? preview.totalRows} حركة لعدد ${importResult.data?.processedItemCount ?? 0} صنف من الملف ${preview.fileName}.`,
+        message: `تم استيراد ${importResult.data?.insertedMovementsCount ?? 0} حركة لعدد ${importResult.data?.processedItemCount ?? 0} صنف من الملف ${selectedFileName}.`,
       })
     }
 
@@ -235,19 +254,19 @@ export function ImportExcelPage() {
     <section className="space-y-8">
       <div className="rounded-[24px] border border-dashed border-[var(--app-border-strong)] bg-[#fbfcff] px-6 py-10 text-center shadow-[var(--app-shadow)]">
         <label className="sr-only" htmlFor="excel-import-input">
-          اختيار ملف Excel
+          اختيار ملف JSON أو Excel
         </label>
         <input
           id="excel-import-input"
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.json"
           onChange={handleFileChange}
           className="hidden"
         />
 
         <h2 className="text-[28px] font-bold tracking-tight text-[var(--app-primary)]">
-          اسحب ملف Excel هنا أو اختر من جهازك
+          اسحب ملف JSON أو Excel هنا أو اختر من جهازك
         </h2>
         <p className="mt-3 text-[15px] text-[var(--app-text-muted)]">
           هذه الميزة اختيارية لتسريع إدخال البيانات أو نقل ملفات قديمة
@@ -278,6 +297,21 @@ export function ImportExcelPage() {
           ].join(' ')}
         >
           {status.message}
+        </div>
+      ) : null}
+
+      {jsonDocument ? (
+        <div className="space-y-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-[var(--app-shadow)]">
+          <h3 className="text-lg font-bold text-[var(--app-primary)]">JSON inventory_import_v1 جاهز للاستيراد</h3>
+          <p className="text-sm text-[var(--app-text-muted)]">
+            {formatNumber(jsonDocument.items.length)} صنف، {formatNumber(jsonDocument.movements.length)} حركة، {formatNumber(jsonDocument.cylinder_records.length)} سجل أسطوانات، و{formatNumber(jsonDocument.custody_records.cutting_discs.length + jsonDocument.custody_records.long_welding_gloves.length)} سجل عهدة.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <button type="button" onClick={handleConfirmImport} disabled={!canConfirmImport} className="inline-flex h-[42px] min-w-[220px] items-center justify-center rounded-[12px] bg-[var(--app-primary)] px-6 text-[14px] font-semibold text-white disabled:opacity-60">
+              {isImporting ? 'جاري الاستيراد...' : 'تأكيد الاستيراد'}
+            </button>
+            <button type="button" onClick={resetPreviewState} disabled={isImporting} className="inline-flex h-[42px] min-w-[150px] items-center justify-center rounded-[12px] border border-[var(--app-border)] bg-white px-6 text-[14px] font-semibold text-slate-900">إلغاء</button>
+          </div>
         </div>
       ) : null}
 

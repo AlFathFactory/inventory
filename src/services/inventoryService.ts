@@ -5,6 +5,7 @@ import {
 } from '../lib/supabaseClient'
 import { getCategoryByTable } from '../config/categoryConfig'
 import type { ParsedInventoryRow, ParsedRowsByTable } from '../utils/excelParser'
+import type { NormalizedInventoryImport, NormalizedImportItem } from '../utils/jsonImportParser'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -396,6 +397,115 @@ async function insertImportedMovements(
   }
 
   return operations.length
+}
+
+function buildNormalizedItemPayload(item: NormalizedImportItem): Record<string, JsonValue> {
+  const category = getCategoryByTable(item.table_name)
+  if (!category) throw new Error(`Unknown category table "${item.table_name}".`)
+
+  const itemNameField = String(category.itemNameField ?? 'item_name')
+  return {
+    ...(item.fields ?? {}),
+    item_key: item.item_key.trim(),
+    [itemNameField]: item.item_name,
+    ...(item.project_name !== undefined ? { project: item.project_name } : {}),
+    ...(item.stock_balance !== undefined ? { stock_balance: item.stock_balance } : {}),
+    ...(item.opening_balance !== undefined ? { opening_balance: item.opening_balance } : {}),
+    ...(item.total_added !== undefined ? { total_added: item.total_added } : {}),
+    ...(item.total_issued !== undefined ? { total_issued: item.total_issued } : {}),
+    ...(item.min_quantity !== undefined ? { min_quantity: item.min_quantity } : {}),
+  }
+}
+
+/** Imports the stable inventory_import_v1 contract without any Excel assumptions. */
+export async function importNormalizedInventoryJson(
+  document: NormalizedInventoryImport,
+): ServiceResult<InventoryImportResult> {
+  const clientFailure = getClientOrFailure()
+  if (clientFailure) return clientFailure
+
+  let insertedItemsCount = 0
+  let updatedItemsCount = 0
+  let insertedMovementsCount = 0
+  const errors: string[] = []
+  const resolvedItems = new Map<string, { tableName: string; row: InventoryRow }>()
+
+  const recordItems: NormalizedImportItem[] = [
+    ...document.cylinder_records.map((record) => ({ ...record, table_name: 'cylinders' }) as unknown as NormalizedImportItem),
+    ...document.custody_records.cutting_discs.map((record) => ({ ...record, table_name: 'cutting_discs' }) as unknown as NormalizedImportItem),
+    ...document.custody_records.long_welding_gloves.map((record) => ({ ...record, table_name: 'long_welding_gloves' }) as unknown as NormalizedImportItem),
+  ].filter((item) => Boolean(item.item_key && item.item_name))
+
+  // Last occurrence wins, while the table + item_key pair guarantees one upsert.
+  const uniqueItems = new Map<string, NormalizedImportItem>()
+  for (const item of [...document.items, ...recordItems]) {
+    uniqueItems.set(`${item.table_name}::${item.item_key}`, item)
+  }
+
+  for (const item of uniqueItems.values()) {
+    try {
+      const payload = buildNormalizedItemPayload(item)
+      const { data: existing, error: fetchError } = await supabaseClient!
+        .from(item.table_name).select('*').eq('item_key', item.item_key).limit(1).maybeSingle()
+      if (fetchError) throw new Error(fetchError.message)
+
+      const query = existing
+        ? supabaseClient!.from(item.table_name).update(payload as never).eq('id', existing.id)
+        : supabaseClient!.from(item.table_name).insert(payload as never)
+      const { data: saved, error: saveError } = await query.select('*').single()
+      if (saveError || !saved) throw new Error(saveError?.message || 'Failed to save item.')
+
+      resolvedItems.set(`${item.table_name}::${item.item_key}`, { tableName: item.table_name, row: saved as InventoryRow })
+      existing ? updatedItemsCount++ : insertedItemsCount++
+    } catch (error) {
+      errors.push(`${item.table_name}/${item.item_key}: ${normalizeError(error, 'Failed to import item.')}`)
+    }
+  }
+
+  for (const movement of document.movements) {
+    try {
+      const category = getCategoryByTable(movement.table_name)
+      if (!category) throw new Error(`Unknown category table "${movement.table_name}".`)
+      let resolved = resolvedItems.get(`${movement.table_name}::${movement.item_key}`)
+      if (!resolved) {
+        const { data, error } = await supabaseClient!.from(movement.table_name)
+          .select('*').eq('item_key', movement.item_key).limit(1).maybeSingle()
+        if (error) throw new Error(error.message)
+        if (!data) throw new Error('Item not found by item_key.')
+        resolved = { tableName: movement.table_name, row: data as InventoryRow }
+      }
+      const itemNameField = String(category.itemNameField ?? 'item_name')
+      const { error } = await supabaseClient!.from('inventory_operations').insert({
+        table_name: movement.table_name,
+        category_name: movement.category_name ?? category.label,
+        category_label: movement.category_name ?? category.label,
+        item_id: resolved.row.id ?? null,
+        item_name: movement.item_name ?? resolved.row[itemNameField] ?? '',
+        item_label: movement.item_name ?? resolved.row[itemNameField] ?? '',
+        project_name: movement.project_name ?? resolved.row.project ?? '',
+        project: movement.project_name ?? resolved.row.project ?? '',
+        operation_type: movement.operation_type,
+        quantity: movement.quantity,
+        operation_date: movement.operation_date,
+        previous_balance: movement.previous_balance ?? null,
+        new_balance: movement.new_balance ?? null,
+        notes: movement.notes ?? null,
+      } as never)
+      if (error) throw new Error(error.message)
+      insertedMovementsCount++
+    } catch (error) {
+      errors.push(`movement ${movement.table_name}/${movement.item_key}: ${normalizeError(error, 'Failed to import movement.')}`)
+    }
+  }
+
+  return createSuccess({
+    importedRowCount: uniqueItems.size + document.movements.length,
+    processedItemCount: uniqueItems.size,
+    insertedItemsCount,
+    updatedItemsCount,
+    insertedMovementsCount,
+    errors,
+  })
 }
 
 export async function importInventoryRowsFromExcel(
