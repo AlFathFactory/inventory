@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { DashboardInventoryFilters } from '../features/dashboard/components/DashboardInventoryFilters'
 import { DashboardInventoryTable } from '../features/dashboard/components/DashboardInventoryTable'
 import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
