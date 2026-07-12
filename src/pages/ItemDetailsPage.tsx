@@ -6,6 +6,16 @@ import {
   type CategoryDefinition,
   type CategoryKey,
 } from '../config/categoryConfig'
+import { ItemMovementsDateFilter } from '../features/item-details/components/ItemMovementsDateFilter'
+import { InventoryOperationModal } from '../features/inventory-operations/InventoryOperationModal'
+import {
+  createInitialOperationFormState,
+  getDisplayText,
+  getNumericValue,
+  getOperationTypeLabel,
+  type OperationFormState,
+  validateOperationForm,
+} from '../features/inventory-operations/operationForm'
 import {
   getItemDetails,
   getItemMovements,
@@ -23,56 +33,108 @@ type MessageState = {
   text: string
 } | null
 
-type OperationFormState = {
-  quantity: string
-  operationDate: string
-  projectName: string
-  supplierName: string
-  purchaseOrderNumber: string
-  issuedTo: string
-  notes: string
+type ItemMovementsDateFilterValue = {
+  fromDate: string
+  toDate: string
+}
+
+type MonthlyMovementSummary = {
+  monthKey: string
+  monthLabel: string
+  totalAdded: number
+  totalIssued: number
 }
 
 function isCategoryKey(value: string): value is CategoryKey {
   return value in categoryConfig
 }
 
-function getTodayValue() {
-  return new Date().toISOString().slice(0, 10)
+function parseInventoryDate(value: string | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const [year, month, day] = value.split('-').map(Number)
+
+  if (!year || !month || !day) {
+    return null
+  }
+
+  const date = new Date(year, month - 1, day)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
-function getDisplayText(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') {
-    return '—'
-  }
-
-  return String(value)
+function getDateTimestamp(value: string) {
+  const date = parseInventoryDate(value)
+  return date ? date.getTime() : null
 }
 
-function getNumericValue(value: string | number | null | undefined) {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
+function getInclusiveDateEndTimestamp(value: string) {
+  const date = parseInventoryDate(value)
+
+  if (!date) {
+    return null
   }
 
-  if (typeof value === 'string') {
-    const parsedValue = Number(value)
-    return Number.isFinite(parsedValue) ? parsedValue : 0
-  }
-
-  return 0
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    23,
+    59,
+    59,
+    999,
+  ).getTime()
 }
 
-function getOperationTypeLabel(operationType: string | null) {
-  switch (operationType) {
-    case 'add':
-      return 'إضافة'
-    case 'issue':
-      return 'صرف'
-    case 'adjust':
-      return 'جرد / تعديل رصيد'
-    default:
-      return '—'
+function formatMovementDate(value: string | null | undefined) {
+  const date = parseInventoryDate(value)
+
+  if (!date) {
+    return getDisplayText(value)
   }
+
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+
+  return `${day}/${month}/${year}`
+}
+
+function formatArabicMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat('ar-EG', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+function buildMonthlyMovementSummaries(movements: ItemMovement[]): MonthlyMovementSummary[] {
+  const summariesMap = new Map<string, MonthlyMovementSummary>()
+
+  movements.forEach((movement) => {
+    const date = parseInventoryDate(movement.operation_date)
+
+    if (!date) {
+      return
+    }
+
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    const currentSummary = summariesMap.get(monthKey) ?? {
+      monthKey,
+      monthLabel: formatArabicMonthLabel(date),
+      totalAdded: 0,
+      totalIssued: 0,
+    }
+
+    currentSummary.totalAdded += getNumericValue(movement.added_quantity)
+    currentSummary.totalIssued += getNumericValue(movement.issued_quantity)
+
+    summariesMap.set(monthKey, currentSummary)
+  })
+
+  return Array.from(summariesMap.values()).sort((firstSummary, secondSummary) =>
+    secondSummary.monthKey.localeCompare(firstSummary.monthKey),
+  )
 }
 
 function getStatusBadgeClass(status: string | null) {
@@ -112,36 +174,6 @@ function getOperationCode(row: ItemMovement) {
   return row.addition_code || row.issue_code || row.item_code
 }
 
-function createInitialFormState(details: ItemDetails | null): OperationFormState {
-  return {
-    quantity: '',
-    operationDate: getTodayValue(),
-    projectName: details?.project_name ?? '',
-    supplierName: '',
-    purchaseOrderNumber: '',
-    issuedTo: '',
-    notes: '',
-  }
-}
-
-function fieldClassName(hasError = false) {
-  return [
-    'h-[46px] w-full rounded-2xl border bg-white px-4 text-sm text-slate-800 outline-none transition',
-    hasError
-      ? 'border-red-300 focus:border-red-400'
-      : 'border-[var(--app-border)] focus:border-[var(--app-primary)]',
-  ].join(' ')
-}
-
-function textAreaClassName(hasError = false) {
-  return [
-    'min-h-[108px] w-full rounded-3xl border bg-white px-4 py-3 text-sm text-slate-800 outline-none transition',
-    hasError
-      ? 'border-red-300 focus:border-red-400'
-      : 'border-[var(--app-border)] focus:border-[var(--app-primary)]',
-  ].join(' ')
-}
-
 function SummaryCard({
   label,
   value,
@@ -167,8 +199,10 @@ export function ItemDetailsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<MessageState>(null)
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
-  const [form, setForm] = useState<OperationFormState>(createInitialFormState(null))
+  const [form, setForm] = useState<OperationFormState>(createInitialOperationFormState(null))
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [movementDateFilter, setMovementDateFilter] =
+    useState<ItemMovementsDateFilterValue>({ fromDate: '', toDate: '' })
 
   const category: CategoryDefinition | null =
     categoryKey && isCategoryKey(categoryKey)
@@ -231,7 +265,7 @@ export function ItemDetailsPage() {
       {
         id: 'operation_date',
         header: 'التاريخ',
-        renderCell: (row) => getDisplayText(row.operation_date),
+        renderCell: (row) => formatMovementDate(row.operation_date),
       },
       {
         id: 'operation_type',
@@ -309,9 +343,61 @@ export function ItemDetailsPage() {
     [],
   )
 
+  const monthlyMovementSummaries = useMemo(
+    () => buildMonthlyMovementSummaries(movements),
+    [movements],
+  )
+
+  const filteredMovements = useMemo(() => {
+    const fromTimestamp = movementDateFilter.fromDate
+      ? getDateTimestamp(movementDateFilter.fromDate)
+      : null
+    const toTimestamp = movementDateFilter.toDate
+      ? getInclusiveDateEndTimestamp(movementDateFilter.toDate)
+      : null
+
+    return movements.filter((movement) => {
+      if (fromTimestamp === null && toTimestamp === null) {
+        return true
+      }
+
+      const movementTimestamp = movement.operation_date
+        ? getDateTimestamp(movement.operation_date)
+        : null
+
+      if (movementTimestamp === null) {
+        return false
+      }
+
+      if (fromTimestamp !== null && movementTimestamp < fromTimestamp) {
+        return false
+      }
+
+      if (toTimestamp !== null && movementTimestamp > toTimestamp) {
+        return false
+      }
+
+      return true
+    })
+  }, [movementDateFilter.fromDate, movementDateFilter.toDate, movements])
+
+  const filteredMovementTotals = useMemo(() => {
+    return filteredMovements.reduce(
+      (totals, movement) => ({
+        totalAdded: totals.totalAdded + getNumericValue(movement.added_quantity),
+        totalIssued: totals.totalIssued + getNumericValue(movement.issued_quantity),
+      }),
+      { totalAdded: 0, totalIssued: 0 },
+    )
+  }, [filteredMovements])
+
+  const hasMovementDateFilter = Boolean(
+    movementDateFilter.fromDate || movementDateFilter.toDate,
+  )
+
   function openOperationModal(nextOperationType: InventoryOperationType) {
     setOperationType(nextOperationType)
-    setForm(createInitialFormState(details))
+    setForm(createInitialOperationFormState(details))
     setFormErrors({})
     setMessage(null)
   }
@@ -337,47 +423,15 @@ export function ItemDetailsPage() {
     })
   }
 
-  function validateOperationForm() {
-    if (!operationType || !details) {
-      return false
-    }
+  function validateCurrentOperationForm() {
+    const validationResult = validateOperationForm({
+      details,
+      form,
+      operationType,
+    })
 
-    const nextErrors: Record<string, string> = {}
-    const quantity = Number(form.quantity)
-    const currentBalance = getNumericValue(details.stock_balance)
-
-    if (!form.quantity || !Number.isFinite(quantity) || quantity <= 0) {
-      nextErrors.quantity = 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
-    }
-
-    if (!form.operationDate) {
-      nextErrors.operationDate = 'التاريخ مطلوب'
-    }
-
-    if ((operationType === 'add' || operationType === 'issue') && !form.projectName.trim()) {
-      nextErrors.projectName = 'اسم المشروع مطلوب'
-    }
-
-    if (operationType === 'add' && !form.supplierName.trim()) {
-      nextErrors.supplierName = 'اسم المورد مطلوب'
-    }
-
-    if (operationType === 'issue') {
-      if (!form.issuedTo.trim()) {
-        nextErrors.issuedTo = 'اسم المستلم مطلوب'
-      }
-
-      if (Number.isFinite(quantity) && quantity > currentBalance) {
-        nextErrors.quantity = 'الكمية المصروفة أكبر من الرصيد الحالي'
-      }
-    }
-
-    if (operationType === 'adjust' && !form.notes.trim()) {
-      nextErrors.notes = 'سبب الجرد أو التعديل مطلوب'
-    }
-
-    setFormErrors(nextErrors)
-    return Object.keys(nextErrors).length === 0
+    setFormErrors(validationResult.errors)
+    return validationResult.isValid
   }
 
   async function handleOperationSubmit() {
@@ -387,7 +441,7 @@ export function ItemDetailsPage() {
 
     setMessage(null)
 
-    if (!validateOperationForm()) {
+    if (!validateCurrentOperationForm()) {
       return
     }
 
@@ -522,7 +576,7 @@ export function ItemDetailsPage() {
               </Link>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-5">
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
               <SummaryCard
                 label="الرصيد الحالي"
                 value={getNumericValue(details.stock_balance).toLocaleString()}
@@ -536,16 +590,29 @@ export function ItemDetailsPage() {
                 value={details.status || 'غير محدد'}
                 toneClassName="bg-slate-50 text-slate-900"
               />
-              <SummaryCard
-                label="إجمالي المضاف"
-                value={getNumericValue(details.total_added).toLocaleString()}
-                toneClassName="bg-emerald-50 text-slate-900"
-              />
-              <SummaryCard
-                label="إجمالي الصرف"
-                value={getNumericValue(details.total_issued).toLocaleString()}
-                toneClassName="bg-orange-50 text-slate-900"
-              />
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {monthlyMovementSummaries.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-[var(--app-border)] px-5 py-6 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+                  لا توجد حركات شهرية مسجلة لهذا الصنف.
+                </div>
+              ) : (
+                monthlyMovementSummaries.flatMap((summary) => [
+                  <SummaryCard
+                    key={`${summary.monthKey}-added`}
+                    label={`إجمالي الإضافة (${summary.monthLabel})`}
+                    value={summary.totalAdded.toLocaleString()}
+                    toneClassName="bg-emerald-50 text-slate-900"
+                  />,
+                  <SummaryCard
+                    key={`${summary.monthKey}-issued`}
+                    label={`إجمالي الصرف (${summary.monthLabel})`}
+                    value={summary.totalIssued.toLocaleString()}
+                    toneClassName="bg-orange-50 text-slate-900"
+                  />,
+                ])
+              )}
             </div>
 
             <div className="mt-6 flex flex-wrap justify-start gap-3">
@@ -590,15 +657,50 @@ export function ItemDetailsPage() {
               </button>
             </div>
 
+            <ItemMovementsDateFilter
+              fromDate={movementDateFilter.fromDate}
+              toDate={movementDateFilter.toDate}
+              onFromDateChange={(fromDate) =>
+                setMovementDateFilter((currentValue) => ({ ...currentValue, fromDate }))
+              }
+              onToDateChange={(toDate) =>
+                setMovementDateFilter((currentValue) => ({ ...currentValue, toDate }))
+              }
+              onClear={() => setMovementDateFilter({ fromDate: '', toDate: '' })}
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <SummaryCard
+                label={
+                  hasMovementDateFilter
+                    ? 'إجمالي الإضافة للفترة المحددة'
+                    : 'إجمالي الإضافة لكل الحركات'
+                }
+                value={filteredMovementTotals.totalAdded.toLocaleString()}
+                toneClassName="bg-emerald-50 text-slate-900"
+              />
+              <SummaryCard
+                label={
+                  hasMovementDateFilter
+                    ? 'إجمالي الصرف للفترة المحددة'
+                    : 'إجمالي الصرف لكل الحركات'
+                }
+                value={filteredMovementTotals.totalIssued.toLocaleString()}
+                toneClassName="bg-orange-50 text-slate-900"
+              />
+            </div>
+
             <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
-              {movements.length === 0 ? (
+              {filteredMovements.length === 0 ? (
                 <div className="px-5 py-12 text-center text-sm text-slate-500">
-                  لا توجد حركات مسجلة لهذا الصنف حتى الآن
+                  {hasMovementDateFilter
+                    ? 'لا توجد حركات ضمن الفترة المحددة'
+                    : 'لا توجد حركات مسجلة لهذا الصنف حتى الآن'}
                 </div>
               ) : (
                 <DataTable
                   columns={movementColumns}
-                  rows={movements}
+                  rows={filteredMovements}
                   getRowKey={(row) => String(row.id)}
                   stickyHeader
                   maxHeightClassName="max-h-[68vh] overflow-auto"
@@ -611,171 +713,18 @@ export function ItemDetailsPage() {
       ) : null}
 
       {operationType && details ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div className="text-right">
-                <h3 className="text-[1.5rem] font-bold text-slate-900">
-                  {getOperationTypeLabel(operationType)}
-                </h3>
-                <p className="mt-1 text-sm text-[var(--app-text-muted)]">
-                  {details.item_name || `صنف ${itemId}`} داخل قسم {details.category_name || category.label}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeOperationModal}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
-                aria-label="إغلاق"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              {(operationType === 'add' || operationType === 'issue') ? (
-                <label className="space-y-2 text-right">
-                  <span className="block text-sm font-semibold text-slate-700">
-                    اسم المشروع
-                  </span>
-                  <input
-                    type="text"
-                    value={form.projectName}
-                    onChange={(event) => updateFormField('projectName', event.target.value)}
-                    className={fieldClassName(Boolean(formErrors.projectName))}
-                    placeholder="اكتب اسم المشروع"
-                  />
-                  {formErrors.projectName ? (
-                    <p className="text-xs text-red-600">{formErrors.projectName}</p>
-                  ) : null}
-                </label>
-              ) : null}
-
-              <label className="space-y-2 text-right">
-                <span className="block text-sm font-semibold text-slate-700">
-                  {operationType === 'adjust' ? 'الرصيد الفعلي بعد الجرد' : 'الكمية'}
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={form.quantity}
-                  onChange={(event) => updateFormField('quantity', event.target.value)}
-                  className={fieldClassName(Boolean(formErrors.quantity))}
-                  placeholder={
-                    operationType === 'adjust' ? 'أدخل الرصيد النهائي' : 'أدخل الكمية'
-                  }
-                />
-                {formErrors.quantity ? (
-                  <p className="text-xs text-red-600">{formErrors.quantity}</p>
-                ) : null}
-              </label>
-
-              <label className="space-y-2 text-right">
-                <span className="block text-sm font-semibold text-slate-700">
-                  التاريخ
-                </span>
-                <input
-                  type="date"
-                  value={form.operationDate}
-                  onChange={(event) => updateFormField('operationDate', event.target.value)}
-                  className={fieldClassName(Boolean(formErrors.operationDate))}
-                />
-                {formErrors.operationDate ? (
-                  <p className="text-xs text-red-600">{formErrors.operationDate}</p>
-                ) : null}
-              </label>
-
-              {operationType === 'add' ? (
-                <label className="space-y-2 text-right">
-                  <span className="block text-sm font-semibold text-slate-700">
-                    اسم المورد
-                  </span>
-                  <input
-                    type="text"
-                    value={form.supplierName}
-                    onChange={(event) => updateFormField('supplierName', event.target.value)}
-                    className={fieldClassName(Boolean(formErrors.supplierName))}
-                    placeholder="اسم المورد"
-                  />
-                  {formErrors.supplierName ? (
-                    <p className="text-xs text-red-600">{formErrors.supplierName}</p>
-                  ) : null}
-                </label>
-              ) : null}
-
-              {operationType === 'add' ? (
-                <label className="space-y-2 text-right">
-                  <span className="block text-sm font-semibold text-slate-700">
-                    رقم أمر التوريد
-                  </span>
-                  <input
-                    type="text"
-                    value={form.purchaseOrderNumber}
-                    onChange={(event) =>
-                      updateFormField('purchaseOrderNumber', event.target.value)
-                    }
-                    className={fieldClassName()}
-                    placeholder="اختياري"
-                  />
-                </label>
-              ) : null}
-
-              {operationType === 'issue' ? (
-                <label className="space-y-2 text-right">
-                  <span className="block text-sm font-semibold text-slate-700">
-                    اسم المستلم
-                  </span>
-                  <input
-                    type="text"
-                    value={form.issuedTo}
-                    onChange={(event) => updateFormField('issuedTo', event.target.value)}
-                    className={fieldClassName(Boolean(formErrors.issuedTo))}
-                    placeholder="اسم المستلم"
-                  />
-                  {formErrors.issuedTo ? (
-                    <p className="text-xs text-red-600">{formErrors.issuedTo}</p>
-                  ) : null}
-                </label>
-              ) : null}
-            </div>
-
-            <label className="mt-5 block space-y-2 text-right">
-              <span className="block text-sm font-semibold text-slate-700">ملاحظات</span>
-              <textarea
-                value={form.notes}
-                onChange={(event) => updateFormField('notes', event.target.value)}
-                className={textAreaClassName(Boolean(formErrors.notes))}
-                placeholder={
-                  operationType === 'adjust'
-                    ? 'اكتب سبب الجرد أو التعديل'
-                    : 'أي ملاحظات إضافية'
-                }
-              />
-              {formErrors.notes ? (
-                <p className="text-xs text-red-600">{formErrors.notes}</p>
-              ) : null}
-            </label>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-start">
-              <button
-                type="button"
-                onClick={closeOperationModal}
-                className="h-[46px] rounded-2xl px-6 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
-              >
-                إلغاء
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleOperationSubmit()}
-                disabled={isSubmitting}
-                className="h-[46px] min-w-[200px] rounded-2xl bg-[var(--app-primary)] px-6 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting ? 'جاري حفظ العملية...' : 'تأكيد العملية'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InventoryOperationModal
+          category={category}
+          itemId={itemId}
+          itemData={details as Record<string, unknown> & ItemDetails}
+          operationType={operationType}
+          form={form}
+          formErrors={formErrors}
+          isSubmitting={isSubmitting}
+          onClose={closeOperationModal}
+          onFieldChange={updateFormField}
+          onSubmit={handleOperationSubmit}
+        />
       ) : null}
     </section>
   )

@@ -5,6 +5,7 @@ type CategoryConfigItem<TColumns extends ColumnMap> = {
   table: string
   route: string
   columns: TColumns
+  attributeFields?: readonly (keyof TColumns)[]
   searchableFields: readonly (keyof TColumns)[]
   dateField: keyof TColumns
   stockField?: keyof TColumns
@@ -45,6 +46,7 @@ export const categoryConfig = {
     table: 'consumables',
     route: '/category/consumables',
     columns: sharedInventoryColumns,
+    attributeFields: [],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -57,6 +59,7 @@ export const categoryConfig = {
     table: 'paints',
     route: '/category/paints',
     columns: sharedInventoryColumns,
+    attributeFields: [],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -81,6 +84,7 @@ export const categoryConfig = {
       total_weight: 'إجمالي وزن',
       min_quantity: 'الحد الأدنى',
     },
+    attributeFields: ['weight', 'total_weight'],
     searchableFields: ['project', 'type_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -93,6 +97,7 @@ export const categoryConfig = {
     table: 'screws',
     route: '/category/screws',
     columns: screwColumns,
+    attributeFields: ['din', 'code_number'],
     searchableFields: ['project', 'item_name', 'din', 'code_number'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -105,6 +110,7 @@ export const categoryConfig = {
     table: 'stock_screws',
     route: '/category/stock_screws',
     columns: screwColumns,
+    attributeFields: ['din', 'code_number'],
     searchableFields: ['project', 'item_name', 'din', 'code_number'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -117,6 +123,7 @@ export const categoryConfig = {
     table: 'raw_materials',
     route: '/category/raw_materials',
     columns: sharedInventoryColumns,
+    attributeFields: [],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -135,6 +142,7 @@ export const categoryConfig = {
       received_date: 'تاريخ الاستلام',
       scrapped_date: 'تاريخ التكهيت',
     },
+    attributeFields: ['code', 'received_by', 'scrapped_date'],
     searchableFields: ['code', 'type_name', 'received_by'],
     dateField: 'received_date',
     itemNameField: 'type_name',
@@ -152,6 +160,7 @@ export const categoryConfig = {
       transaction_date: 'تاريخ',
       notes: 'ملاحظات',
     },
+    attributeFields: ['empty_count', 'full_count', 'notes'],
     searchableFields: ['type_name', 'notes'],
     dateField: 'transaction_date',
     stockField: 'gas_balance',
@@ -167,6 +176,7 @@ export const categoryConfig = {
       received_by: 'اسم الشخص اللي استلم',
       received_date: 'تاريخ الاستلام',
     },
+    attributeFields: ['received_by'],
     searchableFields: ['type_name', 'received_by'],
     dateField: 'received_date',
     itemNameField: 'type_name',
