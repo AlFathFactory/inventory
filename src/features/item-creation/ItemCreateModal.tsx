@@ -86,6 +86,7 @@ export function ItemCreateModal({
                 <span className="block text-sm font-semibold text-slate-700">{label}</span>
                 <input
                   type={field.inputType ?? 'text'}
+                  name={fieldKey}
                   min={field.inputType === 'number' ? '0' : undefined}
                   step={field.inputType === 'number' ? 'any' : undefined}
                   value={form[fieldKey] ?? ''}

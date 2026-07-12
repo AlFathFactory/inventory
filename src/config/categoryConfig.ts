@@ -35,6 +35,11 @@ const sharedInventoryColumns = {
   min_quantity: 'الحد الأدنى',
 } as const
 
+const paintColumns = {
+  ...sharedInventoryColumns,
+  expire_date: 'تاريخ الانتهاء',
+} as const
+
 const screwColumns = {
   project: 'مشروع',
   item_name: 'صنف',
@@ -75,13 +80,15 @@ export const categoryConfig = {
     table: 'paints',
     route: '/category/paints',
     aliases: ['الدهانات', 'دهانات'],
-    columns: sharedInventoryColumns,
+    columns: paintColumns,
+    optionalFields: ['expire_date'],
     attributeFields: [],
     createFields: [
       { key: 'project', required: true },
       { key: 'item_name', required: true },
       { key: 'stock_balance', inputType: 'number', required: true },
       { key: 'min_quantity', inputType: 'number' },
+      { key: 'expire_date', inputType: 'date' },
     ],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',

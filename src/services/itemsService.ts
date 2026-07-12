@@ -13,6 +13,7 @@ export type CategorySummaryItem = {
   item_name: string | null
   stock_balance: number | string | null
   min_quantity: number | string | null
+  expire_date?: string | null
   status: string | null
   total_added: number | string | null
   total_issued: number | string | null

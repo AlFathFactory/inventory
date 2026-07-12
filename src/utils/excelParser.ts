@@ -214,6 +214,28 @@ function findOperationStart(header: RawSheetRow): number {
   return header.findIndex((cell) => operationType(cell) !== null)
 }
 
+const expireDateHeaderAliases = [
+  'تاريخ الانتهاء',
+  'Expire Date',
+  'Expiry Date',
+  'expiration date',
+]
+
+function findExpireDateColumn(...headerRows: RawSheetRow[]): number {
+  const aliases = new Set(expireDateHeaderAliases.map(compactText))
+  const maxLength = Math.max(0, ...headerRows.map((row) => row.length))
+
+  for (let columnIndex = 0; columnIndex < maxLength; columnIndex += 1) {
+    if (
+      headerRows.some((row) => aliases.has(compactText(cellText(row[columnIndex]))))
+    ) {
+      return columnIndex
+    }
+  }
+
+  return -1
+}
+
 function getRawMaterialsSheetContext(sheetName: string): RawMaterialsSheetContext {
   const normalizedSheetName = normalizeArabicText(sheetName)
 
@@ -310,6 +332,8 @@ function parseStockMatrix(
   const firstHeader = rows[0] ?? []
   const secondHeader = rows[1] ?? []
   const operationStart = findOperationStart(secondHeader)
+  const expireDateColumn =
+    category === 'paints' ? findExpireDateColumn(firstHeader, secondHeader) : -1
   const baseDateColumn = operationStart - 1
   const baseDate = toDate(secondHeader[baseDateColumn])
 
@@ -325,6 +349,10 @@ function parseStockMatrix(
 
   rows.slice(2).forEach((row) => {
     const values = matrixStaticValues(category, row, sheetName)
+    if (category === 'paints') {
+      values.expire_date =
+        expireDateColumn >= 0 ? toDate(row[expireDateColumn]) : null
+    }
     const name = cellText(values.item_name)
 
     if (!name) {

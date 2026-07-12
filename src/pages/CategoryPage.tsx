@@ -355,7 +355,7 @@ export function CategoryPage() {
     setIsCreateSubmitting(true)
     setMessage(null)
 
-    const preparedValues = Object.entries(createForm).reduce<Record<string, string | number>>(
+    const preparedValues = Object.entries(createForm).reduce<Record<string, string | number | null>>(
       (result, [fieldKey, value]) => {
         const matchingField = category.createFields?.find(
           (field) => String(field.key) === fieldKey,
@@ -372,6 +372,10 @@ export function CategoryPage() {
       },
       {},
     )
+
+    if (category.table === 'paints') {
+      preparedValues.expire_date = createForm.expire_date?.trim() || null
+    }
 
     const result = await createInventoryItem(category.table, preparedValues)
 
@@ -462,6 +466,18 @@ export function CategoryPage() {
               headerClassName: 'px-4 py-3 text-slate-700',
               cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
               renderCell: (row: CategorySummaryItem) => getDisplayValue(row.th),
+            },
+          ]
+        : []),
+      ...(category?.table === 'paints'
+        ? [
+            {
+              id: 'expire_date',
+              header: 'تاريخ الانتهاء',
+              headerClassName: 'px-4 py-3 text-slate-700',
+              cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+              renderCell: (row: CategorySummaryItem) =>
+                getDisplayValue(row.expire_date),
             },
           ]
         : []),

@@ -219,6 +219,10 @@ function buildItemPayload(
     setIfPresent(payload, columnKey, latestRow[columnKey])
   })
 
+  if (tableName === 'paints') {
+    payload.expire_date = toText(latestRow.expire_date) || null
+  }
+
   payload[itemNameField] = itemName
 
   if ('project' in category.columns || projectName) {
@@ -683,6 +687,10 @@ export async function createInventoryItem(
       setIfPresent(payload, columnKey, values[columnKey])
     })
 
+    if (tableName === 'paints') {
+      payload.expire_date = toText(values.expire_date) || null
+    }
+
     payload[itemNameField] = itemName
 
     const projectName = toText(values.project)
@@ -737,6 +745,49 @@ export async function createInventoryItem(
     return createSuccess(data as InventoryRow)
   } catch (error) {
     return createFailure(normalizeError(error, `Failed to create item in "${tableName}".`))
+  }
+}
+
+export async function updateInventoryItem(
+  tableName: string,
+  itemId: string,
+  values: Record<string, JsonValue | undefined>,
+): ServiceResult<InventoryRow> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
+  const category = getCategoryByTable(tableName)
+  if (!category) {
+    return createFailure(`Unknown category table "${tableName}".`)
+  }
+
+  const payload: Record<string, JsonValue> = {}
+  Object.keys(category.columns).forEach((columnKey) => {
+    setIfPresent(payload, columnKey, values[columnKey])
+  })
+
+  if (tableName === 'paints') {
+    payload.expire_date = toText(values.expire_date) || null
+  }
+
+  try {
+    const { data, error } = await supabaseClient!
+      .from(tableName)
+      .update(payload as never)
+      .eq('id', itemId)
+      .select('*')
+      .single()
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    return createSuccess(data as InventoryRow)
+  } catch (error) {
+    return createFailure(normalizeError(error, `Failed to update item in table "${tableName}".`))
   }
 }
 
