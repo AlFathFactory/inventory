@@ -102,7 +102,10 @@ function normalizeItemKeyPart(value: string): string {
     .replace(/\s+/g, ' ')
 }
 
-function buildItemKey(tableName: string, row: ParsedInventoryRow) {
+function buildItemKey(
+  tableName: string,
+  row: Record<string, JsonValue | undefined>,
+) {
   const category = getCategoryByTable(tableName)
   const itemNameField = String(category?.itemNameField ?? 'item_name')
   const identityParts = [
@@ -639,6 +642,95 @@ export async function insertRows<
     return createFailure(
       normalizeError(error, `Failed to insert rows into table "${tableName}".`),
     )
+  }
+}
+
+export async function createInventoryItem(
+  tableName: string,
+  values: Record<string, JsonValue | undefined>,
+): ServiceResult<InventoryRow> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
+  const category = getCategoryByTable(tableName)
+
+  if (!category) {
+    return createFailure(`Unknown category table "${tableName}".`)
+  }
+
+  try {
+    const itemNameField = String(category.itemNameField ?? 'item_name')
+    const itemName = toText(values[itemNameField])
+
+    if (!itemName) {
+      return createFailure('اسم الصنف مطلوب')
+    }
+
+    const payload: Record<string, JsonValue> = {
+      item_key: buildItemKey(tableName, values),
+    }
+
+    Object.keys(category.columns).forEach((columnKey) => {
+      setIfPresent(payload, columnKey, values[columnKey])
+    })
+
+    payload[itemNameField] = itemName
+
+    const projectName = toText(values.project)
+    if ('project' in category.columns || projectName) {
+      payload.project = projectName
+    }
+
+    if (category.stockField) {
+      const stockField = String(category.stockField)
+      payload[stockField] = toNumberValue(values[stockField]) ?? 0
+    }
+
+    if (category.minQuantityField) {
+      const minQuantityField = String(category.minQuantityField)
+      payload[minQuantityField] = toNumberValue(values[minQuantityField]) ?? 0
+    }
+
+    if (!('total_added' in payload)) {
+      payload.total_added = 0
+    }
+
+    if (!('total_issued' in payload)) {
+      payload.total_issued = 0
+    }
+
+    const itemKey = toText(payload.item_key)
+    const { data: existingItem, error: existingItemError } = await supabaseClient!
+      .from(tableName)
+      .select('id')
+      .eq('item_key', itemKey)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingItemError) {
+      return createFailure(existingItemError.message)
+    }
+
+    if (existingItem) {
+      return createFailure('هذا الصنف موجود بالفعل في هذا القسم')
+    }
+
+    const { data, error } = await supabaseClient!
+      .from(tableName)
+      .insert(payload as never)
+      .select('*')
+      .single()
+
+    if (error || !data) {
+      return createFailure(error?.message || 'تعذر إضافة الصنف')
+    }
+
+    return createSuccess(data as InventoryRow)
+  } catch (error) {
+    return createFailure(normalizeError(error, `Failed to create item in "${tableName}".`))
   }
 }
 

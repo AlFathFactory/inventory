@@ -8,6 +8,13 @@ import {
   type CategoryDefinition,
   type CategoryKey,
 } from '../config/categoryConfig'
+import { ItemCreateModal } from '../features/item-creation/ItemCreateModal'
+import { ItemSelectionModal } from '../features/item-creation/ItemSelectionModal'
+import {
+  createInitialItemCreateFormState,
+  type ItemCreateFormState,
+  validateItemCreateForm,
+} from '../features/item-creation/itemCreateForm'
 import { InventoryOperationModal } from '../features/inventory-operations/InventoryOperationModal'
 import {
   createInitialOperationFormState,
@@ -21,6 +28,7 @@ import {
   type CategorySummaryItem,
   type ItemDetails,
 } from '../services/itemsService'
+import { createInventoryItem } from '../services/inventoryService'
 import {
   applyInventoryOperation,
   type InventoryOperationType,
@@ -31,6 +39,8 @@ type MessageState = {
   type: 'success' | 'error'
   text: string
 } | null
+
+type CategoryQuickAction = 'add' | 'issue' | null
 
 function isCategoryKey(value: string): value is CategoryKey {
   return value in categoryConfig
@@ -64,9 +74,14 @@ export function CategoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isPreparingOperation, setIsPreparingOperation] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isCreateSubmitting, setIsCreateSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<MessageState>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [quickAction, setQuickAction] = useState<CategoryQuickAction>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<ItemCreateFormState>({})
+  const [createFormErrors, setCreateFormErrors] = useState<Record<string, string>>({})
   const [selectedItemDetails, setSelectedItemDetails] = useState<ItemDetails | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
@@ -79,6 +94,17 @@ export function CategoryPage() {
       : null
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
+
+  useEffect(() => {
+    if (!category) {
+      setCreateForm({})
+      setCreateFormErrors({})
+      return
+    }
+
+    setCreateForm(createInitialItemCreateFormState(category))
+    setCreateFormErrors({})
+  }, [category])
 
   useEffect(() => {
     if (!category) {
@@ -151,11 +177,50 @@ export function CategoryPage() {
     })
   }
 
+  function openCreateModal() {
+    if (!category) {
+      return
+    }
+
+    setCreateForm(createInitialItemCreateFormState(category))
+    setCreateFormErrors({})
+    setIsCreateModalOpen(true)
+    setQuickAction(null)
+    setMessage(null)
+  }
+
+  function closeCreateModal() {
+    setIsCreateModalOpen(false)
+    setCreateFormErrors({})
+  }
+
+  function updateCreateFormField(field: string, value: string) {
+    setCreateForm((currentForm) => ({ ...currentForm, [field]: value }))
+    setCreateFormErrors((currentErrors) => {
+      if (!(field in currentErrors)) {
+        return currentErrors
+      }
+
+      const nextErrors = { ...currentErrors }
+      delete nextErrors[field]
+      return nextErrors
+    })
+  }
+
   function closeOperationModal() {
     setOperationType(null)
     setSelectedItemDetails(null)
     setSelectedItemId(null)
     setFormErrors({})
+  }
+
+  function openQuickAction(nextAction: Exclude<CategoryQuickAction, null>) {
+    setQuickAction(nextAction)
+    setMessage(null)
+  }
+
+  function closeQuickActionModal() {
+    setQuickAction(null)
   }
 
   async function refreshRows() {
@@ -181,6 +246,7 @@ export function CategoryPage() {
       return
     }
 
+    setQuickAction(null)
     setIsPreparingOperation(true)
     setMessage(null)
 
@@ -263,6 +329,53 @@ export function CategoryPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  async function handleCreateSubmit() {
+    if (!category) {
+      return
+    }
+
+    const validationResult = validateItemCreateForm(category, createForm)
+
+    if (!validationResult.isValid) {
+      setCreateFormErrors(validationResult.errors)
+      return
+    }
+
+    setIsCreateSubmitting(true)
+    setMessage(null)
+
+    const preparedValues = Object.entries(createForm).reduce<Record<string, string | number>>(
+      (result, [fieldKey, value]) => {
+        const matchingField = category.createFields?.find(
+          (field) => String(field.key) === fieldKey,
+        )
+        const trimmedValue = value.trim()
+
+        if (!trimmedValue) {
+          return result
+        }
+
+        result[fieldKey] =
+          matchingField?.inputType === 'number' ? Number(trimmedValue) : trimmedValue
+        return result
+      },
+      {},
+    )
+
+    const result = await createInventoryItem(category.table, preparedValues)
+
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
+      setIsCreateSubmitting(false)
+      return
+    }
+
+    await refreshRows()
+    closeCreateModal()
+    setMessage({ type: 'success', text: 'تمت إضافة الصنف بنجاح' })
+    setIsCreateSubmitting(false)
   }
 
   const columns = useMemo<DataTableColumn<CategorySummaryItem>[]>(
@@ -399,6 +512,46 @@ export function CategoryPage() {
         </div>
       ) : null}
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-right">
+          <h2 className="text-xl font-bold text-slate-900">{category.label}</h2>
+          <p className="mt-1 text-sm text-[var(--app-text-muted)]">
+            إدارة الأصناف والحركات الخاصة بهذا القسم.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {category.operationsEnabled ? (
+            <>
+              <button
+                type="button"
+                onClick={() => openQuickAction('add')}
+                className="inline-flex h-[44px] items-center rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                إضافة
+              </button>
+              <button
+                type="button"
+                onClick={() => openQuickAction('issue')}
+                className="inline-flex h-[44px] items-center rounded-2xl bg-orange-500 px-5 text-sm font-semibold text-white transition hover:bg-orange-600"
+              >
+                صرف
+              </button>
+            </>
+          ) : null}
+
+          {category.createFields?.length ? (
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex h-[44px] items-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              إضافة صنف جديد
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <DataFilters
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
@@ -473,6 +626,48 @@ export function CategoryPage() {
           onClose={closeOperationModal}
           onFieldChange={updateFormField}
           onSubmit={handleOperationSubmit}
+        />
+      ) : null}
+
+      {quickAction ? (
+        <ItemSelectionModal
+          items={rows}
+          title={quickAction === 'add' ? 'إضافة على صنف موجود' : 'صرف من صنف موجود'}
+          description={
+            quickAction === 'add'
+              ? 'اختر صنفاً موجوداً لإضافة كمية عليه، أو أضف صنفاً جديداً.'
+              : 'اختر الصنف الذي تريد تنفيذ الصرف عليه.'
+          }
+          emptyMessage={
+            quickAction === 'add'
+              ? 'لا توجد أصناف حالياً. يمكنك إضافة صنف جديد أولاً.'
+              : 'لا توجد أصناف متاحة للصرف في هذا القسم.'
+          }
+          confirmLabel={quickAction === 'add' ? 'إضافة' : 'صرف'}
+          createLabel={
+            quickAction === 'add' && category.createFields?.length ? 'صنف جديد' : undefined
+          }
+          onClose={closeQuickActionModal}
+          onCreateNew={
+            quickAction === 'add' && category.createFields?.length
+              ? openCreateModal
+              : undefined
+          }
+          onSelectItem={(item) =>
+            void openOperationModal(item, quickAction === 'add' ? 'add' : 'issue')
+          }
+        />
+      ) : null}
+
+      {isCreateModalOpen ? (
+        <ItemCreateModal
+          category={category}
+          form={createForm}
+          formErrors={createFormErrors}
+          isSubmitting={isCreateSubmitting}
+          onClose={closeCreateModal}
+          onFieldChange={updateCreateFormField}
+          onSubmit={handleCreateSubmit}
         />
       ) : null}
     </section>

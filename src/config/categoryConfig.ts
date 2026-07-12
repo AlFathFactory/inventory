@@ -1,11 +1,18 @@
 type ColumnMap = Record<string, string>
 
+export type CategoryCreateField<TColumns extends ColumnMap = ColumnMap> = {
+  key: keyof TColumns
+  inputType?: 'text' | 'number' | 'date' | 'textarea'
+  required?: boolean
+}
+
 type CategoryConfigItem<TColumns extends ColumnMap> = {
   label: string
   table: string
   route: string
   columns: TColumns
   attributeFields?: readonly (keyof TColumns)[]
+  createFields?: readonly CategoryCreateField<TColumns>[]
   searchableFields: readonly (keyof TColumns)[]
   dateField: keyof TColumns
   stockField?: keyof TColumns
@@ -47,6 +54,12 @@ export const categoryConfig = {
     route: '/category/consumables',
     columns: sharedInventoryColumns,
     attributeFields: [],
+    createFields: [
+      { key: 'project', required: true },
+      { key: 'item_name', required: true },
+      { key: 'stock_balance', inputType: 'number', required: true },
+      { key: 'min_quantity', inputType: 'number' },
+    ],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -60,6 +73,12 @@ export const categoryConfig = {
     route: '/category/paints',
     columns: sharedInventoryColumns,
     attributeFields: [],
+    createFields: [
+      { key: 'project', required: true },
+      { key: 'item_name', required: true },
+      { key: 'stock_balance', inputType: 'number', required: true },
+      { key: 'min_quantity', inputType: 'number' },
+    ],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -85,6 +104,13 @@ export const categoryConfig = {
       min_quantity: 'الحد الأدنى',
     },
     attributeFields: ['weight', 'total_weight'],
+    createFields: [
+      { key: 'project', required: true },
+      { key: 'type_name', required: true },
+      { key: 'weight', inputType: 'number', required: true },
+      { key: 'stock_balance', inputType: 'number', required: true },
+      { key: 'min_quantity', inputType: 'number' },
+    ],
     searchableFields: ['project', 'type_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -98,6 +124,14 @@ export const categoryConfig = {
     route: '/category/screws',
     columns: screwColumns,
     attributeFields: ['din', 'code_number'],
+    createFields: [
+      { key: 'project', required: true },
+      { key: 'item_name', required: true },
+      { key: 'din', required: true },
+      { key: 'code_number', required: true },
+      { key: 'stock_balance', inputType: 'number', required: true },
+      { key: 'min_quantity', inputType: 'number' },
+    ],
     searchableFields: ['project', 'item_name', 'din', 'code_number'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -111,6 +145,14 @@ export const categoryConfig = {
     route: '/category/stock_screws',
     columns: screwColumns,
     attributeFields: ['din', 'code_number'],
+    createFields: [
+      { key: 'project', required: true },
+      { key: 'item_name', required: true },
+      { key: 'din', required: true },
+      { key: 'code_number', required: true },
+      { key: 'stock_balance', inputType: 'number', required: true },
+      { key: 'min_quantity', inputType: 'number' },
+    ],
     searchableFields: ['project', 'item_name', 'din', 'code_number'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -124,6 +166,12 @@ export const categoryConfig = {
     route: '/category/raw_materials',
     columns: sharedInventoryColumns,
     attributeFields: [],
+    createFields: [
+      { key: 'project', required: true },
+      { key: 'item_name', required: true },
+      { key: 'stock_balance', inputType: 'number', required: true },
+      { key: 'min_quantity', inputType: 'number' },
+    ],
     searchableFields: ['project', 'item_name'],
     dateField: 'transaction_date',
     stockField: 'stock_balance',
@@ -161,6 +209,13 @@ export const categoryConfig = {
       notes: 'ملاحظات',
     },
     attributeFields: ['empty_count', 'full_count', 'notes'],
+    createFields: [
+      { key: 'type_name', required: true },
+      { key: 'gas_balance', inputType: 'number', required: true },
+      { key: 'empty_count', inputType: 'number' },
+      { key: 'full_count', inputType: 'number' },
+      { key: 'notes', inputType: 'textarea' },
+    ],
     searchableFields: ['type_name', 'notes'],
     dateField: 'transaction_date',
     stockField: 'gas_balance',

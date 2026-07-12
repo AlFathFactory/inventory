@@ -249,8 +249,8 @@ export function Sidebar() {
     <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
       <div className="flex h-full flex-col px-[18px] pb-8 pt-7">
         <div className="mb-6 text-right">
-          <h2 className="text-[18px] font-bold tracking-tight">مصنع الفتح</h2>
-          <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المخزون</p>
+          <h2 className="text-[25px] font-bold tracking-tight">مصنع الفــــتـــــــــــــــح</h2>
+          <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المــخــــــــزون</p>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
