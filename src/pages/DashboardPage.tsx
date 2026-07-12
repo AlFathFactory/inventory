@@ -64,14 +64,6 @@ export function DashboardPage() {
 
       <DashboardTableSection
         title="جدول البحث الشامل"
-        action={
-          <Link
-            to="/import"
-            className="inline-flex h-[42px] items-center rounded-2xl bg-[var(--app-primary)] px-5 text-sm font-bold text-white transition hover:bg-blue-700"
-          >
-            إضافة كمية
-          </Link>
-        }
       >
         <div className="space-y-5 p-4 md:p-6">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
