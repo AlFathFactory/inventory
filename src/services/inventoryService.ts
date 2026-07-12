@@ -700,20 +700,19 @@ export async function createInventoryItem(
 
     if (category.stockField) {
       const stockField = String(category.stockField)
-      payload[stockField] = toNumberValue(values[stockField]) ?? 0
+      const initialQuantity = toNumberValue(values[stockField]) ?? 0
+      payload[stockField] = initialQuantity
+
+      if (tableName !== 'cylinders') {
+        payload.added = initialQuantity
+        payload.total_added = initialQuantity
+        payload.total_issued = 0
+      }
     }
 
     if (category.minQuantityField) {
       const minQuantityField = String(category.minQuantityField)
       payload[minQuantityField] = toNumberValue(values[minQuantityField]) ?? 0
-    }
-
-    if (!('total_added' in payload)) {
-      payload.total_added = 0
-    }
-
-    if (!('total_issued' in payload)) {
-      payload.total_issued = 0
     }
 
     const itemKey = toText(payload.item_key)

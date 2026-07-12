@@ -387,7 +387,10 @@ export function CategoryPage() {
 
     await refreshRows()
     closeCreateModal()
-    setMessage({ type: 'success', text: 'تمت إضافة الصنف بنجاح' })
+    setMessage({
+      type: 'success',
+      text: 'تم إضافة الصنف وتسجيله كحركة إضافة بنجاح',
+    })
     setIsCreateSubmitting(false)
   }
 

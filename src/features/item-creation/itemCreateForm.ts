@@ -33,6 +33,10 @@ export function validateItemCreateForm(
       if (!Number.isFinite(parsedValue) || parsedValue < 0) {
         errors[fieldKey] = `${category.columns[field.key] ?? fieldKey} يجب أن يكون رقماً صالحاً`
       }
+
+      if (String(field.key) === String(category.stockField) && parsedValue <= 0) {
+        errors[fieldKey] = 'الكمية الأولية يجب أن تكون أكبر من صفر'
+      }
     }
   })
 
