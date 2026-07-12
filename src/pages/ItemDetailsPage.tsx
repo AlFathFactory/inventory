@@ -7,6 +7,7 @@ import {
   type CategoryKey,
 } from '../config/categoryConfig'
 import { ItemMovementsDateFilter } from '../features/item-details/components/ItemMovementsDateFilter'
+import { EditItemModal } from '../features/item-edit/EditItemModal'
 import { InventoryOperationModal } from '../features/inventory-operations/InventoryOperationModal'
 import {
   createInitialOperationFormState,
@@ -19,6 +20,7 @@ import {
 import {
   getItemDetails,
   getItemMovements,
+  getCategorySummaryItems,
   type ItemDetails,
   type ItemMovement,
 } from '../services/itemsService'
@@ -26,7 +28,6 @@ import {
   applyInventoryOperation,
   type InventoryOperationType,
 } from '../services/operationsService'
-import { updateInventoryItem } from '../services/inventoryService'
 import { getStockStatusClass } from '../utils/statusUtils'
 
 type MessageState = {
@@ -205,8 +206,6 @@ export function ItemDetailsPage() {
   const [movementDateFilter, setMovementDateFilter] =
     useState<ItemMovementsDateFilterValue>({ fromDate: '', toDate: '' })
   const [isEditOpen, setIsEditOpen] = useState(false)
-  const [editExpireDate, setEditExpireDate] = useState('')
-  const [isEditSubmitting, setIsEditSubmitting] = useState(false)
 
   const category: CategoryDefinition | null =
     categoryKey && isCategoryKey(categoryKey)
@@ -219,6 +218,7 @@ export function ItemDetailsPage() {
     const [detailsResult, movementsResult] = await Promise.all([
       getItemDetails(activeCategory.table, activeItemId),
       getItemMovements(activeCategory.table, activeItemId),
+      getCategorySummaryItems(activeCategory.table),
     ])
 
     if (detailsResult.error) {
@@ -265,30 +265,20 @@ export function ItemDetailsPage() {
   }, [category, itemId])
 
   function openEditModal() {
-    setEditExpireDate(details?.expire_date ?? '')
     setIsEditOpen(true)
     setMessage(null)
   }
 
-  async function handleEditSubmit() {
-    if (!category || !itemId || category.table !== 'paints') {
-      return
-    }
-
-    setIsEditSubmitting(true)
-    const result = await updateInventoryItem(category.table, itemId, {
-      expire_date: editExpireDate || null,
-    })
-    setIsEditSubmitting(false)
-
-    if (result.error) {
-      setMessage({ type: 'error', text: result.error })
-      return
-    }
-
+  async function handleEditSuccess(balanceChanged: boolean) {
+    if (!category || !itemId) return
     setIsEditOpen(false)
     await loadItemData(category, itemId)
-    setMessage({ type: 'success', text: 'تم تحديث بيانات الصنف بنجاح' })
+    setMessage({
+      type: 'success',
+      text: balanceChanged
+        ? 'تم تعديل بيانات الصنف بنجاح — تم تعديل الرصيد وتسجيل حركة جرد / تعديل رصيد'
+        : 'تم تعديل بيانات الصنف بنجاح',
+    })
   }
 
   const movementColumns = useMemo<DataTableColumn<ItemMovement>[]>(
@@ -693,15 +683,13 @@ export function ItemDetailsPage() {
               >
                 جرد / تعديل رصيد
               </button>
-              {category.table === 'paints' ? (
-                <button
-                  type="button"
-                  onClick={openEditModal}
-                  className="inline-flex h-[44px] items-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  تعديل بيانات الصنف
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="inline-flex h-[44px] items-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                تعديل الصنف
+              </button>
             </div>
           </div>
 
@@ -792,56 +780,14 @@ export function ItemDetailsPage() {
         />
       ) : null}
 
-      {isEditOpen && category.table === 'paints' ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
-          <div className="w-full max-w-lg rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div className="text-right">
-                <h3 className="text-2xl font-bold text-slate-900">تعديل بيانات الصنف</h3>
-                <p className="mt-1 text-sm text-[var(--app-text-muted)]">
-                  يمكنك تعديل تاريخ انتهاء الدهان أو تركه فارغًا.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600"
-                aria-label="إغلاق"
-              >
-                ×
-              </button>
-            </div>
-
-            <label className="mt-6 block space-y-2 text-right">
-              <span className="block text-sm font-semibold text-slate-700">تاريخ الانتهاء</span>
-              <input
-                type="date"
-                name="expire_date"
-                value={editExpireDate}
-                onChange={(event) => setEditExpireDate(event.target.value)}
-                className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm text-slate-800 outline-none focus:border-[var(--app-primary)]"
-              />
-            </label>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-start">
-              <button
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-                className="h-[46px] rounded-2xl px-6 text-sm font-bold text-slate-700 hover:bg-slate-100"
-              >
-                إلغاء
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleEditSubmit()}
-                disabled={isEditSubmitting}
-                className="h-[46px] min-w-[160px] rounded-2xl bg-[var(--app-primary)] px-6 text-sm font-bold text-white disabled:opacity-60"
-              >
-                {isEditSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {isEditOpen && details ? (
+        <EditItemModal
+          category={category}
+          itemId={itemId}
+          itemData={details}
+          onClose={() => setIsEditOpen(false)}
+          onSuccess={handleEditSuccess}
+        />
       ) : null}
     </section>
   )

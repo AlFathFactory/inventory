@@ -26,6 +26,7 @@ export type CategorySummaryItem = {
   source_rows_count: number | string | null
   updated_at: string | null
   created_at: string | null
+  [key: string]: string | number | null | undefined
 }
 
 export type ItemDetails = CategorySummaryItem
@@ -72,6 +73,15 @@ type ServiceFailure = {
 }
 
 export type ServiceResult<TData> = Promise<ServiceSuccess<TData> | ServiceFailure>
+
+export type UpdateItemDetailsParams = {
+  tableName: string
+  itemId: string
+  patch: Record<string, string | number | null>
+  adjustDate: string | null
+  notes: string | null
+  updatedBy?: string
+}
 
 function createSuccess<TData>(data: TData): ServiceSuccess<TData> {
   return { data, error: null }
@@ -176,5 +186,42 @@ export async function getItemMovements(
     return createSuccess((data ?? []) as ItemMovement[])
   } catch (error) {
     return createFailure(normalizeError(error, 'تعذر تحميل سجل الحركات'))
+  }
+}
+
+export async function updateItemDetails({
+  tableName,
+  itemId,
+  patch,
+  adjustDate,
+  notes,
+  updatedBy,
+}: UpdateItemDetailsParams): ServiceResult<unknown> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
+  try {
+    const { data, error } = await supabaseClient!.rpc(
+      'update_inventory_item_details_rpc',
+      {
+        p_table_name: tableName,
+        p_item_id: itemId,
+        p_patch: patch,
+        p_adjust_date: adjustDate,
+        p_notes: notes,
+        p_updated_by: updatedBy || 'user',
+      },
+    )
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    return createSuccess(data)
+  } catch (error) {
+    return createFailure(normalizeError(error, 'تعذر تعديل بيانات الصنف'))
   }
 }

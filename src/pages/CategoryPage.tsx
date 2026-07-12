@@ -10,6 +10,7 @@ import {
 } from '../config/categoryConfig'
 import { ItemCreateModal } from '../features/item-creation/ItemCreateModal'
 import { ItemSelectionModal } from '../features/item-creation/ItemSelectionModal'
+import { EditItemModal } from '../features/item-edit/EditItemModal'
 import {
   createInitialItemCreateFormState,
   type ItemCreateFormState,
@@ -25,6 +26,7 @@ import { usePagination } from '../hooks/usePagination'
 import {
   getCategorySummaryItems,
   getItemDetails,
+  getItemMovements,
   type CategorySummaryItem,
   type ItemDetails,
 } from '../services/itemsService'
@@ -83,6 +85,7 @@ export function CategoryPage() {
   const [createForm, setCreateForm] = useState<ItemCreateFormState>({})
   const [createFormErrors, setCreateFormErrors] = useState<Record<string, string>>({})
   const [selectedItemDetails, setSelectedItemDetails] = useState<ItemDetails | null>(null)
+  const [editingItem, setEditingItem] = useState<ItemDetails | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
   const [form, setForm] = useState<OperationFormState>(createInitialOperationFormState(null))
@@ -275,6 +278,37 @@ export function CategoryPage() {
     setOperationType(nextOperationType)
     setForm(createInitialOperationFormState(result.data))
     setFormErrors({})
+  }
+
+  async function openEditModal(row: CategorySummaryItem) {
+    if (!category) return
+    setIsPreparingOperation(true)
+    setMessage(null)
+    const result = await getItemDetails(category.table, String(row.item_id))
+    setIsPreparingOperation(false)
+    if (result.error || !result.data) {
+      setMessage({ type: 'error', text: result.error || 'تعذر تحميل بيانات الصنف' })
+      return
+    }
+    setEditingItem(result.data)
+  }
+
+  async function handleEditSuccess(balanceChanged: boolean) {
+    if (!category || !editingItem) return
+    const itemId = String(editingItem.item_id)
+    const [summaryResult] = await Promise.all([
+      getCategorySummaryItems(category.table),
+      getItemDetails(category.table, itemId),
+      getItemMovements(category.table, itemId),
+    ])
+    if (!summaryResult.error) setRows(summaryResult.data ?? [])
+    setEditingItem(null)
+    setMessage({
+      type: 'success',
+      text: balanceChanged
+        ? 'تم تعديل بيانات الصنف بنجاح — تم تعديل الرصيد وتسجيل حركة جرد / تعديل رصيد'
+        : 'تم تعديل بيانات الصنف بنجاح',
+    })
   }
 
   async function handleOperationSubmit() {
@@ -491,6 +525,16 @@ export function CategoryPage() {
         cellClassName: 'px-4 py-3',
         renderCell: (row) => (
           <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                void openEditModal(row)
+              }}
+              className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+            >
+              تعديل الصنف
+            </button>
             {category?.operationsEnabled ? (
               <>
                 <button
@@ -728,6 +772,16 @@ export function CategoryPage() {
           onClose={closeCreateModal}
           onFieldChange={updateCreateFormField}
           onSubmit={handleCreateSubmit}
+        />
+      ) : null}
+
+      {editingItem ? (
+        <EditItemModal
+          category={category}
+          itemId={String(editingItem.item_id)}
+          itemData={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSuccess={handleEditSuccess}
         />
       ) : null}
     </section>
