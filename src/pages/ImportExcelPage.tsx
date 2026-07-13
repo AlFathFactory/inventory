@@ -12,6 +12,8 @@ import {
   type ExcelImportPreview,
 } from '../utils/excelParser'
 import { parseNormalizedInventoryJson, type NormalizedInventoryImport } from '../utils/jsonImportParser'
+import { parseCustomInventoryExcel, type CustomExcelPreview } from '../utils/customExcelParser'
+import { importCustomInventoryExcel } from '../services/customExcelImportService'
 
 type ImportStatus = {
   type: 'success' | 'error'
@@ -99,11 +101,12 @@ export function ImportExcelPage() {
   const [selectedFileName, setSelectedFileName] = useState('')
   const [preview, setPreview] = useState<ExcelImportPreview | null>(null)
   const [jsonDocument, setJsonDocument] = useState<NormalizedInventoryImport | null>(null)
+  const [customPreview, setCustomPreview] = useState<CustomExcelPreview | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [status, setStatus] = useState<ImportStatus | null>(null)
 
-  const canConfirmImport = !isImporting && (jsonDocument !== null || Boolean(preview?.matchedSheets.length && preview.totalRows > 0))
+  const canConfirmImport = !isImporting && !customPreview?.errors.length && (customPreview !== null || jsonDocument !== null || Boolean(preview?.matchedSheets.length && preview.totalRows > 0))
 
   const previewTableRows = preview ? buildPreviewTableRows(preview) : []
   const previewPagination = usePagination(previewTableRows, { initialPageSize: 10 })
@@ -146,6 +149,7 @@ export function ImportExcelPage() {
     setSelectedFileName('')
     setPreview(null)
     setJsonDocument(null)
+    setCustomPreview(null)
     setStatus(null)
 
     if (fileInputRef.current) {
@@ -165,6 +169,7 @@ export function ImportExcelPage() {
     setStatus(null)
     setPreview(null)
     setJsonDocument(null)
+    setCustomPreview(null)
 
     if (!file) {
       setSelectedFileName('')
@@ -178,7 +183,9 @@ export function ImportExcelPage() {
       if (file.name.toLowerCase().endsWith('.json')) {
         setJsonDocument(await parseNormalizedInventoryJson(file))
       } else {
-        setPreview(await parseInventoryExcel(file))
+        const custom = await parseCustomInventoryExcel(file)
+        if (custom) setCustomPreview(custom)
+        else setPreview(await parseInventoryExcel(file))
       }
     } catch (error) {
       setStatus({
@@ -195,17 +202,26 @@ export function ImportExcelPage() {
   }
 
   async function handleConfirmImport() {
-    if (!jsonDocument && (!preview || preview.matchedSheets.length === 0)) {
+    if (!customPreview && !jsonDocument && (!preview || preview.matchedSheets.length === 0)) {
       return
     }
 
     setIsImporting(true)
     setStatus(null)
 
+    try {
     const importErrors: string[] = []
-    const importResult = jsonDocument
-      ? await importNormalizedInventoryJson(jsonDocument)
-      : await importInventoryRowsFromExcel(preview!.rowsByTable)
+    let importResult
+    try {
+      importResult = customPreview
+        ? await importCustomInventoryExcel(customPreview)
+        : jsonDocument
+          ? await importNormalizedInventoryJson(jsonDocument)
+          : await importInventoryRowsFromExcel(preview!.rowsByTable)
+    } catch (error) {
+      setStatus({ type: 'error', message: error instanceof Error ? error.message : 'حدث خطأ أثناء الاستيراد.' })
+      return
+    }
 
     if (importResult.error) {
       importErrors.push(importResult.error)
@@ -215,7 +231,16 @@ export function ImportExcelPage() {
 
     const importLogStatus = importErrors.length === 0 ? 'success' : 'failed'
     const importLogResult = await insertRows<ImportLogRow>('imports', [
-      jsonDocument ? {
+      customPreview ? {
+        file_name: selectedFileName,
+        total_rows: customPreview.items.length + customPreview.movements.length + customPreview.cuttingDiscs.length + customPreview.longWeldingGloves.length,
+        matched_sheets: ['Items', 'Movements', 'Cutting_Discs', 'Long_Welding_Gloves'],
+        ignored_sheets: [],
+        rows_by_table: { Items: customPreview.items.length, Movements: customPreview.movements.length, cutting_discs: customPreview.cuttingDiscs.length, long_welding_gloves: customPreview.longWeldingGloves.length },
+        parsing_errors: customPreview.errors,
+        status: importLogStatus,
+        imported_at: new Date().toISOString(),
+      } : jsonDocument ? {
         file_name: selectedFileName,
         total_rows: jsonDocument.items.length + jsonDocument.movements.length,
         matched_sheets: [], ignored_sheets: [],
@@ -243,11 +268,18 @@ export function ImportExcelPage() {
     } else {
       setStatus({
         type: 'success',
-        message: `تم استيراد ${importResult.data?.insertedMovementsCount ?? 0} حركة لعدد ${importResult.data?.processedItemCount ?? 0} صنف من الملف ${selectedFileName}.`,
+        message: customPreview ? 'تم استيراد ملف المخزون المخصص بنجاح' : `تم استيراد ${importResult.data?.insertedMovementsCount ?? 0} حركة لعدد ${importResult.data?.processedItemCount ?? 0} صنف من الملف ${selectedFileName}.`,
       })
     }
 
-    setIsImporting(false)
+    } catch (error) {
+      setStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'حدث خطأ أثناء الاستيراد.',
+      })
+    } finally {
+      setIsImporting(false)
+    }
   }
 
   return (
@@ -311,6 +343,34 @@ export function ImportExcelPage() {
               {isImporting ? 'جاري الاستيراد...' : 'تأكيد الاستيراد'}
             </button>
             <button type="button" onClick={resetPreviewState} disabled={isImporting} className="inline-flex h-[42px] min-w-[150px] items-center justify-center rounded-[12px] border border-[var(--app-border)] bg-white px-6 text-[14px] font-semibold text-slate-900">إلغاء</button>
+          </div>
+        </div>
+      ) : null}
+
+      {customPreview ? (
+        <div className="space-y-5 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-[var(--app-shadow)]">
+          <h3 className="text-lg font-bold text-[var(--app-primary)]">ملف Excel المخصص جاهز للاستيراد</h3>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['الأصناف', customPreview.items.length],
+              ['الحركات', customPreview.movements.length],
+              ['صواريخ القطع', customPreview.cuttingDiscs.length],
+              ['جوانتي اللحام الطويل', customPreview.longWeldingGloves.length],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-[14px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4">
+                <p className="text-sm text-[var(--app-text-muted)]">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-[var(--app-primary)]">{formatNumber(Number(value))}</p>
+              </div>
+            ))}
+          </div>
+          {customPreview.errors.map((message, index) => (
+            <div key={`${message}-${index}`} className="rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{message}</div>
+          ))}
+          <div className="flex flex-wrap gap-4">
+            <button type="button" onClick={handleConfirmImport} disabled={!canConfirmImport} className="inline-flex h-[42px] min-w-[220px] items-center justify-center rounded-[12px] bg-[var(--app-primary)] px-6 text-sm font-semibold text-white disabled:opacity-60">
+              {isImporting ? 'جاري الاستيراد...' : 'تأكيد الاستيراد'}
+            </button>
+            <button type="button" onClick={resetPreviewState} disabled={isImporting} className="inline-flex h-[42px] min-w-[150px] items-center justify-center rounded-[12px] border border-[var(--app-border)] bg-white px-6 text-sm font-semibold">إلغاء</button>
           </div>
         </div>
       ) : null}
