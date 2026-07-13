@@ -1,4 +1,5 @@
-import { useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { categoryConfig, type CategoryDefinition } from '../config/categoryConfig'
 import { ItemDetailsOverview } from '../features/item-details/components/ItemDetailsOverview'
 import { ItemMovementsSection } from '../features/item-details/components/ItemMovementsSection'
@@ -6,7 +7,55 @@ import { useItemDetailsPage } from '../features/item-details/hooks/useItemDetail
 import { isCategoryKey } from '../features/item-details/itemDetailsUtils'
 import { EditItemModal } from '../features/item-edit/EditItemModal'
 import { InventoryOperationModal } from '../features/inventory-operations/InventoryOperationModal'
-import type { ItemDetails } from '../services/itemsService'
+import {
+  getCustodyRecord,
+  isCustodyTable,
+  type CustodyRecord,
+  type CustodyTableName,
+  type ItemDetails,
+} from '../services/itemsService'
+
+function displayValue(value: string | number | null | undefined) {
+  return value === null || value === undefined || value === '' ? '—' : String(value)
+}
+
+function CustodyDetailsView({ tableName, itemId }: { tableName: CustodyTableName; itemId: string }) {
+  const [record, setRecord] = useState<CustodyRecord | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+    setError(null)
+    void getCustodyRecord(tableName, itemId).then((result) => {
+      if (cancelled) return
+      if (result.error) setError(result.error)
+      else setRecord(result.data)
+      setIsLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [itemId, tableName])
+
+  if (isLoading) return <div className="rounded-[28px] border border-[var(--app-border)] bg-white p-10 text-center text-sm text-slate-500">جاري تحميل سجل العهدة...</div>
+  if (error || !record) return <div className="rounded-[28px] border border-red-200 bg-red-50 p-10 text-center text-sm text-red-600">{error || 'سجل العهدة غير موجود'}</div>
+
+  const fields = tableName === 'cutting_discs'
+    ? [['الكود', record.code], ['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['تاريخ التكهين', record.scrapped_date], ['المصدر', record.source_sheet]]
+    : [['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['المصدر', record.source_sheet]]
+
+  return (
+    <section dir="rtl" className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div><h1 className="text-2xl font-bold text-slate-900">تفاصيل سجل العهدة</h1><p className="mt-1 text-sm text-slate-500">{displayValue(record.type_name)}</p></div>
+        <Link to={`/category/${tableName}`} className="rounded-xl border border-[var(--app-border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700">العودة للقسم</Link>
+      </div>
+      <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-white p-6 shadow-[var(--app-shadow)] sm:grid-cols-2 lg:grid-cols-3">
+        {fields.map(([label, value]) => <div key={String(label)} className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-2 font-semibold text-slate-900">{displayValue(value)}</p></div>)}
+      </div>
+    </section>
+  )
+}
 
 export function ItemDetailsPage() {
   const { categoryKey, itemId } = useParams()
@@ -14,7 +63,12 @@ export function ItemDetailsPage() {
     categoryKey && isCategoryKey(categoryKey)
       ? (categoryConfig[categoryKey] as CategoryDefinition)
       : null
-  const page = useItemDetailsPage(category, itemId)
+  const stockCategory = category && !isCustodyTable(category.table) ? category : null
+  const page = useItemDetailsPage(stockCategory, itemId)
+
+  if (category && itemId && isCustodyTable(category.table)) {
+    return <CustodyDetailsView tableName={category.table} itemId={itemId} />
+  }
 
   if (!category || !itemId) {
     return (

@@ -23,6 +23,12 @@ export type CategorySummaryItem = {
   th?: number | string | null
   material_source?: string | null
   notes?: string | null
+  code?: string | null
+  type_name?: string | null
+  received_by?: string | null
+  received_date?: string | null
+  scrapped_date?: string | null
+  source_sheet?: string | null
   source_rows_count: number | string | null
   updated_at: string | null
   created_at: string | null
@@ -30,6 +36,21 @@ export type CategorySummaryItem = {
 }
 
 export type ItemDetails = CategorySummaryItem
+
+export type CustodyTableName = 'cutting_discs' | 'long_welding_gloves'
+export type CustodyRecord = Record<string, string | number | null> & {
+  id: string | number
+  type_name: string | null
+  received_by: string | null
+  received_date: string | null
+  source_sheet: string | null
+  code?: string | null
+  scrapped_date?: string | null
+}
+
+export function isCustodyTable(tableName: string): tableName is CustodyTableName {
+  return tableName === 'cutting_discs' || tableName === 'long_welding_gloves'
+}
 
 export type ItemMovement = {
   id: string | number
@@ -130,6 +151,63 @@ export async function getCategorySummaryItems(
     return createSuccess((data ?? []) as CategorySummaryItem[])
   } catch (error) {
     return createFailure(normalizeError(error, 'تعذر تحميل ملخص أصناف القسم'))
+  }
+}
+
+export async function getCustodyCategoryRows(
+  tableName: CustodyTableName,
+): ServiceResult<CategorySummaryItem[]> {
+  const clientFailure = getClientOrFailure()
+  if (clientFailure) return clientFailure
+
+  try {
+    const { data, error } = await supabaseClient!
+      .from(tableName)
+      .select('*')
+      .order('received_date', { ascending: false })
+
+    if (error) return createFailure(error.message)
+
+    return createSuccess(((data ?? []) as CustodyRecord[]).map((row) => ({
+      ...row,
+      table_name: tableName,
+      category_name: tableName === 'cutting_discs' ? 'صواريخ' : 'جوانتي لحام طويل',
+      item_id: row.id,
+      item_key: null,
+      project_name: null,
+      item_name: row.type_name,
+      stock_balance: null,
+      min_quantity: null,
+      status: null,
+      total_added: null,
+      total_issued: null,
+      source_rows_count: 1,
+      updated_at: null,
+      created_at: null,
+    })))
+  } catch (error) {
+    return createFailure(normalizeError(error, 'تعذر تحميل سجلات العهدة'))
+  }
+}
+
+export async function getCustodyRecord(
+  tableName: CustodyTableName,
+  recordId: string,
+): ServiceResult<CustodyRecord> {
+  const clientFailure = getClientOrFailure()
+  if (clientFailure) return clientFailure
+
+  try {
+    const { data, error } = await supabaseClient!
+      .from(tableName)
+      .select('*')
+      .eq('id', recordId)
+      .single()
+
+    if (error || !data) return createFailure(error?.message || 'سجل العهدة غير موجود')
+    return createSuccess(data as CustodyRecord)
+  } catch (error) {
+    return createFailure(normalizeError(error, 'تعذر تحميل تفاصيل سجل العهدة'))
   }
 }
 

@@ -13,7 +13,7 @@ import {
 } from '../utils/excelParser'
 import { parseNormalizedInventoryJson, type NormalizedInventoryImport } from '../utils/jsonImportParser'
 import { parseCustomInventoryExcel, type CustomExcelPreview } from '../utils/customExcelParser'
-import { importCustomInventoryExcel } from '../services/customExcelImportService'
+import { importCustomInventoryExcel, type CustomImportProgress } from '../services/customExcelImportService'
 
 type ImportStatus = {
   type: 'success' | 'error'
@@ -104,6 +104,7 @@ export function ImportExcelPage() {
   const [customPreview, setCustomPreview] = useState<CustomExcelPreview | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState<CustomImportProgress | null>(null)
   const [status, setStatus] = useState<ImportStatus | null>(null)
 
   const canConfirmImport = !isImporting && !customPreview?.errors.length && (customPreview !== null || jsonDocument !== null || Boolean(preview?.matchedSheets.length && preview.totalRows > 0))
@@ -151,6 +152,7 @@ export function ImportExcelPage() {
     setJsonDocument(null)
     setCustomPreview(null)
     setStatus(null)
+    setImportProgress(null)
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -167,6 +169,7 @@ export function ImportExcelPage() {
     const file = event.target.files?.[0]
 
     setStatus(null)
+    setImportProgress(null)
     setPreview(null)
     setJsonDocument(null)
     setCustomPreview(null)
@@ -208,13 +211,14 @@ export function ImportExcelPage() {
 
     setIsImporting(true)
     setStatus(null)
+    setImportProgress(null)
 
     try {
     const importErrors: string[] = []
     let importResult
     try {
       importResult = customPreview
-        ? await importCustomInventoryExcel(customPreview)
+        ? await importCustomInventoryExcel(customPreview, setImportProgress)
         : jsonDocument
           ? await importNormalizedInventoryJson(jsonDocument)
           : await importInventoryRowsFromExcel(preview!.rowsByTable)
@@ -230,17 +234,8 @@ export function ImportExcelPage() {
     importErrors.push(...(importResult.data?.errors ?? []))
 
     const importLogStatus = importErrors.length === 0 ? 'success' : 'failed'
-    const importLogResult = await insertRows<ImportLogRow>('imports', [
-      customPreview ? {
-        file_name: selectedFileName,
-        total_rows: customPreview.items.length + customPreview.movements.length + customPreview.cuttingDiscs.length + customPreview.longWeldingGloves.length,
-        matched_sheets: ['Items', 'Movements', 'Cutting_Discs', 'Long_Welding_Gloves'],
-        ignored_sheets: [],
-        rows_by_table: { Items: customPreview.items.length, Movements: customPreview.movements.length, cutting_discs: customPreview.cuttingDiscs.length, long_welding_gloves: customPreview.longWeldingGloves.length },
-        parsing_errors: customPreview.errors,
-        status: importLogStatus,
-        imported_at: new Date().toISOString(),
-      } : jsonDocument ? {
+    const importLogResult = customPreview ? { error: null } : await insertRows<ImportLogRow>('imports', [
+      jsonDocument ? {
         file_name: selectedFileName,
         total_rows: jsonDocument.items.length + jsonDocument.movements.length,
         matched_sheets: [], ignored_sheets: [],
@@ -279,6 +274,7 @@ export function ImportExcelPage() {
       })
     } finally {
       setIsImporting(false)
+      setImportProgress(null)
     }
   }
 
@@ -366,6 +362,17 @@ export function ImportExcelPage() {
           {customPreview.errors.map((message, index) => (
             <div key={`${message}-${index}`} className="rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{message}</div>
           ))}
+          {isImporting && importProgress ? (
+            <div className="space-y-2 rounded-[14px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+              <div className="flex items-center justify-between gap-4">
+                <span>{importProgress.label} {importProgress.chunk} / {importProgress.totalChunks}</span>
+                <span>{formatNumber(importProgress.current)} / {formatNumber(importProgress.total)}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+                <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${importProgress.total ? Math.round((importProgress.current / importProgress.total) * 100) : 0}%` }} />
+              </div>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-4">
             <button type="button" onClick={handleConfirmImport} disabled={!canConfirmImport} className="inline-flex h-[42px] min-w-[220px] items-center justify-center rounded-[12px] bg-[var(--app-primary)] px-6 text-sm font-semibold text-white disabled:opacity-60">
               {isImporting ? 'جاري الاستيراد...' : 'تأكيد الاستيراد'}

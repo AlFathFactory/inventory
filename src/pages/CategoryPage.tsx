@@ -25,8 +25,10 @@ import {
 import { usePagination } from '../hooks/usePagination'
 import {
   getCategorySummaryItems,
+  getCustodyCategoryRows,
   getItemDetails,
   getItemMovements,
+  isCustodyTable,
   type CategorySummaryItem,
   type ItemDetails,
 } from '../services/itemsService'
@@ -97,6 +99,7 @@ export function CategoryPage() {
       : null
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
+  const isCustodyCategory = Boolean(category && isCustodyTable(category.table))
 
   useEffect(() => {
     if (!category) {
@@ -124,7 +127,9 @@ export function CategoryPage() {
       setIsLoading(true)
       setError(null)
 
-      const result = await getCategorySummaryItems(activeCategory.table)
+      const result = isCustodyTable(activeCategory.table)
+        ? await getCustodyCategoryRows(activeCategory.table)
+        : await getCategorySummaryItems(activeCategory.table)
 
       if (isCancelled) {
         return
@@ -164,6 +169,12 @@ export function CategoryPage() {
           row.length,
           row.width,
           row.th,
+          row.code,
+          row.type_name,
+          row.received_by,
+          row.received_date,
+          row.scrapped_date,
+          row.source_sheet,
         ]
           .map((value) => String(value ?? '').toLowerCase())
           .some((value) => value.includes(normalizedSearchTerm))
@@ -240,7 +251,9 @@ export function CategoryPage() {
       return
     }
 
-    const result = await getCategorySummaryItems(category.table)
+    const result = isCustodyTable(category.table)
+      ? await getCustodyCategoryRows(category.table)
+      : await getCategorySummaryItems(category.table)
 
     if (result.error) {
       setError(result.error)
@@ -429,7 +442,48 @@ export function CategoryPage() {
   }
 
   const columns = useMemo<DataTableColumn<CategorySummaryItem>[]>(
-    () => [
+    () => {
+      const detailsColumn: DataTableColumn<CategorySummaryItem> = {
+        id: 'actions',
+        header: 'الإجراءات',
+        headerClassName: 'px-4 py-3 text-slate-700',
+        cellClassName: 'px-4 py-3',
+        renderCell: (row) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              navigate(`/category/${categoryKey}/item/${row.item_id}`)
+            }}
+            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+          >
+            التفاصيل
+          </button>
+        ),
+      }
+
+      if (category && isCustodyTable(category.table)) {
+        const custodyColumns: DataTableColumn<CategorySummaryItem>[] = [
+          ...(category.table === 'cutting_discs' ? [{
+            id: 'code', header: 'الكود', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.code),
+          }] : []),
+          { id: 'type_name', header: 'النوع', renderCell: (row) => getDisplayValue(row.type_name) },
+          { id: 'received_by', header: 'المستلم', renderCell: (row) => getDisplayValue(row.received_by) },
+          { id: 'received_date', header: 'تاريخ الاستلام', renderCell: (row) => getDisplayValue(row.received_date) },
+          ...(category.table === 'cutting_discs' ? [{
+            id: 'scrapped_date', header: 'تاريخ التكهين', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.scrapped_date),
+          }] : []),
+          { id: 'source_sheet', header: 'المصدر', renderCell: (row) => getDisplayValue(row.source_sheet) },
+          detailsColumn,
+        ]
+        return custodyColumns.map((column) => ({
+          headerClassName: 'px-4 py-3 text-slate-700',
+          cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+          ...column,
+        }))
+      }
+
+      return [
       {
         id: 'project_name',
         header: 'مشروع',
@@ -587,7 +641,8 @@ export function CategoryPage() {
           </div>
         ),
       },
-    ],
+      ]
+    },
     [category, categoryKey, navigate],
   )
 
@@ -620,7 +675,7 @@ export function CategoryPage() {
         <div className="text-right">
           <h2 className="text-xl font-bold text-slate-900">{category.label}</h2>
           <p className="mt-1 text-sm text-[var(--app-text-muted)]">
-            إدارة الأصناف والحركات الخاصة بهذا القسم.
+            {isCustodyCategory ? 'سجلات العهدة الخاصة بهذا القسم.' : 'إدارة الأصناف والحركات الخاصة بهذا القسم.'}
           </p>
         </div>
 
@@ -659,7 +714,7 @@ export function CategoryPage() {
       <DataFilters
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="ابحث باسم المشروع أو الصنف أو الحالة"
+        searchPlaceholder={isCustodyCategory ? 'ابحث بالكود أو النوع أو المستلم أو المصدر' : 'ابحث باسم المشروع أو الصنف أو الحالة'}
       />
 
       {isLoading ? (

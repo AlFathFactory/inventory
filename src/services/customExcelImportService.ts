@@ -1,183 +1,186 @@
-import { getCategoryByTable } from '../config/categoryConfig'
-import { getSupabaseConfigError, isSupabaseConfigured, supabaseClient } from '../lib/supabaseClient'
-import type { CustomExcelPreview, CustomExcelRow, CustomExcelValue } from '../utils/customExcelParser'
+import {
+  getSupabaseConfigError,
+  isSupabaseConfigured,
+  supabaseClient,
+} from '../lib/supabaseClient'
+import type { CustomExcelPreview, CustomExcelRow } from '../utils/customExcelParser'
 import type { InventoryImportResult, ServiceResult } from './inventoryService'
 
 const ITEM_CHUNK_SIZE = 200
 const MOVEMENT_CHUNK_SIZE = 300
 const CUSTODY_CHUNK_SIZE = 200
+const RPC_TIMEOUT_MS = 60_000
 
-function chunks<T>(rows: readonly T[], size: number) {
-  const result: T[][] = []
-  for (let index = 0; index < rows.length; index += size) result.push(rows.slice(index, index + size))
-  return result
+export type CustomImportStage =
+  | 'items'
+  | 'movements'
+  | 'cutting_discs'
+  | 'long_welding_gloves'
+  | 'refreshing'
+
+export type CustomImportProgress = {
+  stage: CustomImportStage
+  label: string
+  current: number
+  total: number
+  chunk: number
+  totalChunks: number
 }
 
-function groupByTable(rows: CustomExcelRow[]) {
-  const grouped = new Map<string, CustomExcelRow[]>()
-  for (const row of rows) {
-    const tableName = text(row.table_name)
-    grouped.set(tableName, [...(grouped.get(tableName) ?? []), row])
-  }
-  return grouped
+type RpcResult = {
+  data: unknown
+  error: { message?: string } | null
 }
 
-function text(value: CustomExcelValue | undefined) {
-  return value === null || value === undefined ? '' : String(value).trim()
+export function chunkArray<T>(arr: readonly T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < arr.length; index += size) {
+    chunks.push(arr.slice(index, index + size))
+  }
+  return chunks
 }
 
-function optionalText(value: CustomExcelValue | undefined) {
-  const valueText = text(value)
-  return valueText || null
+function withoutParserFields(row: CustomExcelRow) {
+  const { __rowNumber: _rowNumber, ...record } = row
+  return record
 }
 
-function optionalNumber(value: CustomExcelValue | undefined) {
-  if (value === null || value === undefined || text(value) === '') return null
-  const number = Number(value)
-  return Number.isFinite(number) ? number : null
+function getRpcErrors(data: unknown): string[] {
+  if (!data || typeof data !== 'object' || !('errors' in data)) return []
+  const errors = (data as { errors?: unknown }).errors
+  if (!Array.isArray(errors)) return []
+  return errors.map((error) =>
+    typeof error === 'string' ? error : JSON.stringify(error),
+  )
 }
 
-function itemPayload(row: CustomExcelRow) {
-  const tableName = text(row.table_name)
-  const category = getCategoryByTable(tableName)
-  if (!category) throw new Error(`Unknown table_name "${tableName}".`)
-  if (tableName === 'cutting_discs' || tableName === 'long_welding_gloves') {
-    throw new Error(`Use the dedicated custody sheet for table "${tableName}".`)
-  }
-
-  const itemNameField = String(category.itemNameField ?? 'item_name')
-  const payload: Record<string, string | number | null> = {
-    item_key: text(row.item_key),
-    [itemNameField]: text(row.item_name),
-  }
-  const textFields = ['transaction_date', 'notes']
-  const numericFields = ['opening_balance', 'total_added', 'total_issued', 'min_quantity']
-  if (tableName !== 'cylinders') numericFields.push('stock_balance')
-  if (text(row.project_name)) payload.project = text(row.project_name)
-  for (const field of textFields) if (text(row[field])) payload[field] = text(row[field])
-  for (const field of numericFields) {
-    const value = optionalNumber(row[field])
-    if (value !== null) payload[field] = value
-  }
-
-  if (tableName === 'raw_materials') {
-    for (const field of ['weight', 'length', 'width', 'th']) {
-      const value = optionalNumber(row[field])
-      if (value !== null) payload[field] = value
-    }
-    for (const field of ['dimension_text', 'material_source']) {
-      if (text(row[field])) payload[field] = text(row[field])
-    }
-  }
-  if (tableName === 'paints') payload.expire_date = optionalText(row.expire_date)
-  if (tableName === 'screws' || tableName === 'stock_screws') {
-    payload.din = optionalText(row.din)
-    payload.code_number = optionalText(row.code_number)
-  }
-  if (tableName === 'cylinders') {
-    payload.gas_balance = optionalNumber(row.gas_balance) ?? 0
-    for (const field of ['empty_count', 'full_count']) {
-      const value = optionalNumber(row[field])
-      if (value !== null) payload[field] = value
-    }
-  }
-  return payload
-}
-
-async function importCustody(table: string, rows: CustomExcelRow[], fields: string[]) {
-  for (const chunk of chunks(rows, CUSTODY_CHUNK_SIZE)) {
-    const payloads = chunk.map((row) => Object.fromEntries(fields.map((field) => [field,
-      field === 'quantity' ? optionalNumber(row[field]) : optionalText(row[field]),
-    ])))
-    const { error } = await supabaseClient!.from(table).insert(payloads as never)
-    if (error) throw new Error(error.message)
+async function withTimeout(
+  request: PromiseLike<RpcResult>,
+  operationLabel: string,
+): Promise<RpcResult> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`${operationLabel}: انتهت مهلة الاتصال بـ Supabase بعد 60 ثانية.`))
+        }, RPC_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId)
   }
 }
 
-export async function importCustomInventoryExcel(preview: CustomExcelPreview): ServiceResult<InventoryImportResult> {
-  if (!isSupabaseConfigured || !supabaseClient) return { data: null, error: getSupabaseConfigError() }
-  if (preview.errors.length) return { data: null, error: preview.errors.join(' | ') }
+async function runRpcChunk(
+  functionName: string,
+  args: Record<string, unknown>,
+  logLabel: string,
+  chunkNumber: number,
+  chunkLength: number,
+) {
+  console.log(`Importing ${logLabel} chunk`, chunkNumber, chunkLength)
+  const result = await withTimeout(
+    supabaseClient!.rpc(functionName, args as never),
+    `${logLabel} chunk ${chunkNumber}`,
+  )
+  console.log(`${logLabel} chunk result`, {
+    chunk: chunkNumber,
+    data: result.data,
+    error: result.error,
+  })
+  if (result.error) {
+    throw new Error(`${logLabel} chunk ${chunkNumber}: ${result.error.message || 'Supabase RPC failed.'}`)
+  }
+  return getRpcErrors(result.data)
+}
 
-  let insertedItemsCount = 0
-  let updatedItemsCount = 0
-  let insertedMovementsCount = 0
-  const errors: string[] = []
-  const itemsByTable = groupByTable(preview.items)
+export async function importCustomInventoryExcel(
+  preview: CustomExcelPreview,
+  onProgress?: (progress: CustomImportProgress) => void,
+): ServiceResult<InventoryImportResult> {
+  if (!isSupabaseConfigured || !supabaseClient) {
+    return { data: null, error: getSupabaseConfigError() }
+  }
+  if (preview.errors.length) {
+    return { data: null, error: preview.errors.join(' | ') }
+  }
+
+  const warnings: string[] = []
+  let importedItems = 0
+  let importedMovements = 0
 
   try {
-    for (const [tableName, rows] of itemsByTable) {
-      const existingKeys = new Set<string>()
-      for (const keyChunk of chunks(rows.map((row) => text(row.item_key)), ITEM_CHUNK_SIZE)) {
-        const { data, error } = await supabaseClient.from(tableName).select('item_key').in('item_key', keyChunk)
-        if (error) throw new Error(error.message)
-        for (const row of data ?? []) existingKeys.add(String(row.item_key))
-      }
-      for (const rowChunk of chunks(rows, ITEM_CHUNK_SIZE)) {
-        let payloads: ReturnType<typeof itemPayload>[]
-        try { payloads = rowChunk.map(itemPayload) }
-        catch (error) {
-          const firstRow = rowChunk[0]?.__rowNumber ?? '?'
-          throw new Error(`Items - row ${firstRow}: ${error instanceof Error ? error.message : 'Invalid item.'}`)
-        }
-        const { error } = await supabaseClient.from(tableName)
-          .upsert(payloads as never, { onConflict: 'item_key' })
-        if (error) throw new Error(`Items - table ${tableName}, rows ${rowChunk[0].__rowNumber}-${rowChunk.at(-1)!.__rowNumber}: ${error.message}`)
-      }
-      updatedItemsCount += rows.filter((row) => existingKeys.has(text(row.item_key))).length
-      insertedItemsCount += rows.length - rows.filter((row) => existingKeys.has(text(row.item_key))).length
+    const itemChunks = chunkArray(preview.items, ITEM_CHUNK_SIZE)
+    const movementChunks = chunkArray(preview.movements, MOVEMENT_CHUNK_SIZE)
+    const cuttingChunks = chunkArray(preview.cuttingDiscs, CUSTODY_CHUNK_SIZE)
+    const glovesChunks = chunkArray(preview.longWeldingGloves, CUSTODY_CHUNK_SIZE)
+
+    for (let index = 0; index < itemChunks.length; index += 1) {
+      const chunk = itemChunks[index]
+      onProgress?.({ stage: 'items', label: 'استيراد الأصناف', current: importedItems, total: preview.items.length, chunk: index + 1, totalChunks: itemChunks.length })
+      const rpcWarnings = await runRpcChunk('import_normalized_items_chunk_rpc', {
+        p_items: chunk.map(withoutParserFields),
+      }, 'items', index + 1, chunk.length)
+      warnings.push(...rpcWarnings.map((warning) => `Items chunk ${index + 1}: ${warning}`))
+      importedItems += chunk.length
+      onProgress?.({ stage: 'items', label: 'استيراد الأصناف', current: importedItems, total: preview.items.length, chunk: index + 1, totalChunks: itemChunks.length })
     }
 
-    const resolvedItems = new Map<string, Record<string, unknown>>()
-    const movementsByTable = groupByTable(preview.movements)
-    for (const [tableName, movements] of movementsByTable) {
-      const category = getCategoryByTable(tableName)
-      if (!category) throw new Error(`Movements - row ${movements[0].__rowNumber}: unknown table_name "${tableName}".`)
-      const keys = [...new Set(movements.map((row) => text(row.item_key)))]
-      for (const keyChunk of chunks(keys, MOVEMENT_CHUNK_SIZE)) {
-        const { data, error } = await supabaseClient.from(tableName).select('*').in('item_key', keyChunk)
-        if (error) throw new Error(error.message)
-        for (const item of data ?? []) resolvedItems.set(`${tableName}::${item.item_key}`, item)
-      }
-      for (const movement of movements) {
-        if (!resolvedItems.has(`${tableName}::${text(movement.item_key)}`)) {
-          errors.push(`Movements - row ${movement.__rowNumber}: item_key "${text(movement.item_key)}" was not found in table "${tableName}".`)
-        }
-      }
-      const validMovements = movements.filter((row) => resolvedItems.has(`${tableName}::${text(row.item_key)}`))
-      const itemNameField = String(category.itemNameField ?? 'item_name')
-      for (const movementChunk of chunks(validMovements, MOVEMENT_CHUNK_SIZE)) {
-        const payloads = movementChunk.map((row) => {
-          const item = resolvedItems.get(`${tableName}::${text(row.item_key)}`)!
-          const itemName = text(row.item_name) || String(item[itemNameField] ?? '')
-          const projectName = text(row.project_name) || String(item.project ?? '')
-          return {
-            table_name: tableName, category_name: text(row.category_name) || category.label,
-            category_label: text(row.category_name) || category.label, item_id: item.id ?? null,
-            item_name: itemName, item_label: itemName, project_name: projectName, project: projectName,
-            operation_type: text(row.operation_type).toLowerCase(), quantity: Number(row.quantity),
-            operation_date: text(row.operation_date), previous_balance: optionalNumber(row.previous_balance),
-            new_balance: optionalNumber(row.new_balance), notes: optionalText(row.notes),
-          }
-        })
-        const { error } = await supabaseClient.from('inventory_operations').insert(payloads as never)
-        if (error) throw new Error(`Movements - rows ${movementChunk[0].__rowNumber}-${movementChunk.at(-1)!.__rowNumber}: ${error.message}`)
-        insertedMovementsCount += payloads.length
-      }
+    for (let index = 0; index < movementChunks.length; index += 1) {
+      const chunk = movementChunks[index]
+      onProgress?.({ stage: 'movements', label: 'استيراد الحركات', current: importedMovements, total: preview.movements.length, chunk: index + 1, totalChunks: movementChunks.length })
+      const rpcWarnings = await runRpcChunk('import_normalized_movements_chunk_rpc', {
+        p_movements: chunk.map(withoutParserFields),
+      }, 'movements', index + 1, chunk.length)
+      warnings.push(...rpcWarnings.map((warning) => `Movements chunk ${index + 1}: ${warning}`))
+      importedMovements += chunk.length
+      onProgress?.({ stage: 'movements', label: 'استيراد الحركات', current: importedMovements, total: preview.movements.length, chunk: index + 1, totalChunks: movementChunks.length })
     }
 
-    await importCustody('cutting_discs', preview.cuttingDiscs, ['code', 'type_name', 'received_by', 'received_date', 'scrapped_date'])
-    await importCustody('long_welding_gloves', preview.longWeldingGloves, ['type_name', 'received_by', 'received_date', 'quantity'])
+    for (let index = 0; index < cuttingChunks.length; index += 1) {
+      const chunk = cuttingChunks[index]
+      onProgress?.({ stage: 'cutting_discs', label: 'استيراد صواريخ القطع', current: index * CUSTODY_CHUNK_SIZE, total: preview.cuttingDiscs.length, chunk: index + 1, totalChunks: cuttingChunks.length })
+      const rpcWarnings = await runRpcChunk('import_normalized_custody_chunk_rpc', {
+        p_table_name: 'cutting_discs', p_records: chunk.map(withoutParserFields),
+      }, 'cutting discs', index + 1, chunk.length)
+      warnings.push(...rpcWarnings.map((warning) => `Cutting_Discs chunk ${index + 1}: ${warning}`))
+      onProgress?.({ stage: 'cutting_discs', label: 'استيراد صواريخ القطع', current: Math.min((index + 1) * CUSTODY_CHUNK_SIZE, preview.cuttingDiscs.length), total: preview.cuttingDiscs.length, chunk: index + 1, totalChunks: cuttingChunks.length })
+    }
 
+    for (let index = 0; index < glovesChunks.length; index += 1) {
+      const chunk = glovesChunks[index]
+      onProgress?.({ stage: 'long_welding_gloves', label: 'استيراد جوانتي اللحام', current: index * CUSTODY_CHUNK_SIZE, total: preview.longWeldingGloves.length, chunk: index + 1, totalChunks: glovesChunks.length })
+      const rpcWarnings = await runRpcChunk('import_normalized_custody_chunk_rpc', {
+        p_table_name: 'long_welding_gloves', p_records: chunk.map(withoutParserFields),
+      }, 'long welding gloves', index + 1, chunk.length)
+      warnings.push(...rpcWarnings.map((warning) => `Long_Welding_Gloves chunk ${index + 1}: ${warning}`))
+      onProgress?.({ stage: 'long_welding_gloves', label: 'استيراد جوانتي اللحام', current: Math.min((index + 1) * CUSTODY_CHUNK_SIZE, preview.longWeldingGloves.length), total: preview.longWeldingGloves.length, chunk: index + 1, totalChunks: glovesChunks.length })
+    }
+
+    onProgress?.({ stage: 'refreshing', label: 'تحديث بيانات المخزون', current: 1, total: 1, chunk: 1, totalChunks: 1 })
     for (const view of ['inventory_category_items_summary_view', 'inventory_item_movements_view']) {
-      const { error } = await supabaseClient.from(view).select('*').limit(1)
-      if (error) errors.push(`${view}: ${error.message}`)
+      const result = await withTimeout(supabaseClient.from(view).select('*').limit(1), `Refresh ${view}`)
+      if (result.error) warnings.push(`${view}: ${result.error.message || 'Refresh failed.'}`)
     }
 
-    return { data: {
-      importedRowCount: preview.items.length + preview.movements.length + preview.cuttingDiscs.length + preview.longWeldingGloves.length,
-      processedItemCount: preview.items.length, insertedItemsCount, updatedItemsCount, insertedMovementsCount, errors,
-    }, error: null }
+    return {
+      data: {
+        importedRowCount: preview.items.length + preview.movements.length + preview.cuttingDiscs.length + preview.longWeldingGloves.length,
+        processedItemCount: importedItems,
+        insertedItemsCount: importedItems,
+        updatedItemsCount: 0,
+        insertedMovementsCount: importedMovements,
+        errors: warnings,
+      },
+      error: null,
+    }
   } catch (error) {
-    return { data: null, error: error instanceof Error ? error.message : 'Failed to import the custom Excel workbook.' }
+    console.error('Custom Excel import failed', error)
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : 'حدث خطأ أثناء استيراد ملف Excel المخصص.',
+    }
   }
 }
