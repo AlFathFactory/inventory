@@ -42,6 +42,8 @@ type LowStockState = {
   error: string | null
 }
 
+type StockStatusFilter = 'all' | 'low' | 'out'
+
 type StockCategoryDefinition = CategoryDefinition & {
   stockField: string
   minQuantityField: string
@@ -352,7 +354,9 @@ export function LowStockPage() {
     }
   }, [])
 
-  const filteredRows = useMemo(
+  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>('all')
+
+  const searchedRows = useMemo(
     () =>
       state.rows.filter((row) => {
         if (!normalizedSearchTerm) {
@@ -364,9 +368,17 @@ export function LowStockPage() {
     [normalizedSearchTerm, state.rows],
   )
 
+  const filteredRows = useMemo(
+    () =>
+      searchedRows.filter(
+        (row) => statusFilter === 'all' || row.status === statusFilter,
+      ),
+    [searchedRows, statusFilter],
+  )
+
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
-  const outOfStockCount = filteredRows.filter((row) => row.status === 'out').length
-  const lowStockCount = filteredRows.filter((row) => row.status === 'low').length
+  const outOfStockCount = searchedRows.filter((row) => row.status === 'out').length
+  const lowStockCount = searchedRows.filter((row) => row.status === 'low').length
 
   return (
     <section className="space-y-6">
@@ -420,7 +432,24 @@ export function LowStockPage() {
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="ابحث باسم الصنف أو المشروع أو القسم"
-        />
+        >
+          <label className="min-w-[190px] flex-[0_1_230px] space-y-2">
+            <span className="block text-sm font-medium text-slate-700">
+              حالة المخزون
+            </span>
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as StockStatusFilter)
+              }
+              className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+            >
+              <option value="all">كل الأصناف</option>
+              <option value="low">أصناف قليلة</option>
+              <option value="out">أصناف منتهية</option>
+            </select>
+          </label>
+        </DataFilters>
 
         {state.isLoading ? (
           <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-10 text-center text-sm text-slate-500">

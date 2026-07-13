@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export type DateRangeValue = {
   fromDate: string
   toDate: string
@@ -10,6 +12,7 @@ type DataFiltersProps = {
   showDateFilter?: boolean
   dateRange?: DateRangeValue
   onDateRangeChange?: (value: DateRangeValue) => void
+  children?: ReactNode
 }
 
 function inputClassName() {
@@ -23,6 +26,7 @@ export function DataFilters({
   showDateFilter = false,
   dateRange = { fromDate: '', toDate: '' },
   onDateRangeChange,
+  children,
 }: DataFiltersProps) {
   return (
     <div className="flex flex-wrap items-end gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4">
@@ -36,6 +40,8 @@ export function DataFilters({
           className={inputClassName()}
         />
       </label>
+
+      {children}
 
       {showDateFilter && onDateRangeChange ? (
         <>
