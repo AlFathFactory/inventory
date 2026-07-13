@@ -38,6 +38,19 @@ export function validateItemCreateForm(
         errors[fieldKey] = 'الكمية الأولية يجب أن تكون أكبر من صفر'
       }
     }
+
+    if (field.inputType === 'date' && value) {
+      const date = new Date(`${value}T00:00:00`)
+      const [year, month, day] = value.split('-').map(Number)
+      if (
+        Number.isNaN(date.getTime()) ||
+        date.getFullYear() !== year ||
+        date.getMonth() + 1 !== month ||
+        date.getDate() !== day
+      ) {
+        errors[fieldKey] = `${category.columns[field.key] ?? fieldKey} يجب أن يكون تاريخاً محلياً صالحاً`
+      }
+    }
   })
 
   return {

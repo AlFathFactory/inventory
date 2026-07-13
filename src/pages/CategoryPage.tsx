@@ -26,6 +26,7 @@ import { usePagination } from '../hooks/usePagination'
 import {
   getCategorySummaryItems,
   getCustodyCategoryRows,
+  getCustodyRecord,
   getItemDetails,
   getItemMovements,
   isCustodyTable,
@@ -33,6 +34,12 @@ import {
   type ItemDetails,
 } from '../services/itemsService'
 import { createInventoryItem } from '../services/inventoryService'
+import {
+  archiveLongWeldingGlove,
+  createLongWeldingGlove,
+  listLongWeldingGloves,
+  type LongWeldingGloveRecord,
+} from '../services/longWeldingGlovesService'
 import {
   applyInventoryOperation,
   type InventoryOperationType,
@@ -45,6 +52,30 @@ type MessageState = {
 } | null
 
 type CategoryQuickAction = 'add' | 'issue' | null
+
+function mapGloveRows(rows: Awaited<ReturnType<typeof listLongWeldingGloves>>['data']): CategorySummaryItem[] {
+  return (rows ?? []).map((row) => ({
+    id: row.id,
+    type_name: row.type_name,
+    received_by: row.received_by,
+    received_date: row.received_date,
+    notes: row.notes,
+    table_name: 'long_welding_gloves',
+    category_name: 'جوانتي لحام طويل',
+    item_id: row.id,
+    item_key: null,
+    project_name: null,
+    item_name: row.type_name,
+    stock_balance: null,
+    min_quantity: null,
+    status: null,
+    total_added: null,
+    total_issued: null,
+    source_rows_count: 1,
+    updated_at: null,
+    created_at: null,
+  }))
+}
 
 function isCategoryKey(value: string): value is CategoryKey {
   return value in categoryConfig
@@ -127,7 +158,9 @@ export function CategoryPage() {
       setIsLoading(true)
       setError(null)
 
-      const result = isCustodyTable(activeCategory.table)
+      const result = activeCategory.table === 'long_welding_gloves'
+        ? await listLongWeldingGloves()
+        : isCustodyTable(activeCategory.table)
         ? await getCustodyCategoryRows(activeCategory.table)
         : await getCategorySummaryItems(activeCategory.table)
 
@@ -139,7 +172,7 @@ export function CategoryPage() {
         setRows([])
         setError(result.error)
       } else {
-        setRows(result.data ?? [])
+        setRows(activeCategory.table === 'long_welding_gloves' ? mapGloveRows(result.data as LongWeldingGloveRecord[] | null) : (result.data ?? []) as CategorySummaryItem[])
       }
 
       setIsLoading(false)
@@ -251,7 +284,9 @@ export function CategoryPage() {
       return
     }
 
-    const result = isCustodyTable(category.table)
+    const result = category.table === 'long_welding_gloves'
+      ? await listLongWeldingGloves()
+      : isCustodyTable(category.table)
       ? await getCustodyCategoryRows(category.table)
       : await getCategorySummaryItems(category.table)
 
@@ -260,7 +295,7 @@ export function CategoryPage() {
       return
     }
 
-    setRows(result.data ?? [])
+    setRows(category.table === 'long_welding_gloves' ? mapGloveRows(result.data as LongWeldingGloveRecord[] | null) : (result.data ?? []) as CategorySummaryItem[])
   }
 
   async function openOperationModal(
@@ -297,17 +332,41 @@ export function CategoryPage() {
     if (!category) return
     setIsPreparingOperation(true)
     setMessage(null)
-    const result = await getItemDetails(category.table, String(row.item_id))
+    const result = category.table === 'long_welding_gloves'
+      ? await getCustodyRecord('long_welding_gloves', String(row.item_id))
+      : await getItemDetails(category.table, String(row.item_id))
     setIsPreparingOperation(false)
     if (result.error || !result.data) {
       setMessage({ type: 'error', text: result.error || 'تعذر تحميل بيانات الصنف' })
       return
     }
-    setEditingItem(result.data)
+    setEditingItem(category.table === 'long_welding_gloves' ? {
+      ...result.data,
+      table_name: category.table,
+      category_name: category.label,
+      item_id: result.data.id,
+      item_key: null,
+      project_name: null,
+      item_name: result.data.type_name,
+      stock_balance: null,
+      min_quantity: null,
+      status: null,
+      total_added: null,
+      total_issued: null,
+      source_rows_count: 1,
+      updated_at: null,
+      created_at: null,
+    } as ItemDetails : result.data as ItemDetails)
   }
 
   async function handleEditSuccess(balanceChanged: boolean) {
     if (!category || !editingItem) return
+    if (category.table === 'long_welding_gloves') {
+      await refreshRows()
+      setEditingItem(null)
+      setMessage({ type: 'success', text: 'تم تعديل سجل العهدة بنجاح' })
+      return
+    }
     const itemId = String(editingItem.item_id)
     const [summaryResult] = await Promise.all([
       getCategorySummaryItems(category.table),
@@ -424,7 +483,14 @@ export function CategoryPage() {
       preparedValues.expire_date = createForm.expire_date?.trim() || null
     }
 
-    const result = await createInventoryItem(category.table, preparedValues)
+    const result = category.table === 'long_welding_gloves'
+      ? await createLongWeldingGlove({
+          type_name: String(preparedValues.type_name ?? ''),
+          received_by: String(preparedValues.received_by ?? ''),
+          received_date: String(preparedValues.received_date ?? ''),
+          notes: preparedValues.notes ? String(preparedValues.notes) : null,
+        })
+      : await createInventoryItem(category.table, preparedValues)
 
     if (result.error) {
       setMessage({ type: 'error', text: result.error })
@@ -436,9 +502,22 @@ export function CategoryPage() {
     closeCreateModal()
     setMessage({
       type: 'success',
-      text: 'تم إضافة الصنف وتسجيله كحركة إضافة بنجاح',
+      text: category.table === 'long_welding_gloves'
+        ? 'تمت إضافة سجل العهدة بنجاح'
+        : 'تم إضافة الصنف وتسجيله كحركة إضافة بنجاح',
     })
     setIsCreateSubmitting(false)
+  }
+
+  async function handleArchiveGlove(row: CategorySummaryItem) {
+    if (!window.confirm('هل تريد أرشفة سجل العهدة هذا؟')) return
+    const result = await archiveLongWeldingGlove(String(row.item_id))
+    if (result.error) {
+      setMessage({ type: 'error', text: result.error })
+      return
+    }
+    await refreshRows()
+    setMessage({ type: 'success', text: 'تمت أرشفة سجل العهدة' })
   }
 
   const columns = useMemo<DataTableColumn<CategorySummaryItem>[]>(
@@ -473,8 +552,29 @@ export function CategoryPage() {
           ...(category.table === 'cutting_discs' ? [{
             id: 'scrapped_date', header: 'تاريخ التكهين', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.scrapped_date),
           }] : []),
-          { id: 'source_sheet', header: 'المصدر', renderCell: (row) => getDisplayValue(row.source_sheet) },
-          detailsColumn,
+          ...(category.table === 'long_welding_gloves' ? [{
+            id: 'notes', header: 'ملاحظات', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.notes),
+          }] : [{
+            id: 'source_sheet', header: 'المصدر', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.source_sheet),
+          }]),
+          ...(category.table === 'long_welding_gloves' ? [{
+            id: 'actions',
+            header: 'إجراءات',
+            renderCell: (row: CategorySummaryItem) => (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={(event) => { event.stopPropagation(); void openEditModal(row) }}
+                  className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+                >تعديل</button>
+                <button
+                  type="button"
+                  onClick={(event) => { event.stopPropagation(); void handleArchiveGlove(row) }}
+                  className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                >أرشفة</button>
+              </div>
+            ),
+          }] : [detailsColumn]),
         ]
         return custodyColumns.map((column) => ({
           headerClassName: 'px-4 py-3 text-slate-700',

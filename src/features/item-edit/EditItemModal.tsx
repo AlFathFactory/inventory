@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { CategoryDefinition } from '../../config/categoryConfig'
 import { updateItemDetails, type ItemDetails } from '../../services/itemsService'
+import { updateLongWeldingGlove } from '../../services/longWeldingGlovesService'
 
 type EditField = {
   key: string
@@ -45,9 +46,10 @@ const fieldsByTable: Record<string, EditField[]> = {
     { key: 'scrapped_date', label: 'تاريخ التكهيت', type: 'date' },
   ],
   long_welding_gloves: [
-    { key: 'type_name', label: 'اسم الصنف', required: true },
-    { key: 'received_by', label: 'المستلم' },
-    { key: 'received_date', label: 'تاريخ الاستلام', type: 'date' },
+    { key: 'type_name', label: 'النوع', required: true },
+    { key: 'received_by', label: 'المستلم', required: true },
+    { key: 'received_date', label: 'تاريخ الاستلام', type: 'date', required: true },
+    { key: 'notes', label: 'ملاحظات', type: 'textarea' },
   ],
 }
 
@@ -129,6 +131,16 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
       if (field.type === 'number' && form[field.key] !== '' && Number(form[field.key]) < 0) {
         nextErrors[field.key] = 'يجب ألا تقل القيمة عن صفر'
       }
+      if (field.type === 'date' && form[field.key]) {
+        const date = new Date(`${form[field.key]}T00:00:00`)
+        const [year, month, day] = form[field.key].split('-').map(Number)
+        if (
+          Number.isNaN(date.getTime()) ||
+          date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day
+        ) nextErrors[field.key] = 'يجب إدخال تاريخ محلي صالح'
+      }
     })
     if (balanceChanged && !adjustDate) nextErrors.adjustDate = 'تاريخ التعديل مطلوب'
     if (balanceChanged && !adjustNotes.trim()) nextErrors.adjustNotes = 'سبب تعديل الرصيد مطلوب'
@@ -143,14 +155,21 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     }))
     setIsSubmitting(true)
     setSubmitError(null)
-    const result = await updateItemDetails({
+    const result = category.table === 'long_welding_gloves'
+      ? await updateLongWeldingGlove(itemId, {
+          type_name: form.type_name.trim(),
+          received_by: form.received_by.trim(),
+          received_date: form.received_date,
+          notes: form.notes?.trim() || null,
+        })
+      : await updateItemDetails({
       tableName: category.table,
       itemId,
       patch,
       adjustDate: balanceChanged ? adjustDate : null,
       notes: balanceChanged ? adjustNotes.trim() : null,
       updatedBy: 'user',
-    })
+        })
     setIsSubmitting(false)
     if (result.error) {
       setSubmitError(result.error)
