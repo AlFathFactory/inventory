@@ -1,15 +1,18 @@
+import { useNavigate } from 'react-router-dom'
 import { DashboardInventoryFilters } from '../features/dashboard/components/DashboardInventoryFilters'
 import { DashboardInventoryTable } from '../features/dashboard/components/DashboardInventoryTable'
 import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
 import { DashboardTableSection } from '../features/dashboard/components/DashboardTableSection'
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
 import { useDashboardInventoryTable } from '../features/dashboard/hooks/useDashboardInventoryTable'
+import { getItemDetailsRoute } from '../features/items/itemRoutes'
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
 } from '../lib/supabaseClient'
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const { data, isLoading, error } = useDashboardData()
   const inventoryTable = useDashboardInventoryTable(data.inventoryRows)
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
@@ -106,6 +109,9 @@ export function DashboardPage() {
               pageEnd={inventoryTable.pagination.pageEnd}
               onPageChange={inventoryTable.pagination.setCurrentPage}
               onPageSizeChange={inventoryTable.pagination.setPageSize}
+              onItemClick={(row) =>
+                navigate(getItemDetailsRoute(row.categoryKey, row.itemId, 'dashboard'))
+              }
             />
           )}
         </div>

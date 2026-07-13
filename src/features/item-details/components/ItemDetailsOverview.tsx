@@ -12,6 +12,8 @@ type ItemDetailsOverviewProps = {
   monthlySummaries: MonthlyMovementSummary[]
   onEdit: () => void
   onOperation: (type: InventoryOperationType) => void
+  isReadOnly?: boolean
+  backTo?: string
 }
 
 export function ItemDetailsOverview({
@@ -21,6 +23,8 @@ export function ItemDetailsOverview({
   monthlySummaries,
   onEdit,
   onOperation,
+  isReadOnly = false,
+  backTo,
 }: ItemDetailsOverviewProps) {
   return (
     <div className="rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] px-6 py-6 shadow-[var(--app-shadow)] lg:px-8">
@@ -39,8 +43,8 @@ export function ItemDetailsOverview({
             <Info label="اسم المشروع" value={getDisplayText(details.project_name)} />
           </div>
         </div>
-        <Link to={category.route} className="inline-flex h-[44px] items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-          رجوع للقسم
+        <Link to={backTo ?? category.route} className="inline-flex h-[44px] items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          {backTo ? 'رجوع للوحة التحكم' : 'رجوع للقسم'}
         </Link>
       </div>
 
@@ -87,12 +91,12 @@ export function ItemDetailsOverview({
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap justify-start gap-3">
+      {!isReadOnly ? <div className="mt-6 flex flex-wrap justify-start gap-3">
         <ActionButton label="إضافة كمية" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => onOperation('add')} />
         <ActionButton label="صرف كمية" className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => onOperation('issue')} />
         <ActionButton label="جرد / تعديل رصيد" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => onOperation('adjust')} />
         <ActionButton label="تعديل الصنف" className="border border-[var(--app-border)] bg-white text-slate-700 hover:bg-slate-50" onClick={onEdit} />
-      </div>
+      </div> : null}
     </div>
   )
 }

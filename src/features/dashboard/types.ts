@@ -19,6 +19,7 @@ export type CategoryCard = {
 
 export type DashboardInventoryRow = {
   id: string
+  itemId: string
   categoryKey: CategoryKey
   categoryLabel: string
   itemName: string

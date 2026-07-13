@@ -17,6 +17,7 @@ type DashboardInventoryTableProps = {
   pageEnd: number
   onPageChange: (page: number) => void
   onPageSizeChange: (pageSize: number) => void
+  onItemClick: (row: DashboardInventoryRow) => void
 }
 
 function formatNumber(value: number | null) {
@@ -101,6 +102,7 @@ export function DashboardInventoryTable({
   pageEnd,
   onPageChange,
   onPageSizeChange,
+  onItemClick,
 }: DashboardInventoryTableProps) {
   if (rows.length === 0) {
     return (
@@ -120,6 +122,7 @@ export function DashboardInventoryTable({
         maxHeightClassName="max-h-[70vh] overflow-auto"
         tableClassName="divide-y divide-slate-200"
         rowClassName="hover:bg-slate-50"
+        onRowClick={onItemClick}
       />
 
       <TablePagination

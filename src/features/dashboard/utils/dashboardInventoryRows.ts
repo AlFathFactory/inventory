@@ -23,6 +23,13 @@ function extractNumberValue(value: unknown): number | null {
   return null
 }
 
+function extractItemId(row: InventoryRow, fallbackId: string): string {
+  const value = row.id ?? row.item_id
+  return typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : fallbackId
+}
+
 function formatInventoryDate(value: unknown): string {
   const dateValue = extractStringValue(value)
 
@@ -73,6 +80,8 @@ export function buildDashboardInventoryRows(
   return rowsByCategory
     .flatMap(({ categoryKey, category, rows }) =>
       rows.map((row, index) => {
+        const fallbackId = `${category.table}-row-${index}`
+        const itemId = extractItemId(row, fallbackId)
         const itemName =
           extractStringValue(row.item_name) ??
           extractStringValue(row.type_name) ??
@@ -88,7 +97,8 @@ export function buildDashboardInventoryRows(
           : null
 
         return {
-          id: `${category.table}-row-${index}`,
+          id: `${category.table}-${itemId}`,
+          itemId,
           categoryKey,
           categoryLabel: category.label,
           itemName,

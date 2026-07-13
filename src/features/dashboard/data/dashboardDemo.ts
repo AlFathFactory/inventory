@@ -13,6 +13,7 @@ export const dashboardDemo: DashboardData = {
   inventoryRows: [
     {
       id: 'demo-row-1',
+      itemId: 'demo-row-1',
       categoryKey: 'screws',
       categoryLabel: 'مسامير',
       itemName: 'مسمار 8 مم',
@@ -28,6 +29,7 @@ export const dashboardDemo: DashboardData = {
     },
     {
       id: 'demo-row-2',
+      itemId: 'demo-row-2',
       categoryKey: 'paints',
       categoryLabel: 'الدهانات',
       itemName: 'دهان أبيض',
@@ -43,6 +45,7 @@ export const dashboardDemo: DashboardData = {
     },
     {
       id: 'demo-row-3',
+      itemId: 'demo-row-3',
       categoryKey: 'consumables',
       categoryLabel: 'مستهلكات',
       itemName: 'جوانتي لحام',
@@ -58,6 +61,7 @@ export const dashboardDemo: DashboardData = {
     },
     {
       id: 'demo-row-4',
+      itemId: 'demo-row-4',
       categoryKey: 'cylinders',
       categoryLabel: 'اسطوانات',
       itemName: 'غاز CO2',

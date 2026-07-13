@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { categoryConfig, type CategoryDefinition } from '../config/categoryConfig'
 import { ItemDetailsOverview } from '../features/item-details/components/ItemDetailsOverview'
 import { ItemMovementsSection } from '../features/item-details/components/ItemMovementsSection'
@@ -19,7 +19,15 @@ function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? '—' : String(value)
 }
 
-function CustodyDetailsView({ tableName, itemId }: { tableName: CustodyTableName; itemId: string }) {
+function CustodyDetailsView({
+  tableName,
+  itemId,
+  backTo,
+}: {
+  tableName: CustodyTableName
+  itemId: string
+  backTo?: string
+}) {
   const [record, setRecord] = useState<CustodyRecord | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -48,7 +56,7 @@ function CustodyDetailsView({ tableName, itemId }: { tableName: CustodyTableName
     <section dir="rtl" className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div><h1 className="text-2xl font-bold text-slate-900">تفاصيل سجل العهدة</h1><p className="mt-1 text-sm text-slate-500">{displayValue(record.type_name)}</p></div>
-        <Link to={`/category/${tableName}`} className="rounded-xl border border-[var(--app-border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700">العودة للقسم</Link>
+        <Link to={backTo ?? `/category/${tableName}`} className="rounded-xl border border-[var(--app-border)] bg-white px-4 py-2 text-sm font-semibold text-slate-700">{backTo ? 'العودة للوحة التحكم' : 'العودة للقسم'}</Link>
       </div>
       <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-white p-6 shadow-[var(--app-shadow)] sm:grid-cols-2 lg:grid-cols-3">
         {fields.map(([label, value]) => <div key={String(label)} className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-2 font-semibold text-slate-900">{displayValue(value)}</p></div>)}
@@ -59,6 +67,8 @@ function CustodyDetailsView({ tableName, itemId }: { tableName: CustodyTableName
 
 export function ItemDetailsPage() {
   const { categoryKey, itemId } = useParams()
+  const [searchParams] = useSearchParams()
+  const isDashboardView = searchParams.get('source') === 'dashboard'
   const category: CategoryDefinition | null =
     categoryKey && isCategoryKey(categoryKey)
       ? (categoryConfig[categoryKey] as CategoryDefinition)
@@ -67,7 +77,7 @@ export function ItemDetailsPage() {
   const page = useItemDetailsPage(stockCategory, itemId)
 
   if (category && itemId && isCustodyTable(category.table)) {
-    return <CustodyDetailsView tableName={category.table} itemId={itemId} />
+    return <CustodyDetailsView tableName={category.table} itemId={itemId} backTo={isDashboardView ? '/' : undefined} />
   }
 
   if (!category || !itemId) {
@@ -107,6 +117,8 @@ export function ItemDetailsPage() {
             monthlySummaries={page.monthlyMovementSummaries}
             onEdit={page.openEditModal}
             onOperation={page.openOperationModal}
+            isReadOnly={isDashboardView}
+            backTo={isDashboardView ? '/' : undefined}
           />
           <ItemMovementsSection
             filter={page.movementDateFilter}
@@ -118,7 +130,7 @@ export function ItemDetailsPage() {
         </>
       ) : null}
 
-      {page.operationType && page.details ? (
+      {!isDashboardView && page.operationType && page.details ? (
         <InventoryOperationModal
           category={category}
           itemId={itemId}
@@ -133,7 +145,7 @@ export function ItemDetailsPage() {
         />
       ) : null}
 
-      {page.isEditOpen && page.details ? (
+      {!isDashboardView && page.isEditOpen && page.details ? (
         <EditItemModal
           category={category}
           itemId={itemId}
