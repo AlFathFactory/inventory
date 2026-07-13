@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getLocalDateString } from '../utils/dateUtils'
+import { validateOperationQuantity } from '../features/inventory-operations/operationForm'
 import { DataTable, type DataTableColumn } from '../components/DataTable'
 import { operationCategoryOptions } from '../config/categoryConfig'
 import {
@@ -353,6 +354,8 @@ export function OperationsPage() {
   }
 
   function validateForm() {
+    if (activeView === 'history') return false
+
     const nextErrors: Record<string, string> = {}
 
     if (!selectedCategory) {
@@ -363,17 +366,8 @@ export function OperationsPage() {
       nextErrors.itemId = 'الصنف مطلوب'
     }
 
-    const quantity = Number(form.quantity)
-    if (
-      !form.quantity ||
-      !Number.isFinite(quantity) ||
-      (activeView === 'adjust' ? quantity < 0 : quantity <= 0)
-    ) {
-      nextErrors.quantity =
-        activeView === 'adjust'
-          ? 'الرصيد الفعلي يجب أن يكون صفراً أو أكبر'
-          : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
-    }
+    const quantityError = validateOperationQuantity(form.quantity, activeView)
+    if (quantityError) nextErrors.quantity = quantityError
 
     if (!form.operationDate) {
       nextErrors.operationDate = 'التاريخ مطلوب'

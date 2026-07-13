@@ -41,6 +41,26 @@ export function getDisplayText(value: string | number | null | undefined) {
   return String(value)
 }
 
+export function validateOperationQuantity(
+  value: string,
+  operationType: InventoryOperationType,
+) {
+  if (!value.trim()) {
+    return 'الكمية مطلوبة'
+  }
+
+  const quantity = Number(value)
+  if (!Number.isFinite(quantity)) {
+    return 'من فضلك أدخل رقم صحيح'
+  }
+
+  if (operationType === 'adjust') {
+    return quantity < 0 ? 'رصيد الجرد لا يمكن أن يكون أقل من صفر' : null
+  }
+
+  return quantity <= 0 ? 'الكمية يجب أن تكون أكبر من صفر' : null
+}
+
 export function getOperationTypeLabel(operationType: string | null) {
   switch (operationType) {
     case 'add':
@@ -88,16 +108,8 @@ export function validateOperationForm({
   const quantity = Number(form.quantity)
   const currentBalance = getNumericValue(details.stock_balance)
 
-  if (
-    !form.quantity ||
-    !Number.isFinite(quantity) ||
-    (operationType === 'adjust' ? quantity < 0 : quantity <= 0)
-  ) {
-    nextErrors.quantity =
-      operationType === 'adjust'
-        ? 'الرصيد الفعلي يجب أن يكون صفراً أو أكبر'
-        : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
-  }
+  const quantityError = validateOperationQuantity(form.quantity, operationType)
+  if (quantityError) nextErrors.quantity = quantityError
 
   if (!form.operationDate) {
     nextErrors.operationDate = 'التاريخ مطلوب'

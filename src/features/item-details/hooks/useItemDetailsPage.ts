@@ -7,7 +7,6 @@ import {
   validateOperationForm,
 } from '../../inventory-operations/operationForm'
 import {
-  getCategorySummaryItems,
   getItemDetails,
   getItemMovements,
   type ItemDetails,
@@ -47,7 +46,6 @@ export function useItemDetailsPage(
     const [detailsResult, movementsResult] = await Promise.all([
       getItemDetails(category.table, itemId),
       getItemMovements(category.table, itemId),
-      getCategorySummaryItems(category.table),
     ])
 
     if (detailsResult.error || !detailsResult.data) {
