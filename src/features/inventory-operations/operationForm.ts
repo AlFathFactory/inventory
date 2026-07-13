@@ -87,8 +87,15 @@ export function validateOperationForm({
   const quantity = Number(form.quantity)
   const currentBalance = getNumericValue(details.stock_balance)
 
-  if (!form.quantity || !Number.isFinite(quantity) || quantity <= 0) {
-    nextErrors.quantity = 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
+  if (
+    !form.quantity ||
+    !Number.isFinite(quantity) ||
+    (operationType === 'adjust' ? quantity < 0 : quantity <= 0)
+  ) {
+    nextErrors.quantity =
+      operationType === 'adjust'
+        ? 'الرصيد الفعلي يجب أن يكون صفراً أو أكبر'
+        : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
   }
 
   if (!form.operationDate) {

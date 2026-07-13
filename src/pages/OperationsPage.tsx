@@ -362,8 +362,16 @@ export function OperationsPage() {
       nextErrors.itemId = 'الصنف مطلوب'
     }
 
-    if (!form.quantity || Number(form.quantity) <= 0) {
-      nextErrors.quantity = 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
+    const quantity = Number(form.quantity)
+    if (
+      !form.quantity ||
+      !Number.isFinite(quantity) ||
+      (activeView === 'adjust' ? quantity < 0 : quantity <= 0)
+    ) {
+      nextErrors.quantity =
+        activeView === 'adjust'
+          ? 'الرصيد الفعلي يجب أن يكون صفراً أو أكبر'
+          : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر'
     }
 
     if (!form.operationDate) {

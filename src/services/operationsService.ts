@@ -19,8 +19,25 @@ export type ApplyInventoryOperationParams = {
   supplierName?: string
   purchaseOrderNumber?: string
   issuedTo?: string
+  receivedBy?: string
   notes?: string
+  createdBy?: string
 }
+
+const allowedInventoryOperationTables = new Set([
+  'consumables',
+  'paints',
+  'screws',
+  'stock_screws',
+  'raw_materials',
+  'cylinders',
+])
+
+const inventoryViews = [
+  'inventory_category_items_summary_view',
+  'inventory_item_details_view',
+  'inventory_item_movements_view',
+] as const
 
 export type RecentInventoryOperation = {
   id: string
@@ -141,107 +158,93 @@ function sortOperationsByDateDesc(
   )
 }
 
+function getOperationErrorMessage(message: string) {
+  const normalizedMessage = message.toLowerCase()
+
+  if (
+    normalizedMessage.includes('insufficient stock') ||
+    normalizedMessage.includes('insufficient balance') ||
+    normalizedMessage.includes('quantity exceeds') ||
+    normalizedMessage.includes('negative stock')
+  ) {
+    return 'الكمية المصروفة أكبر من الرصيد الحالي'
+  }
+
+  if (
+    normalizedMessage.includes('item not found') ||
+    normalizedMessage.includes('no inventory item')
+  ) {
+    return 'الصنف المحدد غير موجود أو تعذر الوصول إليه'
+  }
+
+  return message || 'فشل تنفيذ حركة المخزون'
+}
+
+async function refreshInventoryViews(client: ReturnType<typeof getClientOrThrow>) {
+  const results = await Promise.all(
+    inventoryViews.map((view) => client.from(view).select('*').limit(1)),
+  )
+  const refreshErrors = results.flatMap((result, index) =>
+    result.error ? [`${inventoryViews[index]}: ${result.error.message}`] : [],
+  )
+
+  if (refreshErrors.length > 0) {
+    console.warn('Inventory operation succeeded, but view refresh failed', refreshErrors)
+  }
+}
+
 export async function applyInventoryOperation(
   params: ApplyInventoryOperationParams,
 ) {
   const client = getClientOrThrow()
   const quantity = Number(params.quantity)
 
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    throw new Error('الكمية مطلوبة ويجب أن تكون أكبر من صفر')
+  if (!allowedInventoryOperationTables.has(params.tableName)) {
+    throw new Error(`Unsupported inventory table: ${params.tableName}`)
   }
 
-  const { data: selectedItem, error: fetchError } = await client
-    .from(params.tableName)
-    .select('*')
-    .eq('id', params.itemId)
-    .single()
-
-  if (fetchError || !selectedItem) {
-    throw new Error(fetchError?.message || 'تعذر تحميل بيانات الصنف المحدد')
+  if (
+    !Number.isFinite(quantity) ||
+    (params.operationType === 'adjust' ? quantity < 0 : quantity <= 0)
+  ) {
+    throw new Error(
+      params.operationType === 'adjust'
+        ? 'الرصيد الفعلي يجب أن يكون صفراً أو أكبر'
+        : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر',
+    )
   }
 
-  const currentBalance = toNumber(selectedItem.stock_balance ?? selectedItem.gas_balance)
-  const currentTotalAdded = toNumber(selectedItem.total_added)
-  const currentTotalIssued = toNumber(selectedItem.total_issued)
-  const stockField =
-    'stock_balance' in selectedItem
-      ? 'stock_balance'
-      : 'gas_balance' in selectedItem
-        ? 'gas_balance'
-        : 'stock_balance'
+  const { data, error } = await client.rpc(
+    'apply_inventory_operation_transactional_rpc',
+    {
+      p_table_name: params.tableName,
+      p_item_id: params.itemId,
+      p_operation_type: params.operationType,
+      p_quantity: quantity,
+      p_operation_date: params.operationDate,
+      p_project_name: params.projectName || null,
+      p_category_name: params.categoryName || null,
+      p_item_name: params.itemName || null,
+      p_supplier_name: params.supplierName || null,
+      p_issued_to: params.issuedTo || null,
+      p_received_by: params.receivedBy || params.issuedTo || null,
+      p_purchase_order_number: params.purchaseOrderNumber || null,
+      p_item_code: params.itemCode || null,
+      p_notes: params.notes || null,
+      p_created_by: params.createdBy || 'user',
+    },
+  )
 
-  let newBalance = currentBalance
-  let updatePayload: Record<string, number> = {}
-
-  if (params.operationType === 'add') {
-    newBalance = currentBalance + quantity
-    updatePayload = {
-      added: quantity,
-      total_added: currentTotalAdded + quantity,
-      [stockField]: newBalance,
-    }
+  if (error) {
+    throw new Error(getOperationErrorMessage(error.message))
   }
 
-  if (params.operationType === 'issue') {
-    if (quantity > currentBalance) {
-      throw new Error('الكمية المصروفة أكبر من الرصيد الحالي')
-    }
-
-    newBalance = currentBalance - quantity
-    updatePayload = {
-      issued: quantity,
-      total_issued: currentTotalIssued + quantity,
-      [stockField]: newBalance,
-    }
+  if (!data || typeof data !== 'object' || !('ok' in data) || !data.ok) {
+    throw new Error('فشل تنفيذ حركة المخزون')
   }
 
-  if (params.operationType === 'adjust') {
-    newBalance = quantity
-    updatePayload = {
-      [stockField]: newBalance,
-    }
-  }
-
-  const { error: updateError } = await client
-    .from(params.tableName)
-    .update(updatePayload)
-    .eq('id', params.itemId)
-
-  if (updateError) {
-    throw new Error(updateError.message || 'تعذر تحديث رصيد الصنف')
-  }
-
-  const { error: insertError } = await client.from('inventory_operations').insert({
-    table_name: params.tableName,
-    category_name: params.categoryName,
-    category_label: params.categoryName,
-    item_id: params.itemId,
-    item_name: params.itemName,
-    item_label: params.itemName,
-    operation_type: params.operationType,
-    quantity,
-    project_name: params.projectName,
-    project: params.projectName,
-    item_code: params.itemCode,
-    supplier_name: params.supplierName,
-    purchase_order_number: params.purchaseOrderNumber,
-    issued_to: params.issuedTo,
-    received_by: params.issuedTo,
-    operation_date: params.operationDate,
-    previous_balance: currentBalance,
-    new_balance: newBalance,
-    notes: params.notes,
-  })
-
-  if (insertError) {
-    throw new Error(insertError.message || 'تم تحديث الرصيد لكن تعذر حفظ الحركة')
-  }
-
-  return {
-    previousBalance: currentBalance,
-    newBalance,
-  }
+  await refreshInventoryViews(client)
+  return data
 }
 
 export async function getAdditionOperations(limit = 20) {
