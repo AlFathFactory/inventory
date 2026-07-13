@@ -15,6 +15,15 @@ export type JsonValue =
 
 export type InventoryRow = Record<string, JsonValue>
 
+const supportedStockTables = new Set([
+  'consumables',
+  'paints',
+  'screws',
+  'stock_screws',
+  'raw_materials',
+  'cylinders',
+])
+
 export type ServiceSuccess<TData> = {
   data: TData
   error: null
@@ -33,6 +42,16 @@ export type InventoryImportResult = {
   insertedItemsCount: number
   updatedItemsCount: number
   insertedMovementsCount: number
+  skippedItemsCount?: number
+  updatedMovementsCount?: number
+  skippedMovementsCount?: number
+  insertedCustodyCount?: number
+  updatedCustodyCount?: number
+  skippedCustodyCount?: number
+  completedChunks?: number
+  failedStage?: string | null
+  failedChunk?: number | null
+  completed?: boolean
   errors: string[]
 }
 
@@ -781,6 +800,10 @@ export async function createInventoryItem(
     return createFailure(`Unknown category table "${tableName}".`)
   }
 
+  if (!supportedStockTables.has(tableName)) {
+    return createFailure(`Unsupported inventory table "${tableName}".`)
+  }
+
   try {
     const itemNameField = String(category.itemNameField ?? 'item_name')
     const itemName = toText(values[itemNameField])
@@ -825,22 +848,6 @@ export async function createInventoryItem(
       payload[minQuantityField] = toNumberValue(values[minQuantityField]) ?? 0
     }
 
-    const itemKey = toText(payload.item_key)
-    const { data: existingItem, error: existingItemError } = await supabaseClient!
-      .from(tableName)
-      .select('id')
-      .eq('item_key', itemKey)
-      .limit(1)
-      .maybeSingle()
-
-    if (existingItemError) {
-      return createFailure(existingItemError.message)
-    }
-
-    if (existingItem) {
-      return createFailure('هذا الصنف موجود بالفعل في هذا القسم')
-    }
-
     const { data, error } = await supabaseClient!
       .from(tableName)
       .insert(payload as never)
@@ -848,6 +855,9 @@ export async function createInventoryItem(
       .single()
 
     if (error || !data) {
+      if (error?.code === '23505') {
+        return createFailure('هذا الصنف موجود بالفعل في هذا القسم')
+      }
       return createFailure(error?.message || 'تعذر إضافة الصنف')
     }
 

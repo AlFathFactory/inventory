@@ -1,4 +1,5 @@
 import type { InventoryOperationType } from '../../services/operationsService'
+import { getLocalDateString } from '../../utils/dateUtils'
 
 export type OperationFormState = {
   quantity: string
@@ -16,7 +17,7 @@ type ItemSnapshot = {
 }
 
 export function getTodayValue() {
-  return new Date().toISOString().slice(0, 10)
+  return getLocalDateString()
 }
 
 export function getNumericValue(value: string | number | null | undefined) {

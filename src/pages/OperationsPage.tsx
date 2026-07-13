@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { getLocalDateString } from '../utils/dateUtils'
 import { DataTable, type DataTableColumn } from '../components/DataTable'
 import { operationCategoryOptions } from '../config/categoryConfig'
 import {
@@ -62,7 +63,7 @@ const operationCards: Array<{
 ]
 
 function getTodayValue() {
-  return new Date().toISOString().slice(0, 10)
+  return getLocalDateString()
 }
 
 function createInitialFormState(): FormState {

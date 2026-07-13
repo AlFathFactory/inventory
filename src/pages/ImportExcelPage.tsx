@@ -5,6 +5,7 @@ import {
   importInventoryRowsFromExcel,
   importNormalizedInventoryJson,
   insertRows,
+  type InventoryImportResult,
   type InventoryRow,
 } from '../services/inventoryService'
 import {
@@ -70,6 +71,38 @@ function buildImportLogRow(
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('en-US').format(value)
+}
+
+function formatImportResult(result: InventoryImportResult) {
+  const inserted =
+    result.insertedItemsCount +
+    result.insertedMovementsCount +
+    (result.insertedCustodyCount ?? 0)
+  const updated =
+    result.updatedItemsCount +
+    (result.updatedMovementsCount ?? 0) +
+    (result.updatedCustodyCount ?? 0)
+  const skipped =
+    (result.skippedItemsCount ?? 0) +
+    (result.skippedMovementsCount ?? 0) +
+    (result.skippedCustodyCount ?? 0)
+  const parts = [
+    `المضاف: ${formatNumber(inserted)}`,
+    `المحدّث: ${formatNumber(updated)}`,
+    `المتخطى: ${formatNumber(skipped)}`,
+    `الحزم المكتملة: ${formatNumber(result.completedChunks ?? 0)}`,
+  ]
+
+  if (result.failedStage) {
+    parts.push(
+      `مرحلة الفشل: ${result.failedStage}${result.failedChunk ? `، الحزمة ${result.failedChunk}` : ''}`,
+    )
+  }
+  if (result.errors.length > 0) {
+    parts.push(`التفاصيل: ${result.errors.join(' | ')}`)
+  }
+
+  return parts.join(' — ')
 }
 
 function getSheetStatus(sheetName: string, errors: readonly string[]) {
@@ -255,7 +288,16 @@ export function ImportExcelPage() {
       )
     }
 
-    if (importErrors.length > 0) {
+    if (customPreview && importResult.data) {
+      const customResult = importResult.data
+      setStatus({
+        type:
+          customResult.completed && customResult.errors.length === 0
+            ? 'success'
+            : 'error',
+        message: formatImportResult(customResult),
+      })
+    } else if (importErrors.length > 0) {
       setStatus({
         type: 'error',
         message: importErrors.join(' | '),
