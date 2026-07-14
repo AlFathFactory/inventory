@@ -18,12 +18,15 @@ function isCategoryKey(value: string): value is CategoryKey {
 }
 
 export function useCategoryPage() {
-  const { categoryKey } = useParams()
+  const { categoryKey: routeCategoryKey } = useParams()
   const [message, setMessage] = useState<CategoryMessage>(null)
-  const category: CategoryDefinition | null =
-    categoryKey && isCategoryKey(categoryKey)
-      ? (categoryConfig[categoryKey] as CategoryDefinition)
+  const categoryKey =
+    routeCategoryKey && isCategoryKey(routeCategoryKey)
+      ? routeCategoryKey
       : null
+  const category: CategoryDefinition | null = categoryKey
+    ? (categoryConfig[categoryKey] as CategoryDefinition)
+    : null
 
   const rowState = useCategoryRows(category)
   const operation = useCategoryOperation({

@@ -7,6 +7,7 @@ import { CategoryTableSection } from '../features/category/components/CategoryTa
 import { useCategoryPage } from '../features/category/hooks/useCategoryPage'
 import type { CategorySummaryItem } from '../services/itemsService'
 import { prefetchInventoryItem } from '../features/inventory/inventoryCache'
+import { getItemDetailsRoute } from '../features/items/itemRoutes'
 
 export function CategoryPage() {
   const navigate = useNavigate()
@@ -15,7 +16,9 @@ export function CategoryPage() {
   const { category, categoryKey } = model
 
   function viewDetails(row: CategorySummaryItem) {
-    navigate(`/category/${categoryKey}/item/${row.item_id}`, {
+    if (!categoryKey) return
+
+    navigate(getItemDetailsRoute(categoryKey, String(row.item_id)), {
       state: {
         tableName: row.table_name,
         categoryName: row.category_name,

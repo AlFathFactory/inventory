@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { CategoryPage } from '../pages/CategoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
@@ -7,7 +7,9 @@ import { ItemDetailsPage } from '../pages/ItemDetailsPage'
 import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 
-const router = createBrowserRouter([
+// Hash routing keeps every request on index.html, so deep links continue to
+// work when the static host is not configured with an SPA fallback.
+const router = createHashRouter([
   {
     path: '/',
     element: <DashboardLayout />,
