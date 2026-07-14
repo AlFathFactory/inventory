@@ -7,6 +7,7 @@ import {
 } from '../../item-creation/itemCreateForm'
 import { createInventoryItem } from '../../../services/inventoryService'
 import { createLongWeldingGlove } from '../../../services/longWeldingGlovesService'
+import { createCuttingDisc } from '../../../services/cuttingDiscsService'
 import type { RefreshCategoryRows, SetCategoryMessage } from './categoryHookTypes'
 
 type UseCategoryCreateOptions = {
@@ -101,7 +102,16 @@ export function useCategoryCreate({
         preparedValues.expire_date = form.expire_date?.trim() || null
       }
 
-      const result = category.table === 'long_welding_gloves'
+      const result = category.table === 'cutting_discs'
+        ? await createCuttingDisc({
+            code: form.code?.trim() || null,
+            type_name: form.type_name.trim(),
+            received_by: form.received_by.trim(),
+            received_date: form.received_date || null,
+            scrapped_date: form.scrapped_date || null,
+            notes: form.notes?.trim() || null,
+          })
+        : category.table === 'long_welding_gloves'
         ? await createLongWeldingGlove({
             type_name: String(preparedValues.type_name ?? ''),
             received_by: String(preparedValues.received_by ?? ''),
@@ -119,7 +129,9 @@ export function useCategoryCreate({
       close()
       setMessage({
         type: 'success',
-        text: category.table === 'long_welding_gloves'
+        text: category.table === 'cutting_discs'
+          ? 'تم إضافة الصاروخ بنجاح'
+          : category.table === 'long_welding_gloves'
           ? 'تمت إضافة سجل العهدة بنجاح'
           : 'تم إضافة الصنف وتسجيله كحركة إضافة بنجاح',
       })

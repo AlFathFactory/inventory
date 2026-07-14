@@ -104,7 +104,7 @@ function buildCategoryTableColumns({
         header: 'تاريخ التكهين',
         renderCell: (row: CategorySummaryItem) => getDisplayValue(row.scrapped_date),
       }] : []),
-      ...(category.table === 'long_welding_gloves' ? [{
+      ...(category.table === 'long_welding_gloves' || category.table === 'cutting_discs' ? [{
         id: 'notes',
         header: 'ملاحظات',
         renderCell: (row: CategorySummaryItem) => getDisplayValue(row.notes),
@@ -133,6 +133,18 @@ function buildCategoryTableColumns({
               أرشفة
             </button>
           </div>
+        ),
+      }] : category.table === 'cutting_discs' ? [{
+        id: 'actions',
+        header: 'إجراءات',
+        renderCell: (row: CategorySummaryItem) => (
+          <button
+            type="button"
+            onClick={stopPropagation(() => onEdit(row))}
+            className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+          >
+            تعديل
+          </button>
         ),
       }] : [detailsColumn]),
     ]

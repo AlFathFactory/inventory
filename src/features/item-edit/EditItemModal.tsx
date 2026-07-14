@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { CategoryDefinition } from '../../config/categoryConfig'
 import { updateItemDetails, type ItemDetails } from '../../services/itemsService'
 import { updateLongWeldingGlove } from '../../services/longWeldingGlovesService'
+import { updateCuttingDisc } from '../../services/cuttingDiscsService'
 
 type EditField = {
   key: string
@@ -42,11 +43,12 @@ const fieldsByTable: Record<string, EditField[]> = {
     { key: 'notes', label: 'ملاحظات', type: 'textarea' },
   ],
   cutting_discs: [
-    { key: 'code', label: 'Code Number' },
-    { key: 'type_name', label: 'اسم الصنف', required: true },
-    { key: 'received_by', label: 'المستلم' },
+    { key: 'code', label: 'الكود' },
+    { key: 'type_name', label: 'النوع', required: true },
+    { key: 'received_by', label: 'المستلم', required: true },
     { key: 'received_date', label: 'تاريخ الاستلام', type: 'date' },
-    { key: 'scrapped_date', label: 'تاريخ التكهيت', type: 'date' },
+    { key: 'scrapped_date', label: 'تاريخ التكهين', type: 'date' },
+    { key: 'notes', label: 'ملاحظات', type: 'textarea' },
   ],
   long_welding_gloves: [
     { key: 'type_name', label: 'النوع', required: true },
@@ -102,6 +104,7 @@ function initialValue(item: ItemDetails, key: string) {
 }
 
 export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }: Props) {
+  const isCuttingDiscs = category.table === 'cutting_discs'
   const fields = useMemo(() => fieldsByTable[category.table] ?? [], [category.table])
   const initialForm = useMemo(
     () => Object.fromEntries(fields.map((field) => [field.key, initialValue(itemData, field.key)])),
@@ -158,7 +161,9 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           date.getFullYear() !== year ||
           date.getMonth() + 1 !== month ||
           date.getDate() !== day
-        ) nextErrors[field.key] = 'يجب إدخال تاريخ محلي صالح'
+        ) nextErrors[field.key] = category.table === 'cutting_discs'
+          ? 'تاريخ غير صحيح، برجاء اختيار تاريخ من التقويم'
+          : 'يجب إدخال تاريخ محلي صالح'
       }
     })
     if (balanceChanged && !adjustDate) nextErrors.adjustDate = 'تاريخ التعديل مطلوب'
@@ -188,7 +193,16 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     }
     setIsSubmitting(true)
     setSubmitError(null)
-    const result = category.table === 'long_welding_gloves'
+    const result = category.table === 'cutting_discs'
+      ? await updateCuttingDisc(itemId, {
+          code: form.code?.trim() || null,
+          type_name: form.type_name.trim(),
+          received_by: form.received_by.trim(),
+          received_date: form.received_date || null,
+          scrapped_date: form.scrapped_date || null,
+          notes: form.notes?.trim() || null,
+        })
+      : category.table === 'long_welding_gloves'
       ? await updateLongWeldingGlove(itemId, {
           type_name: form.type_name.trim(),
           received_by: form.received_by.trim(),
@@ -215,7 +229,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 py-6" dir="rtl">
       <div className="max-h-full w-full max-w-3xl overflow-y-auto rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
         <div className="flex items-start justify-between gap-4">
-          <div><h3 className="text-2xl font-bold text-slate-900">تعديل الصنف</h3><p className="mt-1 text-sm text-[var(--app-text-muted)]">عدّل البيانات المطلوبة ثم احفظ التغييرات.</p></div>
+          <div><h3 className="text-2xl font-bold text-slate-900">{isCuttingDiscs ? 'تعديل صاروخ' : 'تعديل الصنف'}</h3><p className="mt-1 text-sm text-[var(--app-text-muted)]">عدّل البيانات المطلوبة ثم احفظ التغييرات.</p></div>
           <button type="button" onClick={onClose} aria-label="إغلاق" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">×</button>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-2">

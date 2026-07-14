@@ -52,7 +52,7 @@ export function CategoryHeader({
             onClick={onCreateItem}
             className="inline-flex h-[44px] items-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            إضافة صنف جديد
+            {category.table === 'cutting_discs' ? 'إضافة صاروخ' : 'إضافة صنف جديد'}
           </button>
         ) : null}
       </div>

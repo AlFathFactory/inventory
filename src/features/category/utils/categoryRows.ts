@@ -9,6 +9,10 @@ import {
   listLongWeldingGloves,
   type LongWeldingGloveRecord,
 } from '../../../services/longWeldingGlovesService'
+import {
+  listCuttingDiscs,
+  type CuttingDiscRecord,
+} from '../../../services/cuttingDiscsService'
 
 function mapGloveRows(rows: LongWeldingGloveRecord[] | null): CategorySummaryItem[] {
   return (rows ?? []).map((row) => ({
@@ -34,7 +38,33 @@ function mapGloveRows(rows: LongWeldingGloveRecord[] | null): CategorySummaryIte
   }))
 }
 
+function mapCuttingDiscRows(rows: CuttingDiscRecord[] | null): CategorySummaryItem[] {
+  return (rows ?? []).map((row) => ({
+    ...row,
+    table_name: 'cutting_discs',
+    category_name: 'صواريخ',
+    item_id: row.id,
+    item_key: null,
+    project_name: null,
+    item_name: row.type_name,
+    stock_balance: null,
+    min_quantity: null,
+    status: null,
+    total_added: null,
+    total_issued: null,
+    source_rows_count: 1,
+  }))
+}
+
 export async function loadCategoryRows(category: CategoryDefinition) {
+  if (category.table === 'cutting_discs') {
+    const result = await listCuttingDiscs()
+    return {
+      data: result.error ? [] : mapCuttingDiscRows(result.data),
+      error: result.error,
+    }
+  }
+
   if (category.table === 'long_welding_gloves') {
     const result = await listLongWeldingGloves()
     return {

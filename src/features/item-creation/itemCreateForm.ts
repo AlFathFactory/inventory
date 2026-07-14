@@ -48,7 +48,9 @@ export function validateItemCreateForm(
         date.getMonth() + 1 !== month ||
         date.getDate() !== day
       ) {
-        errors[fieldKey] = `${category.columns[field.key] ?? fieldKey} يجب أن يكون تاريخاً محلياً صالحاً`
+        errors[fieldKey] = category.table === 'cutting_discs'
+          ? 'تاريخ غير صحيح، برجاء اختيار تاريخ من التقويم'
+          : `${category.columns[field.key] ?? fieldKey} يجب أن يكون تاريخاً محلياً صالحاً`
       }
     }
   })

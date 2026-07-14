@@ -26,7 +26,7 @@ export function useCategoryEdit({
 
     setIsPreparing(true)
     setMessage(null)
-    const result = category.table === 'long_welding_gloves'
+    const result = category.table === 'long_welding_gloves' || category.table === 'cutting_discs'
       ? await getCustodyRecord(category.table, String(row.item_id))
       : await getItemDetails(category.table, String(row.item_id))
     setIsPreparing(false)
@@ -36,7 +36,7 @@ export function useCategoryEdit({
       return
     }
 
-    setEditingItem(category.table === 'long_welding_gloves' ? {
+    setEditingItem(category.table === 'long_welding_gloves' || category.table === 'cutting_discs' ? {
       ...result.data,
       table_name: category.table,
       category_name: category.label,
@@ -62,7 +62,9 @@ export function useCategoryEdit({
     setEditingItem(null)
     setMessage({
       type: 'success',
-      text: category.table === 'long_welding_gloves'
+      text: category.table === 'cutting_discs'
+        ? 'تم تعديل الصاروخ بنجاح'
+        : category.table === 'long_welding_gloves'
         ? 'تم تعديل سجل العهدة بنجاح'
         : balanceChanged
           ? 'تم تعديل بيانات الصنف بنجاح — تم تعديل الرصيد وتسجيل حركة جرد / تعديل رصيد'

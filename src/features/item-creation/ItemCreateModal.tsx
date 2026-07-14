@@ -39,15 +39,20 @@ export function ItemCreateModal({
   onSubmit,
 }: ItemCreateModalProps) {
   const createFields = category.createFields ?? []
+  const isCuttingDiscs = category.table === 'cutting_discs'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
       <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="text-right">
-            <h3 className="text-[1.5rem] font-bold text-slate-900">إضافة صنف جديد</h3>
+            <h3 className="text-[1.5rem] font-bold text-slate-900">
+              {isCuttingDiscs ? 'إضافة صاروخ' : 'إضافة صنف جديد'}
+            </h3>
             <p className="mt-1 text-sm text-[var(--app-text-muted)]">
-              أدخل بيانات الصنف داخل قسم {category.label}
+              {isCuttingDiscs
+                ? 'أدخل بيانات الصاروخ ثم احفظ السجل.'
+                : `أدخل بيانات الصنف داخل قسم ${category.label}`}
             </p>
           </div>
           <button
@@ -69,7 +74,9 @@ export function ItemCreateModal({
             if (field.inputType === 'textarea') {
               return (
                 <label key={fieldKey} className="space-y-2 text-right md:col-span-2">
-                  <span className="block text-sm font-semibold text-slate-700">{label}</span>
+                  <span className="block text-sm font-semibold text-slate-700">
+                    {label}{field.required ? ' *' : ''}
+                  </span>
                   <textarea
                     value={form[fieldKey] ?? ''}
                     onChange={(event) => onFieldChange(fieldKey, event.target.value)}
@@ -83,7 +90,9 @@ export function ItemCreateModal({
 
             return (
               <label key={fieldKey} className="space-y-2 text-right">
-                <span className="block text-sm font-semibold text-slate-700">{label}</span>
+                <span className="block text-sm font-semibold text-slate-700">
+                  {label}{field.required ? ' *' : ''}
+                </span>
                 <input
                   type={field.inputType ?? 'text'}
                   name={fieldKey}
@@ -114,7 +123,9 @@ export function ItemCreateModal({
             disabled={isSubmitting}
             className="h-[46px] min-w-[200px] rounded-2xl bg-[var(--app-primary)] px-6 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? 'جاري إضافة الصنف...' : 'إضافة الصنف'}
+            {isSubmitting
+              ? isCuttingDiscs ? 'جاري إضافة الصاروخ...' : 'جاري إضافة الصنف...'
+              : isCuttingDiscs ? 'إضافة الصاروخ' : 'إضافة الصنف'}
           </button>
         </div>
       </div>

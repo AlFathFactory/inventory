@@ -51,7 +51,9 @@ export function CategoryTableSection({
       <DataFilters
         searchValue={searchTerm}
         onSearchChange={onSearchChange}
-        searchPlaceholder={isCustodyCategory
+        searchPlaceholder={category.table === 'cutting_discs'
+          ? 'ابحث بالكود أو النوع أو المستلم أو الملاحظات'
+          : isCustodyCategory
           ? 'ابحث بالكود أو النوع أو المستلم أو المصدر'
           : 'ابحث باسم المشروع أو الصنف أو الحالة'}
       />
