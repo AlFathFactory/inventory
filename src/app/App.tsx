@@ -4,7 +4,6 @@ import { CategoryPage } from '../pages/CategoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ImportExcelPage } from '../pages/ImportExcelPage'
 import { ItemDetailsPage } from '../pages/ItemDetailsPage'
-import { ItemsPage } from '../pages/ItemsPage'
 import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 
@@ -16,10 +15,6 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
-      },
-      {
-        path: 'items',
-        element: <ItemsPage />,
       },
       {
         path: 'import',

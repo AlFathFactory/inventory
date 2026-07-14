@@ -19,20 +19,20 @@ function DashboardIcon({ className = '' }: IconProps) {
   )
 }
 
-function BoxIcon({ className = '' }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className={className}
-    >
-      <path d="m12 3 7 4v10l-7 4-7-4V7l7-4Z" />
-      <path d="m5 7 7 4 7-4M12 11v10" />
-    </svg>
-  )
-}
+// function BoxIcon({ className = '' }: IconProps) {
+//   return (
+//     <svg
+//       viewBox="0 0 24 24"
+//       fill="none"
+//       stroke="currentColor"
+//       strokeWidth="1.8"
+//       className={className}
+//     >
+//       <path d="m12 3 7 4v10l-7 4-7-4V7l7-4Z" />
+//       <path d="m5 7 7 4 7-4M12 11v10" />
+//     </svg>
+//   )
+// }
 
 function UploadIcon({ className = '' }: IconProps) {
   return (
@@ -164,8 +164,6 @@ function getSidebarIcon(path: string) {
   switch (path) {
     case '/':
       return <DashboardIcon className={iconClassName} />
-    case '/items':
-      return <BoxIcon className={iconClassName} />
     case '/import':
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
@@ -179,7 +177,7 @@ function getSidebarIcon(path: string) {
     case '/category/stock_screws':
       return <NutIcon className={iconClassName} />
     case '/category/raw_materials':
-      return <BoxIcon className={iconClassName} />
+      // return <BoxIcon className={iconClassName} />
     case '/category/cutting_discs':
       return <DiscIcon className={iconClassName} />
     case '/category/cylinders':
@@ -187,13 +185,12 @@ function getSidebarIcon(path: string) {
     case '/category/long_welding_gloves':
       return <GloveIcon className={iconClassName} />
     default:
-      return <BoxIcon className={iconClassName} />
+      // return <BoxIcon className={iconClassName} />
   }
 }
 
 const navigationItems = [
   { label: 'لوحة التحكم', to: '/' },
-  { label: 'الأصناف', to: '/items' },
   { label: 'استيراد البيانات', to: '/import' },
   { label: 'الأصناف القليلة', to: '/low-stock' },
   ...categoryOptions.map((category) => ({
