@@ -34,21 +34,6 @@ function BoxIcon({ className = '' }: IconProps) {
   )
 }
 
-function FolderIcon({ className = '' }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className={className}
-    >
-      <path d="M3.5 7.5h5l2 2h10v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
-      <path d="M3.5 7.5v-1a2 2 0 0 1 2-2h3l2 2h8a2 2 0 0 1 2 2v1" />
-    </svg>
-  )
-}
-
 function UploadIcon({ className = '' }: IconProps) {
   return (
     <svg
@@ -76,25 +61,6 @@ function AlertIcon({ className = '' }: IconProps) {
     >
       <path d="M12 4 3.5 19h17Z" />
       <path d="M12 9v4.5M12 17h.01" />
-    </svg>
-  )
-}
-
-function OperationsIcon({ className = '' }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className={className}
-    >
-      <path d="M8 7h10" />
-      <path d="M8 12h10" />
-      <path d="M8 17h10" />
-      <path d="m5 7 1.5 1.5L9 6" />
-      <path d="m5 17 1.5 1.5L9 16" />
-      <path d="m5 12 1.5 1.5L9 11" />
     </svg>
   )
 }
@@ -200,10 +166,6 @@ function getSidebarIcon(path: string) {
       return <DashboardIcon className={iconClassName} />
     case '/items':
       return <BoxIcon className={iconClassName} />
-    case '/projects':
-      return <FolderIcon className={iconClassName} />
-    case '/operations':
-      return <OperationsIcon className={iconClassName} />
     case '/import':
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
@@ -232,8 +194,6 @@ function getSidebarIcon(path: string) {
 const navigationItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'الأصناف', to: '/items' },
-  { label: 'المشاريع', to: '/projects' },
-  { label: 'مركز العمليات', to: '/operations' },
   { label: 'استيراد البيانات', to: '/import' },
   { label: 'الأصناف القليلة', to: '/low-stock' },
   ...categoryOptions.map((category) => ({
