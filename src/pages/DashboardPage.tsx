@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { DashboardInventoryFilters } from '../features/dashboard/components/DashboardInventoryFilters'
 import { DashboardInventoryTable } from '../features/dashboard/components/DashboardInventoryTable'
 import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
@@ -10,9 +11,12 @@ import {
   getSupabaseConfigError,
   isSupabaseConfigured,
 } from '../lib/supabaseClient'
+import { categoryConfig } from '../config/categoryConfig'
+import { prefetchInventoryItem } from '../features/inventory/inventoryCache'
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { data, isLoading, error } = useDashboardData()
   const inventoryTable = useDashboardInventoryTable(data.inventoryRows)
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
@@ -112,6 +116,13 @@ export function DashboardPage() {
               onItemClick={(row) =>
                 navigate(getItemDetailsRoute(row.categoryKey, row.itemId, 'dashboard'))
               }
+              onItemPrefetch={(row) => {
+                void prefetchInventoryItem(
+                  queryClient,
+                  categoryConfig[row.categoryKey].table,
+                  row.itemId,
+                )
+              }}
             />
           )}
         </div>

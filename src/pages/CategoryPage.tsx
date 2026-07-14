@@ -1,13 +1,16 @@
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { CategoryHeader } from '../features/category/components/CategoryHeader'
 import { CategoryModals } from '../features/category/components/CategoryModals'
 import { useCategoryTableColumns } from '../features/category/components/CategoryTableColumns'
 import { CategoryTableSection } from '../features/category/components/CategoryTableSection'
 import { useCategoryPage } from '../features/category/hooks/useCategoryPage'
 import type { CategorySummaryItem } from '../services/itemsService'
+import { prefetchInventoryItem } from '../features/inventory/inventoryCache'
 
 export function CategoryPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const model = useCategoryPage()
   const { category, categoryKey } = model
 
@@ -55,6 +58,13 @@ export function CategoryPage() {
         isCustodyCategory={model.isCustodyCategory}
         columns={columns}
         onViewDetails={viewDetails}
+        onPrefetchItem={(row) => {
+          void prefetchInventoryItem(
+            queryClient,
+            row.table_name,
+            String(row.item_id),
+          )
+        }}
         message={model.message}
         searchTerm={model.searchTerm}
         onSearchChange={model.setSearchTerm}

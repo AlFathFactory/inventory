@@ -18,6 +18,7 @@ type DashboardInventoryTableProps = {
   onPageChange: (page: number) => void
   onPageSizeChange: (pageSize: number) => void
   onItemClick: (row: DashboardInventoryRow) => void
+  onItemPrefetch: (row: DashboardInventoryRow) => void
 }
 
 function formatNumber(value: number | null) {
@@ -103,6 +104,7 @@ export function DashboardInventoryTable({
   onPageChange,
   onPageSizeChange,
   onItemClick,
+  onItemPrefetch,
 }: DashboardInventoryTableProps) {
   if (rows.length === 0) {
     return (
@@ -123,6 +125,7 @@ export function DashboardInventoryTable({
         tableClassName="divide-y divide-slate-200"
         rowClassName="hover:bg-slate-50"
         onRowClick={onItemClick}
+        onRowPrefetch={onItemPrefetch}
       />
 
       <TablePagination

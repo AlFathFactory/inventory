@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
   createInitialOperationFormState,
@@ -6,16 +7,16 @@ import {
   type OperationFormState,
   validateOperationForm,
 } from '../../inventory-operations/operationForm'
-import {
-  getItemDetails,
-  getItemMovements,
-  type ItemDetails,
-  type ItemMovement,
-} from '../../../services/itemsService'
+import type { ItemMovement } from '../../../services/itemsService'
 import {
   applyInventoryOperation,
   type InventoryOperationType,
 } from '../../../services/operationsService'
+import { invalidateItemData } from '../../inventory/inventoryCache'
+import {
+  itemQueryOptions,
+  movementsQueryOptions,
+} from '../../inventory/inventoryQueries'
 import {
   buildMonthlyMovementSummaries,
   getDateTimestamp,
@@ -23,13 +24,25 @@ import {
 } from '../itemDetailsUtils'
 import type { ItemDetailsMessage, ItemMovementsDateFilterValue } from '../types'
 
+const emptyMovements: ItemMovement[] = []
+
 export function useItemDetailsPage(
   category: CategoryDefinition | null,
   itemId: string | undefined,
 ) {
-  const [details, setDetails] = useState<ItemDetails | null>(null)
-  const [movements, setMovements] = useState<ItemMovement[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const tableName = category?.table ?? ''
+  const normalizedItemId = itemId ?? ''
+  const itemQuery = useQuery({
+    ...itemQueryOptions(tableName, normalizedItemId),
+    enabled: Boolean(tableName && normalizedItemId),
+  })
+  const movementsQuery = useQuery({
+    ...movementsQueryOptions(tableName, normalizedItemId),
+    enabled: Boolean(tableName && normalizedItemId),
+  })
+  const details = itemQuery.data ?? null
+  const movements = movementsQuery.data ?? emptyMovements
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<ItemDetailsMessage>(null)
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
@@ -41,48 +54,17 @@ export function useItemDetailsPage(
 
   const loadItemData = useCallback(async () => {
     if (!category || !itemId) return
-    setIsLoading(true)
+    await Promise.all([itemQuery.refetch(), movementsQuery.refetch()])
+  }, [category, itemId, itemQuery, movementsQuery])
 
-    const [detailsResult, movementsResult] = await Promise.all([
-      getItemDetails(category.table, itemId),
-      getItemMovements(category.table, itemId),
-    ])
-
-    if (detailsResult.error || !detailsResult.data) {
-      setDetails(null)
-      setMovements([])
-      setMessage({
-        type: 'error',
-        text: detailsResult.error || 'تعذر تحميل تفاصيل الصنف',
-      })
-      setIsLoading(false)
-      return
-    }
-
-    setDetails(detailsResult.data)
-    setMovements(movementsResult.error ? [] : movementsResult.data ?? [])
-    setMessage(
-      movementsResult.error ? { type: 'error', text: movementsResult.error } : null,
-    )
+  useEffect(() => {
+    if (!details) return
     setForm((current) => ({
       ...current,
       projectName:
-        detailsResult.data?.project_name ??
-        detailsResult.data?.project ??
-        current.projectName,
+        details.project_name ?? details.project ?? current.projectName,
     }))
-    setIsLoading(false)
-  }, [category, itemId])
-
-  useEffect(() => {
-    if (!category || !itemId) {
-      setDetails(null)
-      setMovements([])
-      setIsLoading(false)
-      return
-    }
-    void loadItemData()
-  }, [category, itemId, loadItemData])
+  }, [details])
 
   const monthlyMovementSummaries = useMemo(
     () => buildMonthlyMovementSummaries(movements),
@@ -148,23 +130,26 @@ export function useItemDetailsPage(
     if (!category || !itemId || !details || !operationType) return
 
     setMessage(null)
-    const tableName = String(details.table_name ?? '').trim()
+    const operationTableName = String(details.table_name ?? '').trim()
     const operationItemId = details.item_id
-    if (!tableName || operationItemId === null || operationItemId === undefined || String(operationItemId).trim() === '') {
-      setMessage({
-        type: 'error',
-        text: 'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى',
-      })
+    if (
+      !operationTableName ||
+      operationItemId === null ||
+      operationItemId === undefined ||
+      String(operationItemId).trim() === ''
+    ) {
+      setMessage({ type: 'error', text: 'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى' })
       return
     }
+
     const validation = validateOperationForm({ details, form, operationType })
     setFormErrors(validation.errors)
     if (!validation.isValid) return
 
     setIsSubmitting(true)
     try {
-      const payload = {
-        tableName,
+      await applyInventoryOperation({
+        tableName: operationTableName,
         categoryName: details.category_name || category.label,
         itemId: operationItemId,
         itemName: details.item_name || `صنف ${itemId}`,
@@ -176,19 +161,23 @@ export function useItemDetailsPage(
           details.project ||
           form.projectName.trim() ||
           undefined,
-        itemCode: category.table === 'raw_materials' ||
+        itemCode:
+          category.table === 'raw_materials' ||
           category.table === 'screws' ||
           category.table === 'stock_screws'
-          ? details.code_number?.trim() || null
-          : null,
-        supplierName: operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
+            ? details.code_number?.trim() || null
+            : null,
+        supplierName:
+          operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
         purchaseOrderNumber:
-          operationType === 'add' ? form.purchaseOrderNumber.trim() || undefined : undefined,
-        issuedTo: operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
+          operationType === 'add'
+            ? form.purchaseOrderNumber.trim() || undefined
+            : undefined,
+        issuedTo:
+          operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
         notes: form.notes.trim() || undefined,
-      }
-      await applyInventoryOperation(payload)
-      await loadItemData()
+      })
+      await invalidateItemData(queryClient, category.table, itemId)
       closeOperationModal()
       setMessage({
         type: 'success',
@@ -210,15 +199,23 @@ export function useItemDetailsPage(
   }
 
   async function handleEditSuccess(balanceChanged: boolean) {
+    if (!category || !itemId) return
     setIsEditOpen(false)
-    await loadItemData()
+    await invalidateItemData(queryClient, category.table, itemId)
     setMessage({
       type: 'success',
       text: balanceChanged
-        ? 'تم تعديل بيانات الصنف بنجاح — تم تعديل الرصيد وتسجيل حركة جرد / تعديل رصيد'
+        ? 'تم تعديل بيانات الصنف والرصيد وتسجيل حركة الجرد بنجاح'
         : 'تم تعديل بيانات الصنف بنجاح',
     })
   }
+
+  const queryMessage: ItemDetailsMessage =
+    itemQuery.error instanceof Error
+      ? { type: 'error', text: itemQuery.error.message }
+      : movementsQuery.error instanceof Error
+        ? { type: 'error', text: movementsQuery.error.message }
+        : null
 
   return {
     details,
@@ -227,10 +224,10 @@ export function useItemDetailsPage(
     form,
     formErrors,
     isEditOpen,
-    isLoading,
+    isLoading: itemQuery.isPending || movementsQuery.isPending,
     isSubmitting,
     loadItemData,
-    message,
+    message: message ?? queryMessage,
     monthlyMovementSummaries,
     movementDateFilter,
     operationType,

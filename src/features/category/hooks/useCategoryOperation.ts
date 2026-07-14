@@ -1,30 +1,32 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
   createInitialOperationFormState,
   type OperationFormState,
   validateOperationForm,
 } from '../../inventory-operations/operationForm'
-import { getItemDetails, type CategorySummaryItem, type ItemDetails } from '../../../services/itemsService'
+import { type CategorySummaryItem, type ItemDetails } from '../../../services/itemsService'
 import {
   applyInventoryOperation,
   type InventoryOperationType,
 } from '../../../services/operationsService'
 import type { CategoryQuickAction, SelectedInventoryItem } from '../types'
-import type { RefreshCategoryRows, SetCategoryMessage } from './categoryHookTypes'
+import { invalidateItemData } from '../../inventory/inventoryCache'
+import { itemQueryOptions } from '../../inventory/inventoryQueries'
+import type { SetCategoryMessage } from './categoryHookTypes'
 
 const incompleteItemDataMessage =
   'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى'
 
 export function useCategoryOperation({
   category,
-  refreshRows,
   setMessage,
 }: {
   category: CategoryDefinition | null
-  refreshRows: RefreshCategoryRows
   setMessage: SetCategoryMessage
 }) {
+  const queryClient = useQueryClient()
   const [quickAction, setQuickAction] = useState<CategoryQuickAction>(null)
   const [isPreparing, setIsPreparing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -84,7 +86,13 @@ export function useCategoryOperation({
     setQuickAction(null)
     setIsPreparing(true)
     setMessage(null)
-    const result = await getItemDetails(item.tableName, String(item.itemId))
+    const result = await queryClient
+      .fetchQuery(itemQueryOptions(item.tableName, String(item.itemId)))
+      .then((data) => ({ data, error: null }))
+      .catch((error: unknown) => ({
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to load item.',
+      }))
     setIsPreparing(false)
 
     if (result.error || !result.data) {
@@ -143,7 +151,11 @@ export function useCategoryOperation({
         notes: form.notes.trim() || undefined,
       })
 
-      await refreshRows()
+      await invalidateItemData(
+        queryClient,
+        selectedItem.tableName,
+        String(selectedItem.itemId),
+      )
       close()
       setMessage({
         type: 'success',

@@ -11,6 +11,7 @@ type CategoryTableSectionProps = {
   isCustodyCategory: boolean
   columns: DataTableColumn<CategorySummaryItem>[]
   onViewDetails: (row: CategorySummaryItem) => void
+  onPrefetchItem: (row: CategorySummaryItem) => void
   message: CategoryMessage
   searchTerm: string
   onSearchChange: (value: string) => void
@@ -26,6 +27,7 @@ export function CategoryTableSection({
   isCustodyCategory,
   columns,
   onViewDetails,
+  onPrefetchItem,
   message,
   searchTerm,
   onSearchChange,
@@ -80,6 +82,7 @@ export function CategoryTableSection({
             tableClassName="divide-y divide-slate-200"
             rowClassName="hover:bg-slate-50"
             onRowClick={onViewDetails}
+            onRowPrefetch={onPrefetchItem}
           />
           <TablePagination
             currentPage={pagination.currentPage}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
   createInitialItemCreateFormState,
@@ -8,21 +9,21 @@ import {
 import { createInventoryItem } from '../../../services/inventoryService'
 import { createLongWeldingGlove } from '../../../services/longWeldingGlovesService'
 import { createCuttingDisc } from '../../../services/cuttingDiscsService'
-import type { RefreshCategoryRows, SetCategoryMessage } from './categoryHookTypes'
+import { invalidateCategoryData } from '../../inventory/inventoryCache'
+import type { SetCategoryMessage } from './categoryHookTypes'
 
 type UseCategoryCreateOptions = {
   category: CategoryDefinition | null
-  refreshRows: RefreshCategoryRows
   setMessage: SetCategoryMessage
   closeQuickAction: () => void
 }
 
 export function useCategoryCreate({
   category,
-  refreshRows,
   setMessage,
   closeQuickAction,
 }: UseCategoryCreateOptions) {
+  const queryClient = useQueryClient()
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState<ItemCreateFormState>({})
@@ -134,7 +135,7 @@ export function useCategoryCreate({
         return
       }
 
-      await refreshRows()
+      await invalidateCategoryData(queryClient, category.table)
       close()
       setMessage({
         type: 'success',

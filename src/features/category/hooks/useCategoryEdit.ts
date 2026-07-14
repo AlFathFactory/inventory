@@ -1,23 +1,29 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
-  getCustodyRecord,
-  getItemDetails,
   type CategorySummaryItem,
   type ItemDetails,
 } from '../../../services/itemsService'
 import { archiveLongWeldingGlove } from '../../../services/longWeldingGlovesService'
-import type { RefreshCategoryRows, SetCategoryMessage } from './categoryHookTypes'
+import {
+  invalidateCategoryData,
+  invalidateItemData,
+} from '../../inventory/inventoryCache'
+import {
+  custodyItemQueryOptions,
+  itemQueryOptions,
+} from '../../inventory/inventoryQueries'
+import type { SetCategoryMessage } from './categoryHookTypes'
 
 export function useCategoryEdit({
   category,
-  refreshRows,
   setMessage,
 }: {
   category: CategoryDefinition | null
-  refreshRows: RefreshCategoryRows
   setMessage: SetCategoryMessage
 }) {
+  const queryClient = useQueryClient()
   const [editingItem, setEditingItem] = useState<ItemDetails | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
 
@@ -26,9 +32,17 @@ export function useCategoryEdit({
 
     setIsPreparing(true)
     setMessage(null)
-    const result = category.table === 'long_welding_gloves' || category.table === 'cutting_discs'
-      ? await getCustodyRecord(category.table, String(row.item_id))
-      : await getItemDetails(category.table, String(row.item_id))
+    const itemId = String(row.item_id)
+    const result = await (
+      category.table === 'long_welding_gloves' || category.table === 'cutting_discs'
+        ? queryClient.fetchQuery(custodyItemQueryOptions(category.table, itemId))
+        : queryClient.fetchQuery(itemQueryOptions(category.table, itemId))
+    )
+      .then((data) => ({ data, error: null }))
+      .catch((error: unknown) => ({
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to load item.',
+      }))
     setIsPreparing(false)
 
     if (result.error || !result.data) {
@@ -58,7 +72,11 @@ export function useCategoryEdit({
   async function handleSuccess(balanceChanged: boolean) {
     if (!category || !editingItem) return
 
-    await refreshRows()
+    await invalidateItemData(
+      queryClient,
+      category.table,
+      String(editingItem.item_id),
+    )
     setEditingItem(null)
     setMessage({
       type: 'success',
@@ -73,6 +91,7 @@ export function useCategoryEdit({
   }
 
   async function archiveGlove(row: CategorySummaryItem) {
+    if (!category) return
     if (!window.confirm('هل تريد أرشفة سجل العهدة هذا؟')) return
 
     const result = await archiveLongWeldingGlove(String(row.item_id))
@@ -81,7 +100,7 @@ export function useCategoryEdit({
       return
     }
 
-    await refreshRows()
+    await invalidateCategoryData(queryClient, category.table)
     setMessage({ type: 'success', text: 'تمت أرشفة سجل العهدة' })
   }
 

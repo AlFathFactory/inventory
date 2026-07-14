@@ -19,6 +19,7 @@ type DataTableProps<Row> = {
   tbodyClassName?: string
   rowClassName?: string | ((row: Row, index: number) => string)
   onRowClick?: (row: Row, index: number) => void
+  onRowPrefetch?: (row: Row, index: number) => void
 }
 
 function joinClassNames(...values: Array<string | false | null | undefined>) {
@@ -38,6 +39,7 @@ export function DataTable<Row>({
   tbodyClassName,
   rowClassName,
   onRowClick,
+  onRowPrefetch,
 }: DataTableProps<Row>) {
   const headerCellClassName = stickyHeader
     ? 'sticky top-0 z-10 bg-[var(--app-panel-soft)]'
@@ -82,6 +84,15 @@ export function DataTable<Row>({
             <tr
               key={getRowKey(row, index)}
               onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+              onMouseEnter={onRowPrefetch ? () => onRowPrefetch(row, index) : undefined}
+              onFocus={onRowPrefetch ? () => onRowPrefetch(row, index) : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+              onKeyDown={onRowClick ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onRowClick(row, index)
+                }
+              } : undefined}
               className={joinClassNames(
                 typeof rowClassName === 'function'
                   ? rowClassName(row, index)

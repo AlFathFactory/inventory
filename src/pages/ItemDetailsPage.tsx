@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { categoryConfig, type CategoryDefinition } from '../config/categoryConfig'
 import { ItemDetailsOverview } from '../features/item-details/components/ItemDetailsOverview'
@@ -8,12 +8,11 @@ import { isCategoryKey } from '../features/item-details/itemDetailsUtils'
 import { EditItemModal } from '../features/item-edit/EditItemModal'
 import { InventoryOperationModal } from '../features/inventory-operations/InventoryOperationModal'
 import {
-  getCustodyRecord,
   isCustodyTable,
-  type CustodyRecord,
   type CustodyTableName,
   type ItemDetails,
 } from '../services/itemsService'
+import { custodyItemQueryOptions } from '../features/inventory/inventoryQueries'
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? '—' : String(value)
@@ -28,25 +27,12 @@ function CustodyDetailsView({
   itemId: string
   backTo?: string
 }) {
-  const [record, setRecord] = useState<CustodyRecord | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
-    setError(null)
-    void getCustodyRecord(tableName, itemId).then((result) => {
-      if (cancelled) return
-      if (result.error) setError(result.error)
-      else setRecord(result.data)
-      setIsLoading(false)
-    })
-    return () => { cancelled = true }
-  }, [itemId, tableName])
+  const { data: record, error, isPending: isLoading } = useQuery(
+    custodyItemQueryOptions(tableName, itemId),
+  )
 
   if (isLoading) return <div className="rounded-[28px] border border-[var(--app-border)] bg-white p-10 text-center text-sm text-slate-500">جاري تحميل سجل العهدة...</div>
-  if (error || !record) return <div className="rounded-[28px] border border-red-200 bg-red-50 p-10 text-center text-sm text-red-600">{error || 'سجل العهدة غير موجود'}</div>
+  if (error || !record) return <div className="rounded-[28px] border border-red-200 bg-red-50 p-10 text-center text-sm text-red-600">{error instanceof Error ? error.message : 'سجل العهدة غير موجود'}</div>
 
   const fields = tableName === 'cutting_discs'
     ? [['الكود', record.code], ['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['تاريخ التكهين', record.scrapped_date], ['المصدر', record.source_sheet]]

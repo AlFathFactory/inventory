@@ -1,4 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { DataFilters } from '../components/DataFilters'
 import { DataTable, type DataTableColumn } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
@@ -23,6 +24,7 @@ import {
   type ExpiryAlertStatus,
 } from '../utils/expiryStatus'
 import type { StockStatus } from '../utils/statusUtils'
+import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 
 type AlertStatus = Exclude<StockStatus, 'safe'> | ExpiryAlertStatus
 
@@ -310,34 +312,21 @@ const columns: DataTableColumn<LowStockRow>[] = [
 ]
 
 export function LowStockPage() {
-  const [state, setState] = useState<LowStockState>({
-    rows: [],
-    isLoading: true,
-    error: null,
-  })
   const [searchTerm, setSearchTerm] = useState('')
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase()
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
 
-  useEffect(() => {
-    let isCancelled = false
-
-    async function loadRows() {
+  const alertsQuery = useQuery({
+    queryKey: inventoryKeys.alerts(),
+    queryFn: async (): Promise<LowStockState> => {
       if (!isSupabaseConfigured) {
-        setState({
+        return {
           rows: [],
           isLoading: false,
           error: null,
-        })
-        return
+        }
       }
-
-      setState((currentValue) => ({
-        ...currentValue,
-        isLoading: true,
-        error: null,
-      }))
 
       const requests = categoryEntries.reduce<
         Array<
@@ -408,10 +397,6 @@ export function LowStockPage() {
 
       const results = await Promise.all(requests)
 
-      if (isCancelled) {
-        return
-      }
-
       const rows = results
         .flatMap((result) => result.rows)
         .sort((firstRow, secondRow) => {
@@ -433,19 +418,21 @@ export function LowStockPage() {
         .filter((value): value is string => Boolean(value))
         .join(' | ')
 
-      setState({
+      return {
         rows,
         isLoading: false,
         error: error || null,
-      })
-    }
-
-    void loadRows()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [])
+      }
+    },
+  })
+  const state: LowStockState = {
+    rows: alertsQuery.data?.rows ?? [],
+    isLoading: alertsQuery.isPending,
+    error:
+      alertsQuery.error instanceof Error
+        ? alertsQuery.error.message
+        : alertsQuery.data?.error ?? null,
+  }
 
   const [statusFilter, setStatusFilter] = useState<AlertStatusFilter>('all')
 

@@ -28,23 +28,19 @@ export function useCategoryPage() {
   const rowState = useCategoryRows(category)
   const operation = useCategoryOperation({
     category,
-    refreshRows: rowState.refreshRows,
     setMessage,
   })
   const creation = useCategoryCreate({
     category,
-    refreshRows: rowState.refreshRows,
     setMessage,
     closeQuickAction: operation.closeQuickAction,
   })
   const edit = useCategoryEdit({
     category,
-    refreshRows: rowState.refreshRows,
     setMessage,
   })
   const deletion = useCategoryDelete({
     category,
-    refreshRows: rowState.refreshRows,
     setMessage,
   })
 

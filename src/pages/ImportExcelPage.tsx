@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { TablePagination } from '../components/TablePagination'
 import { usePagination } from '../hooks/usePagination'
 import {
@@ -15,6 +16,7 @@ import {
 import { parseNormalizedInventoryJson, type NormalizedInventoryImport } from '../utils/jsonImportParser'
 import { parseCustomInventoryExcel, type CustomExcelPreview } from '../utils/customExcelParser'
 import { importCustomInventoryExcel, type CustomImportProgress } from '../services/customExcelImportService'
+import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 
 type ImportStatus = {
   type: 'success' | 'error'
@@ -130,6 +132,7 @@ function buildPreviewTableRows(preview: ExcelImportPreview): PreviewTableRow[] {
 }
 
 export function ImportExcelPage() {
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFileName, setSelectedFileName] = useState('')
   const [preview, setPreview] = useState<ExcelImportPreview | null>(null)
@@ -287,6 +290,8 @@ export function ImportExcelPage() {
         `فشل حفظ سجل الاستيراد في جدول imports: ${importLogResult.error}`,
       )
     }
+
+    await queryClient.invalidateQueries({ queryKey: inventoryKeys.all })
 
     if (customPreview && importResult.data) {
       const customResult = importResult.data

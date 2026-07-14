@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
   deleteInventoryRecordPermanently,
@@ -8,17 +9,20 @@ import {
   isCustodyTable,
   type CategorySummaryItem,
 } from '../../../services/itemsService'
-import type { RefreshCategoryRows, SetCategoryMessage } from './categoryHookTypes'
+import {
+  invalidateCategoryData,
+  removeItemData,
+} from '../../inventory/inventoryCache'
+import type { SetCategoryMessage } from './categoryHookTypes'
 
 export function useCategoryDelete({
   category,
-  refreshRows,
   setMessage,
 }: {
   category: CategoryDefinition | null
-  refreshRows: RefreshCategoryRows
   setMessage: SetCategoryMessage
 }) {
+  const queryClient = useQueryClient()
   const [deletingItem, setDeletingItem] = useState<CategorySummaryItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -63,7 +67,8 @@ export function useCategoryDelete({
         return
       }
 
-      await refreshRows()
+      await invalidateCategoryData(queryClient, tableName)
+      removeItemData(queryClient, tableName, String(recordId))
       setDeletingItem(null)
       setMessage({ type: 'success', text: 'تم حذف السجل نهائيًا' })
     } finally {
