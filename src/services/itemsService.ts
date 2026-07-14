@@ -103,6 +103,8 @@ type ServiceFailure = {
 
 export type ServiceResult<TData> = Promise<ServiceSuccess<TData> | ServiceFailure>
 
+const categoryQueryPageSize = 1000
+
 export type UpdateItemDetailsParams = {
   tableName: string
   itemId: string
@@ -149,6 +151,61 @@ function withComputedStockStatus<TItem extends CategorySummaryItem>(
     : item
 }
 
+async function getAllCategorySummaryRows(
+  tableName: string,
+): ServiceResult<CategorySummaryItem[]> {
+  const rows: CategorySummaryItem[] = []
+
+  while (true) {
+    const from = rows.length
+    const { data, error } = await supabaseClient!
+      .from('inventory_category_items_summary_view')
+      .select('*')
+      .eq('table_name', tableName)
+      .order('item_name', { ascending: true })
+      .order('item_id', { ascending: true })
+      .range(from, from + categoryQueryPageSize - 1)
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    const page = (data ?? []) as CategorySummaryItem[]
+    if (page.length === 0) {
+      return createSuccess(rows)
+    }
+
+    rows.push(...page)
+  }
+}
+
+async function getAllCylinderRows(): ServiceResult<
+  Record<string, string | number | null>[]
+> {
+  const rows: Record<string, string | number | null>[] = []
+
+  while (true) {
+    const from = rows.length
+    const { data, error } = await supabaseClient!
+      .from('cylinders')
+      .select('*')
+      .order('type_name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + categoryQueryPageSize - 1)
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    const page = (data ?? []) as Record<string, string | number | null>[]
+    if (page.length === 0) {
+      return createSuccess(rows)
+    }
+
+    rows.push(...page)
+  }
+}
+
 function mapCylinderSummaryItem(
   row: Record<string, string | number | null>,
 ): CategorySummaryItem {
@@ -193,33 +250,25 @@ export async function getCategorySummaryItems(
     // source for min_quantity. Reading it directly also avoids stale summary
     // views that previously projected the minimum quantity as NULL.
     if (tableName === 'cylinders') {
-      const { data, error } = await supabaseClient!
-        .from('cylinders')
-        .select('*')
-        .order('type_name', { ascending: true })
+      const result = await getAllCylinderRows()
 
-      if (error) {
-        return createFailure(error.message)
+      if (result.data === null) {
+        return result
       }
 
       return createSuccess(
-        ((data ?? []) as Record<string, string | number | null>[])
-          .map(mapCylinderSummaryItem),
+        result.data.map(mapCylinderSummaryItem),
       )
     }
 
-    const { data, error } = await supabaseClient!
-      .from('inventory_category_items_summary_view')
-      .select('*')
-      .eq('table_name', tableName)
-      .order('item_name', { ascending: true })
+    const result = await getAllCategorySummaryRows(tableName)
 
-    if (error) {
-      return createFailure(error.message)
+    if (result.data === null) {
+      return result
     }
 
     return createSuccess(
-      ((data ?? []) as CategorySummaryItem[]).map(withComputedStockStatus),
+      result.data.map(withComputedStockStatus),
     )
   } catch (error) {
     return createFailure(normalizeError(error, 'تعذر تحميل ملخص أصناف القسم'))
