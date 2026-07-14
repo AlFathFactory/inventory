@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
-  deleteCuttingDisc,
-} from '../../../services/cuttingDiscsService'
-import type { CategorySummaryItem } from '../../../services/itemsService'
+  deleteInventoryRecordPermanently,
+  isDeletableInventoryTable,
+} from '../../../services/inventoryDeleteService'
+import {
+  isCustodyTable,
+  type CategorySummaryItem,
+} from '../../../services/itemsService'
 import type { RefreshCategoryRows, SetCategoryMessage } from './categoryHookTypes'
 
 export function useCategoryDelete({
@@ -19,7 +23,7 @@ export function useCategoryDelete({
   const [isDeleting, setIsDeleting] = useState(false)
 
   function open(row: CategorySummaryItem) {
-    if (category?.table !== 'cutting_discs') return
+    if (!category || !isDeletableInventoryTable(category.table)) return
     setMessage(null)
     setDeletingItem(row)
   }
@@ -30,12 +34,30 @@ export function useCategoryDelete({
   }
 
   async function confirm() {
-    if (category?.table !== 'cutting_discs' || !deletingItem) return
+    if (!category || !deletingItem) return
+
+    const tableName = isCustodyTable(category.table)
+      ? category.table
+      : deletingItem.table_name
+    const recordId = isCustodyTable(category.table)
+      ? deletingItem.id
+      : deletingItem.item_id
+
+    if (
+      !isDeletableInventoryTable(tableName)
+      || (typeof recordId !== 'string' && typeof recordId !== 'number')
+    ) {
+      setMessage({ type: 'error', text: 'تعذر تحديد السجل المطلوب حذفه' })
+      return
+    }
 
     setIsDeleting(true)
     setMessage(null)
     try {
-      const result = await deleteCuttingDisc(String(deletingItem.item_id))
+      const result = await deleteInventoryRecordPermanently({
+        tableName,
+        recordId: String(recordId),
+      })
       if (result.error) {
         setMessage({ type: 'error', text: result.error })
         return
@@ -43,7 +65,7 @@ export function useCategoryDelete({
 
       await refreshRows()
       setDeletingItem(null)
-      setMessage({ type: 'success', text: 'تم حذف الصاروخ نهائيًا' })
+      setMessage({ type: 'success', text: 'تم حذف السجل نهائيًا' })
     } finally {
       setIsDeleting(false)
     }

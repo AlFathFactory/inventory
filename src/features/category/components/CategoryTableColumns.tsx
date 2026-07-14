@@ -135,6 +135,13 @@ function buildCategoryTableColumns({
             >
               أرشفة
             </button>
+            <button
+              type="button"
+              onClick={stopPropagation(() => onDelete(row))}
+              className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+            >
+              حذف
+            </button>
           </div>
         ),
       }] : category.table === 'cutting_discs' ? [{
@@ -152,7 +159,7 @@ function buildCategoryTableColumns({
             <button
               type="button"
               onClick={stopPropagation(() => onDelete(row))}
-              className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+              className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
             >
               حذف
             </button>
@@ -256,6 +263,13 @@ function buildCategoryTableColumns({
             className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
           >
             التفاصيل
+          </button>
+          <button
+            type="button"
+            onClick={stopPropagation(() => onDelete(row))}
+            className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-700"
+          >
+            حذف
           </button>
         </div>
       ),

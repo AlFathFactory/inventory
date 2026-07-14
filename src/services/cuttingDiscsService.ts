@@ -77,16 +77,3 @@ export async function updateCuttingDisc(
   if (!data) return { data: null, error: 'لم يتم العثور على سجل الصاروخ' }
   return { data: data as CuttingDiscRecord, error: null }
 }
-
-export async function deleteCuttingDisc(id: string): Result<null> {
-  if (!isSupabaseConfigured || !supabaseClient) return unavailable()
-
-  const { error } = await supabaseClient
-    .from('cutting_discs')
-    .delete()
-    .eq('id', id)
-
-  return error
-    ? { data: null, error: error.message }
-    : { data: null, error: null }
-}

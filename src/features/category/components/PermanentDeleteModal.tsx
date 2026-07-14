@@ -1,30 +1,30 @@
-type CuttingDiscDeleteModalProps = {
+type PermanentDeleteModalProps = {
   isDeleting: boolean
   onClose: () => void
   onConfirm: () => void | Promise<void>
 }
 
-export function CuttingDiscDeleteModal({
+export function PermanentDeleteModal({
   isDeleting,
   onClose,
   onConfirm,
-}: CuttingDiscDeleteModalProps) {
+}: PermanentDeleteModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 py-6"
       dir="rtl"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="cutting-disc-delete-title"
+      aria-labelledby="permanent-delete-title"
     >
       <div className="w-full max-w-lg rounded-[32px] border border-red-100 bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 id="cutting-disc-delete-title" className="text-2xl font-bold text-slate-900">
-              حذف الصاروخ نهائيًا
+            <h3 id="permanent-delete-title" className="text-2xl font-bold text-slate-900">
+              حذف السجل نهائيًا
             </h3>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              هل أنت متأكد من حذف هذا الصاروخ نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.
+              هل أنت متأكد من حذف هذا السجل نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.
             </p>
           </div>
           <button
