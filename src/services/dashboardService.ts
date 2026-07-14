@@ -75,7 +75,5 @@ export async function getDashboardData(): Promise<DashboardData> {
     },
     categoryCards,
     inventoryRows: rows,
-    isDemo:
-      rows.length === 0 && asNumber(payload.total_imported_files) === 0,
   }
 }

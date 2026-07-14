@@ -3,12 +3,18 @@ import { categoryOptions } from '../../../config/categoryConfig'
 import { isSupabaseConfigured } from '../../../lib/supabaseClient'
 import { getDashboardData } from '../../../services/dashboardService'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
-import { dashboardDemo } from '../data/dashboardDemo'
 import type { DashboardData } from '../types'
 
-function createFallbackData(): DashboardData {
+function createEmptyDashboardData(): DashboardData {
   return {
-    ...dashboardDemo,
+    stats: {
+      totalCategories: categoryOptions.length,
+      totalImportedFiles: 0,
+      totalMainRows: 0,
+      lowStockItemsCount: 0,
+      outOfStockItemsCount: 0,
+      lastImportedFile: null,
+    },
     categoryCards: categoryOptions.map((category) => ({
       key: category.key,
       label: category.label,
@@ -16,28 +22,21 @@ function createFallbackData(): DashboardData {
       table: category.table,
       rowCount: 0,
     })),
-    isDemo: true,
+    inventoryRows: [],
   }
 }
 
 export function useDashboardData() {
-  const fallbackData = createFallbackData()
+  const emptyData = createEmptyDashboardData()
   const query = useQuery({
     queryKey: inventoryKeys.dashboard(),
-    queryFn: isSupabaseConfigured
-      ? async () => {
-          const data = await getDashboardData()
-          return data.isDemo
-            ? { ...fallbackData, categoryCards: data.categoryCards }
-            : data
-        }
-      : async () => fallbackData,
-    placeholderData: fallbackData,
+    queryFn: isSupabaseConfigured ? getDashboardData : async () => emptyData,
+    placeholderData: emptyData,
   })
 
   return {
-    data: query.data ?? fallbackData,
-    isLoading: query.isPending,
+    data: query.data ?? emptyData,
+    isLoading: query.isFetching && query.isPlaceholderData,
     error: query.error instanceof Error ? query.error.message : null,
   }
 }

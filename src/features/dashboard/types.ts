@@ -38,5 +38,4 @@ export type DashboardData = {
   stats: DashboardStats
   inventoryRows: DashboardInventoryRow[]
   categoryCards: CategoryCard[]
-  isDemo: boolean
 }

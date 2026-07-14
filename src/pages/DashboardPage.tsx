@@ -22,7 +22,20 @@ export function DashboardPage() {
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
 
   return (
-    <section className="space-y-8">
+    <section className="relative space-y-8" aria-busy={isLoading}>
+      {isLoading ? (
+        <div
+          className="absolute inset-0 z-50 flex min-h-[70vh] items-center justify-center rounded-[28px] bg-white/35 backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-center gap-3 rounded-2xl border border-white/80 bg-white/90 px-6 py-4 text-sm font-semibold text-slate-700 shadow-xl">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" aria-hidden="true" />
+            <span>جاري تحميل بيانات لوحة التحكم...</span>
+          </div>
+        </div>
+      ) : null}
+
       {configError ? (
         <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
           Supabase is not configured for this deployment. {configError}
@@ -32,12 +45,6 @@ export function DashboardPage() {
       {error ? (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
           {error}
-        </div>
-      ) : null}
-
-      {data.isDemo ? (
-        <div className="rounded-[24px] border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-          يتم عرض بيانات تجريبية لمعاينة تصميم لوحة التحكم.
         </div>
       ) : null}
 
@@ -98,12 +105,7 @@ export function DashboardPage() {
             onClear={inventoryTable.clearFilters}
           />
 
-          {isLoading ? (
-            <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
-              جاري تحميل بيانات لوحة التحكم...
-            </div>
-          ) : (
-            <DashboardInventoryTable
+          <DashboardInventoryTable
               rows={inventoryTable.pagination.paginatedItems}
               currentPage={inventoryTable.pagination.currentPage}
               pageSize={inventoryTable.pagination.pageSize}
@@ -123,8 +125,7 @@ export function DashboardPage() {
                   row.itemId,
                 )
               }}
-            />
-          )}
+          />
         </div>
       </DashboardTableSection>
     </section>
