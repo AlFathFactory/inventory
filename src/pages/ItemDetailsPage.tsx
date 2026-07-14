@@ -122,6 +122,7 @@ export function ItemDetailsPage() {
           />
           <ItemMovementsSection
             category={category}
+            itemCode={page.details.code_number}
             filter={page.movementDateFilter}
             movements={page.filteredMovements}
             totals={page.filteredMovementTotals}

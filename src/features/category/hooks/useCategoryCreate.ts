@@ -102,6 +102,11 @@ export function useCategoryCreate({
         preparedValues.expire_date = form.expire_date?.trim() || null
       }
 
+      if (category.table === 'screws' || category.table === 'stock_screws') {
+        preparedValues.din = form.din?.trim() || null
+        preparedValues.code_number = form.codeNumber?.trim() || null
+      }
+
       if (category.table === 'raw_materials') {
         preparedValues.code_number = form.codeNumber?.trim() || null
       }

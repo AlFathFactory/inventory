@@ -6,6 +6,7 @@ import { updateCuttingDisc } from '../../services/cuttingDiscsService'
 
 type EditField = {
   key: string
+  formKey?: string
   label: string
   type?: 'text' | 'number' | 'date' | 'textarea'
   required?: boolean
@@ -62,7 +63,7 @@ const screwFields: EditField[] = [
   { key: 'project', label: 'اسم المشروع', required: true },
   { key: 'item_name', label: 'اسم الصنف', required: true },
   { key: 'din', label: 'DIN' },
-  { key: 'code_number', label: 'Code Number' },
+  { key: 'code_number', formKey: 'codeNumber', label: 'رقم الكود / Code Number' },
   { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
   { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
   { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
@@ -108,7 +109,10 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
   const isCuttingDiscs = category.table === 'cutting_discs'
   const fields = useMemo(() => fieldsByTable[category.table] ?? [], [category.table])
   const initialForm = useMemo(
-    () => Object.fromEntries(fields.map((field) => [field.key, initialValue(itemData, field.key)])),
+    () => Object.fromEntries(fields.map((field) => [
+      field.formKey ?? field.key,
+      initialValue(itemData, field.key),
+    ])),
     [fields, itemData],
   )
   const [form, setForm] = useState<Record<string, string>>(initialForm)
@@ -147,22 +151,23 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
   async function submit() {
     const nextErrors: Record<string, string> = {}
     fields.forEach((field) => {
-      if (field.required && !form[field.key]?.trim()) nextErrors[field.key] = 'هذا الحقل مطلوب'
-      if (field.type === 'number' && form[field.key] !== '') {
-        const numericValue = Number(form[field.key])
+      const formKey = field.formKey ?? field.key
+      if (field.required && !form[formKey]?.trim()) nextErrors[formKey] = 'هذا الحقل مطلوب'
+      if (field.type === 'number' && form[formKey] !== '') {
+        const numericValue = Number(form[formKey])
         if (!Number.isFinite(numericValue) || numericValue < 0) {
-          nextErrors[field.key] = 'يجب إدخال رقم صالح لا يقل عن صفر'
+          nextErrors[formKey] = 'يجب إدخال رقم صالح لا يقل عن صفر'
         }
       }
-      if (field.type === 'date' && form[field.key]) {
-        const date = new Date(`${form[field.key]}T00:00:00`)
-        const [year, month, day] = form[field.key].split('-').map(Number)
+      if (field.type === 'date' && form[formKey]) {
+        const date = new Date(`${form[formKey]}T00:00:00`)
+        const [year, month, day] = form[formKey].split('-').map(Number)
         if (
           Number.isNaN(date.getTime()) ||
           date.getFullYear() !== year ||
           date.getMonth() + 1 !== month ||
           date.getDate() !== day
-        ) nextErrors[field.key] = category.table === 'cutting_discs'
+        ) nextErrors[formKey] = category.table === 'cutting_discs'
           ? 'تاريخ غير صحيح، برجاء اختيار تاريخ من التقويم'
           : 'يجب إدخال تاريخ محلي صالح'
       }
@@ -175,7 +180,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     }
 
     const patch = Object.fromEntries(fields.map((field) => {
-      const value = form[field.key]?.trim() ?? ''
+      const value = form[field.formKey ?? field.key]?.trim() ?? ''
       return [field.key, field.type === 'number' ? (value === '' ? null : Number(value)) : value || null]
     }))
     if (category.table === 'cylinders') {
@@ -238,11 +243,11 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
             <label key={field.key} className={field.type === 'textarea' ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
               <span className="block text-sm font-semibold text-slate-700">{field.label}{field.required ? ' *' : ''}</span>
               {field.type === 'textarea' ? (
-                <textarea value={form[field.key] ?? ''} onChange={(e) => updateField(field.key, e.target.value)} rows={3} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--app-primary)]" />
+                <textarea value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} rows={3} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--app-primary)]" />
               ) : (
-                <input type={field.type ?? 'text'} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? 'any' : undefined} value={form[field.key] ?? ''} onChange={(e) => updateField(field.key, e.target.value)} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
+                <input type={field.type ?? 'text'} name={field.formKey ?? field.key} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? 'any' : undefined} value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
               )}
-              {errors[field.key] ? <span className="block text-xs text-red-600">{errors[field.key]}</span> : null}
+              {errors[field.formKey ?? field.key] ? <span className="block text-xs text-red-600">{errors[field.formKey ?? field.key]}</span> : null}
             </label>
           ))}
         </div>

@@ -173,6 +173,18 @@ function buildCategoryTableColumns({
         category.table === 'cylinders' ? row.type_name ?? row.item_name : row.item_name,
       ),
     },
+    ...(category.table === 'screws' || category.table === 'stock_screws' ? [
+      {
+        id: 'din',
+        header: 'DIN',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.din),
+      },
+      {
+        id: 'code_number',
+        header: 'رقم الكود',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.code_number),
+      },
+    ] : []),
     {
       id: category.table === 'cylinders' ? 'gas_balance' : 'stock_balance',
       header: category.table === 'cylinders' ? 'رصيد الغاز' : 'رصيد مخزني',

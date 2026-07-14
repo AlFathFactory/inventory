@@ -61,6 +61,20 @@ begin
           transaction_date = excluded.transaction_date,
           notes = excluded.notes,
           code_number = excluded.code_number;
+      elsif table_name in ('screws', 'stock_screws') then
+        execute format(
+          'insert into public.%I(item_key,item_name,project,stock_balance,min_quantity,total_added,total_issued,transaction_date,notes,din,code_number) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) on conflict(item_key) do update set item_name=excluded.item_name,project=excluded.project,stock_balance=excluded.stock_balance,min_quantity=excluded.min_quantity,total_added=excluded.total_added,total_issued=excluded.total_issued,transaction_date=excluded.transaction_date,notes=excluded.notes,din=excluded.din,code_number=excluded.code_number',
+          table_name
+        )
+          using item->>'item_key', item->>'item_name', item->>'project_name',
+            coalesce((item->>'stock_balance')::numeric, 0),
+            coalesce((item->>'min_quantity')::numeric, 0),
+            coalesce((item->>'total_added')::numeric, 0),
+            coalesce((item->>'total_issued')::numeric, 0),
+            nullif(item->>'transaction_date', '')::date,
+            item->>'notes',
+            nullif(btrim(item->>'din'), ''),
+            nullif(btrim(item->>'code_number'), '');
       else
         execute format('insert into public.%I(item_key,item_name,project,stock_balance,min_quantity,total_added,total_issued,transaction_date,notes) values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict(item_key) do update set item_name=excluded.item_name,project=excluded.project,stock_balance=excluded.stock_balance,min_quantity=excluded.min_quantity,total_added=excluded.total_added,total_issued=excluded.total_issued,transaction_date=excluded.transaction_date,notes=excluded.notes', table_name)
           using item->>'item_key', item->>'item_name', item->>'project_name', coalesce((item->>'stock_balance')::numeric,0), coalesce((item->>'min_quantity')::numeric,0), coalesce((item->>'total_added')::numeric,0), coalesce((item->>'total_issued')::numeric,0), nullif(item->>'transaction_date','')::date, item->>'notes';

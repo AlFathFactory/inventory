@@ -79,18 +79,44 @@ function getText(value: unknown) {
   return value === null || value === undefined ? '' : String(value).trim()
 }
 
+function getFirstText(
+  record: Record<string, CustomExcelRow[string]>,
+  columnNames: readonly string[],
+) {
+  for (const columnName of columnNames) {
+    const value = getText(record[columnName])
+    if (value) return value
+  }
+  return ''
+}
+
 export function prepareItem(row: CustomExcelRow): Record<string, CustomExcelRow[string]> {
   const record = withoutParserFields(row)
-  const { code_number: codeNumber, ...recordWithoutCodeNumber } = record
+  const { din: canonicalDin, code_number: canonicalCodeNumber, ...recordWithoutCanonicalFields } = record
+  const tableName = getText(record.table_name)
 
-  if (getText(record.table_name) === 'raw_materials') {
+  if (tableName === 'screws' || tableName === 'stock_screws') {
     return {
-      ...recordWithoutCodeNumber,
-      code_number: getText(codeNumber) || null,
+      ...recordWithoutCanonicalFields,
+      din: getFirstText(
+        { ...record, din: canonicalDin },
+        ['din', 'DIN', 'Din', 'كود DIN'],
+      ) || null,
+      code_number: getFirstText(
+        { ...record, code_number: canonicalCodeNumber },
+        ['code_number', 'Code Number', 'رقم الكود', 'رقم الصنف'],
+      ) || null,
     }
   }
 
-  return recordWithoutCodeNumber
+  if (tableName === 'raw_materials') {
+    return {
+      ...recordWithoutCanonicalFields,
+      code_number: getText(canonicalCodeNumber) || null,
+    }
+  }
+
+  return recordWithoutCanonicalFields
 }
 
 export function buildMovementImportKey(

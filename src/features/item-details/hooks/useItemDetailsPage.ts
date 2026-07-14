@@ -176,7 +176,9 @@ export function useItemDetailsPage(
           details.project ||
           form.projectName.trim() ||
           undefined,
-        itemCode: category.table === 'raw_materials'
+        itemCode: category.table === 'raw_materials' ||
+          category.table === 'screws' ||
+          category.table === 'stock_screws'
           ? details.code_number?.trim() || null
           : null,
         supplierName: operationType === 'add' ? form.supplierName.trim() || undefined : undefined,

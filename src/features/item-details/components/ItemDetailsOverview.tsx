@@ -66,6 +66,13 @@ export function ItemDetailsOverview({
         </div>
       ) : null}
 
+      {category.table === 'screws' || category.table === 'stock_screws' ? (
+        <div className="mt-4 grid overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 sm:divide-x sm:divide-x-reverse sm:divide-[var(--app-border)]">
+          <CompactStat label="DIN" value={getDisplayText(details.din)} />
+          <CompactStat label="رقم الكود" value={getDisplayText(details.code_number)} />
+        </div>
+      ) : null}
+
       {category.table === 'cylinders' ? (
         <div className="mt-4 grid overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 sm:divide-x sm:divide-x-reverse sm:divide-[var(--app-border)]">
           <CompactStat

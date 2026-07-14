@@ -89,6 +89,7 @@ const searchableFields: Array<keyof CategorySummaryItem> = [
   'item_name',
   'status',
   'material_source',
+  'din',
   'code_number',
   'weight',
   'length',

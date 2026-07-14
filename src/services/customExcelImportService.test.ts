@@ -54,4 +54,37 @@ describe('prepareItem', () => {
       code_number: '001',
     })).not.toHaveProperty('code_number')
   })
+
+  it('keeps screw DIN and code number as trimmed text', () => {
+    expect(prepareItem({
+      __rowNumber: 2,
+      table_name: 'screws',
+      din: '  DIN-933 / A  ',
+      code_number: '  001-A  ',
+    })).toMatchObject({
+      din: 'DIN-933 / A',
+      code_number: '001-A',
+    })
+  })
+
+  it('maps supported localized screw column names', () => {
+    expect(prepareItem({
+      __rowNumber: 3,
+      table_name: 'stock_screws',
+      'كود DIN': ' 912 ',
+      'رقم الصنف': ' 0007/B ',
+    })).toMatchObject({
+      din: '912',
+      code_number: '0007/B',
+    })
+  })
+
+  it('stores empty screw DIN and code number as null', () => {
+    expect(prepareItem({
+      __rowNumber: 4,
+      table_name: 'screws',
+      DIN: '  ',
+      'Code Number': '',
+    })).toMatchObject({ din: null, code_number: null })
+  })
 })
