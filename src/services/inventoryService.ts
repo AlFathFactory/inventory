@@ -25,6 +25,8 @@ const supportedStockTables = new Set([
   'cylinders',
 ])
 
+const alertQueryPageSize = 1000
+
 export type ServiceSuccess<TData> = {
   data: TData
   error: null
@@ -76,6 +78,32 @@ function getClientOrFailure(): ServiceFailure | null {
   }
 
   return null
+}
+
+async function getAllTableRows<TRow extends InventoryRow>(
+  tableName: string,
+): ServiceResult<TRow[]> {
+  const rows: TRow[] = []
+
+  while (true) {
+    const from = rows.length
+    const { data, error } = await supabaseClient!
+      .from(tableName)
+      .select('*')
+      .order('id', { ascending: true })
+      .range(from, from + alertQueryPageSize - 1)
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    const page = (data ?? []) as TRow[]
+    if (page.length === 0) {
+      return createSuccess(rows)
+    }
+
+    rows.push(...page)
+  }
 }
 
 function normalizeError(error: unknown, fallbackMessage: string): string {
@@ -906,13 +934,13 @@ export async function getLowStockRows<
   }
 
   try {
-    const { data, error } = await supabaseClient!.from(tableName).select('*')
+    const result = await getAllTableRows<TRow>(tableName)
 
-    if (error) {
-      return createFailure(error.message)
+    if (result.data === null) {
+      return result
     }
 
-    const rows = ((data ?? []) as TRow[]).filter((row) => {
+    const rows = result.data.filter((row) => {
       const stockValue = toComparableNumber(row[stockField])
       const minQuantityValue = toComparableNumber(row[minQuantityField])
 
@@ -947,13 +975,13 @@ export async function getOutOfStockRows<
   }
 
   try {
-    const { data, error } = await supabaseClient!.from(tableName).select('*')
+    const result = await getAllTableRows<TRow>(tableName)
 
-    if (error) {
-      return createFailure(error.message)
+    if (result.data === null) {
+      return result
     }
 
-    const rows = ((data ?? []) as TRow[]).filter((row) => {
+    const rows = result.data.filter((row) => {
       const stockValue = toComparableNumber(row[stockField])
 
       if (stockValue === null) {
@@ -987,13 +1015,13 @@ export async function getExpiryAlertRows<
   }
 
   try {
-    const { data, error } = await supabaseClient!.from(tableName).select('*')
+    const result = await getAllTableRows<TRow>(tableName)
 
-    if (error) {
-      return createFailure(error.message)
+    if (result.data === null) {
+      return result
     }
 
-    const rows = ((data ?? []) as TRow[]).filter((row) => {
+    const rows = result.data.filter((row) => {
       const expireDate = row[expireDateField]
       return (
         typeof expireDate === 'string' &&
