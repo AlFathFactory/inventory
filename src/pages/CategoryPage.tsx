@@ -53,6 +53,18 @@ type MessageState = {
 
 type CategoryQuickAction = 'add' | 'issue' | null
 
+type SelectedInventoryItem = {
+  id: string
+  itemId: string
+  tableName: string
+  itemName: string
+  projectName?: string
+  categoryName: string
+}
+
+const incompleteItemDataMessage =
+  'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى'
+
 function mapGloveRows(rows: Awaited<ReturnType<typeof listLongWeldingGloves>>['data']): CategorySummaryItem[] {
   return (rows ?? []).map((row) => ({
     id: row.id,
@@ -118,6 +130,7 @@ export function CategoryPage() {
   const [createForm, setCreateForm] = useState<ItemCreateFormState>({})
   const [createFormErrors, setCreateFormErrors] = useState<Record<string, string>>({})
   const [selectedItemDetails, setSelectedItemDetails] = useState<ItemDetails | null>(null)
+  const [selectedItem, setSelectedItem] = useState<SelectedInventoryItem | null>(null)
   const [editingItem, setEditingItem] = useState<ItemDetails | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
@@ -267,6 +280,7 @@ export function CategoryPage() {
     setOperationType(null)
     setSelectedItemDetails(null)
     setSelectedItemId(null)
+    setSelectedItem(null)
     setFormErrors({})
   }
 
@@ -306,11 +320,28 @@ export function CategoryPage() {
       return
     }
 
+    const itemId = String(row.item_id ?? '').trim()
+    const tableName = String(row.table_name ?? '').trim()
+
+    if (!tableName || !itemId) {
+      setMessage({ type: 'error', text: incompleteItemDataMessage })
+      return
+    }
+
+    const item: SelectedInventoryItem = {
+      id: itemId,
+      itemId,
+      tableName,
+      itemName: String(row.item_name ?? ''),
+      projectName: row.project_name ?? undefined,
+      categoryName: row.category_name,
+    }
+
     setQuickAction(null)
     setIsPreparingOperation(true)
     setMessage(null)
 
-    const result = await getItemDetails(category.table, String(row.item_id))
+    const result = await getItemDetails(item.tableName, item.itemId)
     setIsPreparingOperation(false)
 
     if (result.error || !result.data) {
@@ -322,7 +353,8 @@ export function CategoryPage() {
     }
 
     setSelectedItemDetails(result.data)
-    setSelectedItemId(String(row.item_id))
+    setSelectedItem(item)
+    setSelectedItemId(item.itemId)
     setOperationType(nextOperationType)
     setForm(createInitialOperationFormState(result.data))
     setFormErrors({})
@@ -384,11 +416,16 @@ export function CategoryPage() {
   }
 
   async function handleOperationSubmit() {
-    if (!category || !selectedItemId || !selectedItemDetails || !operationType) {
+    if (!category || !selectedItemDetails || !operationType) {
       return
     }
 
     setMessage(null)
+
+    if (!selectedItem?.tableName || !selectedItem.itemId) {
+      setMessage({ type: 'error', text: incompleteItemDataMessage })
+      return
+    }
 
     const validationResult = validateOperationForm({
       details: selectedItemDetails,
@@ -404,16 +441,15 @@ export function CategoryPage() {
     setIsSubmitting(true)
 
     try {
-      await applyInventoryOperation({
-        tableName: category.table,
-        categoryName: selectedItemDetails.category_name || category.label,
-        itemId: selectedItemId,
-        itemName: selectedItemDetails.item_name || `صنف ${selectedItemId}`,
+      const payload = {
+        tableName: selectedItem.tableName,
+        categoryName: selectedItem.categoryName,
+        itemId: selectedItem.itemId,
+        itemName: selectedItem.itemName,
         operationType,
         quantity: Number(form.quantity),
         operationDate: form.operationDate,
-        projectName:
-          operationType === 'adjust' ? undefined : form.projectName.trim() || undefined,
+        projectName: selectedItem.projectName,
         supplierName:
           operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
         purchaseOrderNumber:
@@ -423,7 +459,10 @@ export function CategoryPage() {
         issuedTo:
           operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
         notes: form.notes.trim() || undefined,
-      })
+      }
+
+      console.log('Operation payload', payload)
+      await applyInventoryOperation(payload)
 
       await refreshRows()
       closeOperationModal()

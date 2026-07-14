@@ -848,6 +848,20 @@ export async function createInventoryItem(
       payload[minQuantityField] = toNumberValue(values[minQuantityField]) ?? 0
     }
 
+    if (tableName === 'cylinders') {
+      const gasBalance = toNumberValue(values.gas_balance) ?? 0
+      Object.assign(payload, {
+        type_name: itemName,
+        gas_balance: gasBalance,
+        stock_balance: gasBalance,
+        empty_count: toNumberValue(values.empty_count) ?? 0,
+        full_count: toNumberValue(values.full_count) ?? 0,
+        min_quantity: toNumberValue(values.min_quantity) ?? 0,
+        transaction_date: toText(values.transaction_date) || null,
+        notes: toText(values.notes) || null,
+      })
+    }
+
     const { data, error } = await supabaseClient!
       .from(tableName)
       .insert(payload as never)

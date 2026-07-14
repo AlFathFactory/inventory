@@ -138,6 +138,44 @@ export async function getCategorySummaryItems(
   }
 
   try {
+    if (tableName === 'cylinders') {
+      const { data, error } = await supabaseClient!
+        .from('cylinders')
+        .select('*')
+        .order('type_name', { ascending: true })
+
+      if (error) {
+        return createFailure(error.message)
+      }
+
+      const rows = (data ?? []) as Array<Record<string, string | number | null>>
+      return createSuccess(rows.map((row) => {
+        const gasBalance = Number(row.gas_balance)
+        const minQuantity = Number(row.min_quantity)
+        const validGasBalance = Number.isFinite(gasBalance) ? gasBalance : 0
+        const validMinQuantity = Number.isFinite(minQuantity) ? minQuantity : 0
+
+        return {
+          ...row,
+          table_name: tableName,
+          category_name: 'اسطوانات',
+          item_id: row.id,
+          project_name: null,
+          item_name: row.type_name,
+          stock_balance: validGasBalance,
+          min_quantity: validMinQuantity,
+          status: validGasBalance <= 0
+            ? 'منتهي'
+            : validGasBalance <= validMinQuantity
+              ? 'قليل'
+              : 'آمن',
+          total_added: null,
+          total_issued: null,
+          source_rows_count: 1,
+        } as CategorySummaryItem
+      }))
+    }
+
     const { data, error } = await supabaseClient!
       .from('inventory_category_items_summary_view')
       .select('*')
@@ -222,6 +260,42 @@ export async function getItemDetails(
   }
 
   try {
+    if (tableName === 'cylinders') {
+      const { data, error } = await supabaseClient!
+        .from('cylinders')
+        .select('*')
+        .eq('id', itemId)
+        .single()
+
+      if (error || !data) {
+        return createFailure(error?.message || 'تعذر تحميل بيانات الاسطوانة')
+      }
+
+      const row = data as Record<string, string | number | null>
+      const gasBalance = Number(row.gas_balance)
+      const minQuantity = Number(row.min_quantity)
+      const validGasBalance = Number.isFinite(gasBalance) ? gasBalance : 0
+      const validMinQuantity = Number.isFinite(minQuantity) ? minQuantity : 0
+      return createSuccess({
+        ...row,
+        table_name: tableName,
+        category_name: 'اسطوانات',
+        item_id: row.id,
+        project_name: null,
+        item_name: row.type_name,
+        stock_balance: validGasBalance,
+        min_quantity: validMinQuantity,
+        status: validGasBalance <= 0
+          ? 'منتهي'
+          : validGasBalance <= validMinQuantity
+            ? 'قليل'
+            : 'آمن',
+        total_added: null,
+        total_issued: null,
+        source_rows_count: 1,
+      } as ItemDetails)
+    }
+
     const { data, error } = await supabaseClient!
       .from('inventory_item_details_view')
       .select('*')

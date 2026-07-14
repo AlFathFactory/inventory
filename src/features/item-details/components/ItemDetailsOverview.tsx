@@ -66,6 +66,19 @@ export function ItemDetailsOverview({
         </div>
       ) : null}
 
+      {category.table === 'cylinders' ? (
+        <div className="mt-4 grid overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 sm:divide-x sm:divide-x-reverse sm:divide-[var(--app-border)]">
+          <CompactStat
+            label="ملي"
+            value={getNumericValue(details.full_count).toLocaleString()}
+          />
+          <CompactStat
+            label="فارغ"
+            value={getNumericValue(details.empty_count).toLocaleString()}
+          />
+        </div>
+      ) : null}
+
       {category.table === 'paints' ? (
         <div className="mt-4 max-w-sm overflow-hidden rounded-2xl border border-[var(--app-border)]">
           <CompactStat label="تاريخ الانتهاء" value={getDisplayText(details.expire_date)} />

@@ -35,6 +35,7 @@ const fieldsByTable: Record<string, EditField[]> = {
     { key: 'gas_balance', label: 'رصيد الغاز', type: 'number' },
     { key: 'empty_count', label: 'فارغ', type: 'number' },
     { key: 'full_count', label: 'ملي', type: 'number' },
+    { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
     { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
     { key: 'notes', label: 'ملاحظات', type: 'textarea' },
   ],
@@ -128,8 +129,11 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     const nextErrors: Record<string, string> = {}
     fields.forEach((field) => {
       if (field.required && !form[field.key]?.trim()) nextErrors[field.key] = 'هذا الحقل مطلوب'
-      if (field.type === 'number' && form[field.key] !== '' && Number(form[field.key]) < 0) {
-        nextErrors[field.key] = 'يجب ألا تقل القيمة عن صفر'
+      if (field.type === 'number' && form[field.key] !== '') {
+        const numericValue = Number(form[field.key])
+        if (!Number.isFinite(numericValue) || numericValue < 0) {
+          nextErrors[field.key] = 'يجب إدخال رقم صالح لا يقل عن صفر'
+        }
       }
       if (field.type === 'date' && form[field.key]) {
         const date = new Date(`${form[field.key]}T00:00:00`)
@@ -153,6 +157,19 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
       const value = form[field.key]?.trim() ?? ''
       return [field.key, field.type === 'number' ? (value === '' ? null : Number(value)) : value || null]
     }))
+    if (category.table === 'cylinders') {
+      const gasBalance = Number(form.gas_balance)
+      Object.assign(patch, {
+        type_name: form.type_name.trim(),
+        gas_balance: gasBalance,
+        stock_balance: gasBalance,
+        empty_count: form.empty_count === '' ? 0 : Number(form.empty_count),
+        full_count: form.full_count === '' ? 0 : Number(form.full_count),
+        min_quantity: form.min_quantity === '' ? 0 : Number(form.min_quantity),
+        transaction_date: form.transaction_date || null,
+        notes: form.notes?.trim() || null,
+      })
+    }
     setIsSubmitting(true)
     setSubmitError(null)
     const result = category.table === 'long_welding_gloves'
