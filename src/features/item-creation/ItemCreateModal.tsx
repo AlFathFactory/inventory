@@ -67,7 +67,7 @@ export function ItemCreateModal({
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           {createFields.map((field) => {
-            const fieldKey = String(field.key)
+            const fieldKey = field.formKey ?? String(field.key)
             const label = category.columns[field.key] ?? fieldKey
             const hasError = Boolean(formErrors[fieldKey])
 

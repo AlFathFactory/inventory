@@ -15,7 +15,7 @@ export type ApplyInventoryOperationParams = {
   quantity: number
   operationDate: string
   projectName?: string
-  itemCode?: string
+  itemCode?: string | null
   supplierName?: string
   purchaseOrderNumber?: string
   issuedTo?: string

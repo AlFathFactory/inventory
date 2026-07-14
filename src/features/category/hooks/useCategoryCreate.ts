@@ -85,11 +85,11 @@ export function useCategoryCreate({
       const preparedValues = Object.entries(form).reduce<Record<string, string | number | null>>(
         (result, [fieldKey, value]) => {
           const matchingField = category.createFields?.find(
-            (field) => String(field.key) === fieldKey,
+            (field) => (field.formKey ?? String(field.key)) === fieldKey,
           )
           const trimmedValue = value.trim()
-          if (trimmedValue) {
-            result[fieldKey] = matchingField?.inputType === 'number'
+          if (trimmedValue && matchingField) {
+            result[String(matchingField.key)] = matchingField.inputType === 'number'
               ? Number(trimmedValue)
               : trimmedValue
           }
@@ -100,6 +100,10 @@ export function useCategoryCreate({
 
       if (category.table === 'paints') {
         preparedValues.expire_date = form.expire_date?.trim() || null
+      }
+
+      if (category.table === 'raw_materials') {
+        preparedValues.code_number = form.codeNumber?.trim() || null
       }
 
       const result = category.table === 'cutting_discs'

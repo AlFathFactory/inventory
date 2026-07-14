@@ -825,6 +825,10 @@ export async function createInventoryItem(
       payload.expire_date = toText(values.expire_date) || null
     }
 
+    if (tableName === 'raw_materials') {
+      payload.code_number = toText(values.code_number) || null
+    }
+
     payload[itemNameField] = itemName
 
     const projectName = toText(values.project)

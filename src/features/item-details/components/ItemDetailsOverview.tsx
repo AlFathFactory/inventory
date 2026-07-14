@@ -55,7 +55,7 @@ export function ItemDetailsOverview({
       </div>
 
       {category.table === 'raw_materials' ? (
-        <div className="mt-4 grid overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-4 grid overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 xl:grid-cols-6">
           {(category.attributeFields ?? []).map((field) => (
             <CompactStat
               key={String(field)}

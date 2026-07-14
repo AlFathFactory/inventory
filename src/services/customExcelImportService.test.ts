@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMovementImportKey } from './customExcelImportService'
+import { buildMovementImportKey, prepareItem } from './customExcelImportService'
 import type { CustomExcelRow } from '../utils/customExcelParser'
 
 const movement: CustomExcelRow = {
@@ -21,5 +21,37 @@ describe('buildMovementImportKey', () => {
     expect(buildMovementImportKey('inventory.xlsx', movement)).not.toBe(
       buildMovementImportKey('inventory.xlsx', { ...movement, __rowNumber: 9 }),
     )
+  })
+})
+
+describe('prepareItem', () => {
+  it('keeps a trimmed raw-material code number as text', () => {
+    expect(prepareItem({
+      __rowNumber: 2,
+      table_name: 'raw_materials',
+      item_key: 'raw:1',
+      item_name: 'Steel',
+      code_number: ' 001-A ',
+    }).code_number).toBe('001-A')
+  })
+
+  it('stores a blank raw-material code number as null', () => {
+    expect(prepareItem({
+      __rowNumber: 3,
+      table_name: 'raw_materials',
+      item_key: 'raw:2',
+      item_name: 'Plate',
+      code_number: '   ',
+    }).code_number).toBeNull()
+  })
+
+  it('does not map code_number to other inventory tables', () => {
+    expect(prepareItem({
+      __rowNumber: 4,
+      table_name: 'consumables',
+      item_key: 'consumable:1',
+      item_name: 'Tape',
+      code_number: '001',
+    })).not.toHaveProperty('code_number')
   })
 })

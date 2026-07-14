@@ -73,6 +73,7 @@ fieldsByTable.stock_screws = screwFields
 fieldsByTable.raw_materials = [
   { key: 'project', label: 'اسم المشروع', required: true },
   { key: 'item_name', label: 'اسم الصنف', required: true },
+  { key: 'code_number', label: 'رقم الكود' },
   { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
   { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
   { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },

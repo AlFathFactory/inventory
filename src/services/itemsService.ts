@@ -23,6 +23,7 @@ export type CategorySummaryItem = {
   width?: number | string | null
   th?: number | string | null
   material_source?: string | null
+  code_number?: string | null
   notes?: string | null
   code?: string | null
   type_name?: string | null
@@ -79,6 +80,7 @@ export type ItemMovement = {
   addition_code: string | null
   issue_code: string | null
   item_code: string | null
+  code_number: string | null
   notes: string | null
   created_by: string | null
   created_at: string | null

@@ -121,6 +121,7 @@ export function ItemDetailsPage() {
             backTo={isDashboardView ? '/' : undefined}
           />
           <ItemMovementsSection
+            category={category}
             filter={page.movementDateFilter}
             movements={page.filteredMovements}
             totals={page.filteredMovementTotals}

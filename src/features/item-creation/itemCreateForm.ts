@@ -6,7 +6,7 @@ export function createInitialItemCreateFormState(category: CategoryDefinition) {
   const nextState: ItemCreateFormState = {}
 
   ;(category.createFields ?? []).forEach((field) => {
-    nextState[String(field.key)] = ''
+    nextState[field.formKey ?? String(field.key)] = ''
   })
 
   return nextState
@@ -19,7 +19,7 @@ export function validateItemCreateForm(
   const errors: Record<string, string> = {}
 
   ;(category.createFields ?? []).forEach((field) => {
-    const fieldKey = String(field.key)
+    const fieldKey = field.formKey ?? String(field.key)
     const value = form[fieldKey]?.trim() ?? ''
 
     if (field.required && !value) {

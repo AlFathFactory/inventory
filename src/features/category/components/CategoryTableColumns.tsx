@@ -210,6 +210,7 @@ function buildCategoryTableColumns({
       ),
     },
     ...(category.table === 'raw_materials' ? [
+      { id: 'code_number', header: 'رقم الكود', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.code_number) },
       { id: 'weight', header: 'وزن', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.weight) },
       { id: 'length', header: 'LENGTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.length) },
       { id: 'width', header: 'WIDTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.width) },

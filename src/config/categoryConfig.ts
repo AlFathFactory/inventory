@@ -2,6 +2,7 @@ type ColumnMap = Record<string, string>
 
 export type CategoryCreateField<TColumns extends ColumnMap = ColumnMap> = {
   key: keyof TColumns
+  formKey?: string
   inputType?: 'text' | 'number' | 'date' | 'textarea'
   required?: boolean
 }
@@ -174,6 +175,7 @@ export const categoryConfig = {
     columns: {
       project: 'اسم المشروع',
       item_name: 'اسم الصنف / نوع الخامة',
+      code_number: 'رقم الكود',
       transaction_date: 'تاريخ الإضافة',
       issued: 'صرف',
       added: 'إضافة',
@@ -188,11 +190,12 @@ export const categoryConfig = {
       material_source: 'material_source',
       notes: 'ملاحظات',
     },
-    optionalFields: ['weight', 'length', 'width', 'th', 'material_source'],
-    attributeFields: ['weight', 'length', 'width', 'th', 'material_source'],
+    optionalFields: ['code_number', 'weight', 'length', 'width', 'th', 'material_source'],
+    attributeFields: ['code_number', 'weight', 'length', 'width', 'th', 'material_source'],
     createFields: [
       { key: 'project', required: true },
       { key: 'item_name', required: true },
+      { key: 'code_number', formKey: 'codeNumber' },
       { key: 'stock_balance', inputType: 'number', required: true },
       { key: 'transaction_date', inputType: 'date', required: true },
       { key: 'min_quantity', inputType: 'number' },
@@ -206,6 +209,7 @@ export const categoryConfig = {
     searchableFields: [
       'project',
       'item_name',
+      'code_number',
       'material_source',
       'weight',
       'length',

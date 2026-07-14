@@ -130,6 +130,9 @@ export function useCategoryOperation({
           itemDetails.project ||
           selectedItem.projectName ||
           undefined,
+        itemCode: category.table === 'raw_materials'
+          ? itemDetails.code_number?.trim() || null
+          : null,
         supplierName: operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
         purchaseOrderNumber: operationType === 'add'
           ? form.purchaseOrderNumber.trim() || undefined

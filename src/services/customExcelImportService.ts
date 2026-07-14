@@ -79,6 +79,20 @@ function getText(value: unknown) {
   return value === null || value === undefined ? '' : String(value).trim()
 }
 
+export function prepareItem(row: CustomExcelRow): Record<string, CustomExcelRow[string]> {
+  const record = withoutParserFields(row)
+  const { code_number: codeNumber, ...recordWithoutCodeNumber } = record
+
+  if (getText(record.table_name) === 'raw_materials') {
+    return {
+      ...recordWithoutCodeNumber,
+      code_number: getText(codeNumber) || null,
+    }
+  }
+
+  return recordWithoutCodeNumber
+}
+
 export function buildMovementImportKey(
   fileName: string,
   row: CustomExcelRow,
@@ -197,7 +211,7 @@ export async function importCustomInventoryExcel(
       failedChunk = index + 1
       const chunk = itemChunks[index]
       onProgress?.({ stage: 'items', label: 'استيراد الأصناف', current: index * ITEM_CHUNK_SIZE, total: preview.items.length, chunk: index + 1, totalChunks: itemChunks.length })
-      const counts = await runRpcChunk('import_normalized_items_chunk_rpc', { p_items: chunk.map(withoutParserFields) }, 'items', index + 1)
+      const counts = await runRpcChunk('import_normalized_items_chunk_rpc', { p_items: chunk.map(prepareItem) }, 'items', index + 1)
       insertedItemsCount += counts.inserted
       updatedItemsCount += counts.updated
       skippedItemsCount += counts.skipped
