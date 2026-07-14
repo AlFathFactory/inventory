@@ -9,7 +9,7 @@ export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 export type ApplyInventoryOperationParams = {
   tableName: string
   categoryName: string
-  itemId: string
+  itemId: string | number
   itemName: string
   operationType: InventoryOperationType
   quantity: number
@@ -199,6 +199,10 @@ export async function applyInventoryOperation(
   const client = getClientOrThrow()
   const quantity = Number(params.quantity)
 
+  if (!params.tableName || params.itemId === null || params.itemId === undefined || String(params.itemId).trim() === '') {
+    throw new Error('بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى')
+  }
+
   if (!allowedInventoryOperationTables.has(params.tableName)) {
     throw new Error(`Unsupported inventory table: ${params.tableName}`)
   }
@@ -213,6 +217,8 @@ export async function applyInventoryOperation(
         : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر',
     )
   }
+
+  console.log('Operation payload', params)
 
   const { data, error } = await client.rpc(
     'apply_inventory_operation_transactional_rpc',

@@ -53,12 +53,12 @@ type MessageState = {
 
 type CategoryQuickAction = 'add' | 'issue' | null
 
-type SelectedInventoryItem = {
-  id: string
-  itemId: string
+type SelectedInventoryItem = CategorySummaryItem & {
+  id: string | number
+  itemId: string | number
   tableName: string
-  itemName: string
-  projectName?: string
+  itemName: string | null
+  projectName: string | null
   categoryName: string
 }
 
@@ -320,20 +320,21 @@ export function CategoryPage() {
       return
     }
 
-    const itemId = String(row.item_id ?? '').trim()
+    const itemId = row.item_id
     const tableName = String(row.table_name ?? '').trim()
 
-    if (!tableName || !itemId) {
+    if (!tableName || itemId === null || itemId === undefined || String(itemId).trim() === '') {
       setMessage({ type: 'error', text: incompleteItemDataMessage })
       return
     }
 
     const item: SelectedInventoryItem = {
-      id: itemId,
-      itemId,
-      tableName,
-      itemName: String(row.item_name ?? ''),
-      projectName: row.project_name ?? undefined,
+      ...row,
+      id: row.item_id,
+      itemId: row.item_id,
+      tableName: row.table_name,
+      itemName: row.item_name,
+      projectName: row.project_name,
       categoryName: row.category_name,
     }
 
@@ -341,7 +342,7 @@ export function CategoryPage() {
     setIsPreparingOperation(true)
     setMessage(null)
 
-    const result = await getItemDetails(item.tableName, item.itemId)
+    const result = await getItemDetails(item.tableName, String(item.itemId))
     setIsPreparingOperation(false)
 
     if (result.error || !result.data) {
@@ -354,7 +355,7 @@ export function CategoryPage() {
 
     setSelectedItemDetails(result.data)
     setSelectedItem(item)
-    setSelectedItemId(item.itemId)
+    setSelectedItemId(String(item.itemId))
     setOperationType(nextOperationType)
     setForm(createInitialOperationFormState(result.data))
     setFormErrors({})
@@ -445,11 +446,11 @@ export function CategoryPage() {
         tableName: selectedItem.tableName,
         categoryName: selectedItem.categoryName,
         itemId: selectedItem.itemId,
-        itemName: selectedItem.itemName,
+        itemName: selectedItem.itemName || '',
         operationType,
         quantity: Number(form.quantity),
         operationDate: form.operationDate,
-        projectName: selectedItem.projectName,
+        projectName: selectedItem.projectName || undefined,
         supplierName:
           operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
         purchaseOrderNumber:
@@ -461,7 +462,6 @@ export function CategoryPage() {
         notes: form.notes.trim() || undefined,
       }
 
-      console.log('Operation payload', payload)
       await applyInventoryOperation(payload)
 
       await refreshRows()

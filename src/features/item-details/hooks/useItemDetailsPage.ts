@@ -145,16 +145,25 @@ export function useItemDetailsPage(
     if (!category || !itemId || !details || !operationType) return
 
     setMessage(null)
+    const tableName = String(details.table_name ?? '').trim()
+    const operationItemId = details.item_id
+    if (!tableName || operationItemId === null || operationItemId === undefined || String(operationItemId).trim() === '') {
+      setMessage({
+        type: 'error',
+        text: 'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى',
+      })
+      return
+    }
     const validation = validateOperationForm({ details, form, operationType })
     setFormErrors(validation.errors)
     if (!validation.isValid) return
 
     setIsSubmitting(true)
     try {
-      await applyInventoryOperation({
-        tableName: category.table,
+      const payload = {
+        tableName,
         categoryName: details.category_name || category.label,
-        itemId,
+        itemId: operationItemId,
         itemName: details.item_name || `صنف ${itemId}`,
         operationType,
         quantity: Number(form.quantity),
@@ -165,7 +174,8 @@ export function useItemDetailsPage(
           operationType === 'add' ? form.purchaseOrderNumber.trim() || undefined : undefined,
         issuedTo: operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
         notes: form.notes.trim() || undefined,
-      })
+      }
+      await applyInventoryOperation(payload)
       await loadItemData()
       closeOperationModal()
       setMessage({
