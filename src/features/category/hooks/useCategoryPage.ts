@@ -8,6 +8,7 @@ import {
 import { isCustodyTable } from '../../../services/itemsService'
 import type { CategoryMessage } from '../types'
 import { useCategoryCreate } from './useCategoryCreate'
+import { useCategoryDelete } from './useCategoryDelete'
 import { useCategoryEdit } from './useCategoryEdit'
 import { useCategoryOperation } from './useCategoryOperation'
 import { useCategoryRows } from './useCategoryRows'
@@ -37,6 +38,11 @@ export function useCategoryPage() {
     closeQuickAction: operation.closeQuickAction,
   })
   const edit = useCategoryEdit({
+    category,
+    refreshRows: rowState.refreshRows,
+    setMessage,
+  })
+  const deletion = useCategoryDelete({
     category,
     refreshRows: rowState.refreshRows,
     setMessage,
@@ -81,6 +87,11 @@ export function useCategoryPage() {
     openEditModal: edit.open,
     handleEditSuccess: edit.handleSuccess,
     handleArchiveGlove: edit.archiveGlove,
+    deletingItem: deletion.deletingItem,
+    isDeleting: deletion.isDeleting,
+    openDeleteModal: deletion.open,
+    closeDeleteModal: deletion.close,
+    handleDeleteConfirm: deletion.confirm,
   }
 }
 

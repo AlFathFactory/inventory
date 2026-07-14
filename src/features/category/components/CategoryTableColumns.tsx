@@ -10,6 +10,7 @@ type CategoryTableColumnsProps = {
   category: CategoryDefinition | null
   onViewDetails: (row: CategorySummaryItem) => void
   onEdit: (row: CategorySummaryItem) => void
+  onDelete: (row: CategorySummaryItem) => void
   onArchive: (row: CategorySummaryItem) => void
   onOperation: (
     row: CategorySummaryItem,
@@ -42,17 +43,18 @@ function stopPropagation(action: () => void) {
 }
 
 export function useCategoryTableColumns(props: CategoryTableColumnsProps) {
-  const { category, onViewDetails, onEdit, onArchive, onOperation } = props
+  const { category, onViewDetails, onEdit, onDelete, onArchive, onOperation } = props
 
   return useMemo(
     () => category ? buildCategoryTableColumns({
       category,
       onViewDetails,
       onEdit,
+      onDelete,
       onArchive,
       onOperation,
     }) : [],
-    [category, onArchive, onEdit, onOperation, onViewDetails],
+    [category, onArchive, onDelete, onEdit, onOperation, onViewDetails],
   )
 }
 
@@ -60,6 +62,7 @@ function buildCategoryTableColumns({
   category,
   onViewDetails,
   onEdit,
+  onDelete,
   onArchive,
   onOperation,
 }: CategoryTableColumnsProps & { category: CategoryDefinition }): DataTableColumn<CategorySummaryItem>[] {
@@ -138,13 +141,22 @@ function buildCategoryTableColumns({
         id: 'actions',
         header: 'إجراءات',
         renderCell: (row: CategorySummaryItem) => (
-          <button
-            type="button"
-            onClick={stopPropagation(() => onEdit(row))}
-            className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
-          >
-            تعديل
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={stopPropagation(() => onEdit(row))}
+              className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+            >
+              تعديل
+            </button>
+            <button
+              type="button"
+              onClick={stopPropagation(() => onDelete(row))}
+              className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+            >
+              حذف
+            </button>
+          </div>
         ),
       }] : [detailsColumn]),
     ]

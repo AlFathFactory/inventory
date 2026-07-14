@@ -4,6 +4,7 @@ import { EditItemModal } from '../../item-edit/EditItemModal'
 import { InventoryOperationModal } from '../../inventory-operations/InventoryOperationModal'
 import type { ItemDetails } from '../../../services/itemsService'
 import type { CategoryPageModel } from '../hooks/useCategoryPage'
+import { CuttingDiscDeleteModal } from './CuttingDiscDeleteModal'
 
 export function CategoryModals({ model }: { model: CategoryPageModel }) {
   const { category } = model
@@ -70,6 +71,14 @@ export function CategoryModals({ model }: { model: CategoryPageModel }) {
           itemData={model.editingItem}
           onClose={model.closeEditModal}
           onSuccess={model.handleEditSuccess}
+        />
+      ) : null}
+
+      {model.deletingItem ? (
+        <CuttingDiscDeleteModal
+          isDeleting={model.isDeleting}
+          onClose={model.closeDeleteModal}
+          onConfirm={model.handleDeleteConfirm}
         />
       ) : null}
     </>
