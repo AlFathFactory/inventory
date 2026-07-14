@@ -13,15 +13,18 @@ import {
   isSupabaseConfigured,
 } from '../lib/supabaseClient'
 import {
+  getExpiryAlertRows,
   getLowStockRows,
   getOutOfStockRows,
   type InventoryRow,
 } from '../services/inventoryService'
 import {
-  getStockStatusClass,
-  getStockStatusLabel,
-  type StockStatus,
-} from '../utils/statusUtils'
+  getExpiryAlertStatus,
+  type ExpiryAlertStatus,
+} from '../utils/expiryStatus'
+import type { StockStatus } from '../utils/statusUtils'
+
+type AlertStatus = Exclude<StockStatus, 'safe'> | ExpiryAlertStatus
 
 type LowStockRow = {
   id: string
@@ -30,9 +33,10 @@ type LowStockRow = {
   itemName: string
   projectName: string | null
   dateLabel: string
+  expiryDateLabel: string
   stockBalance: number | null
   minQuantity: number | null
-  status: StockStatus
+  status: AlertStatus
   searchText: string
 }
 
@@ -42,7 +46,7 @@ type LowStockState = {
   error: string | null
 }
 
-type StockStatusFilter = 'all' | 'low' | 'out'
+type AlertStatusFilter = 'all' | AlertStatus
 
 type StockCategoryDefinition = CategoryDefinition & {
   stockField: string
@@ -151,6 +155,7 @@ function mapLowStockRows(
       projectName:
         extractStringValue(row.project) ?? extractStringValue(row.received_by),
       dateLabel: formatInventoryDate(row[category.dateField]),
+      expiryDateLabel: '—',
       stockBalance,
       minQuantity,
       status,
@@ -175,12 +180,75 @@ function mapOutOfStockRows(
       projectName:
         extractStringValue(row.project) ?? extractStringValue(row.received_by),
       dateLabel: formatInventoryDate(row[category.dateField]),
+      expiryDateLabel: '—',
       stockBalance: extractNumberValue(row[category.stockField]),
       minQuantity: null,
       status: 'out',
       searchText: buildSearchText(category, row, itemName),
     }
   })
+}
+
+function mapExpiryRows(rows: InventoryRow[]): LowStockRow[] {
+  const category = categoryEntries.find(([key]) => key === 'paints')?.[1]
+
+  if (!category) {
+    return []
+  }
+
+  return rows.flatMap((row, index) => {
+    const expireDate = extractStringValue(row.expire_date)
+    const status = expireDate ? getExpiryAlertStatus(expireDate) : null
+
+    if (!status) {
+      return []
+    }
+
+    const itemName = getItemName(row)
+
+    return [{
+      id: `${category.table}-${status}-${index}`,
+      categoryKey: 'paints',
+      categoryLabel: category.label,
+      itemName,
+      projectName: extractStringValue(row.project),
+      dateLabel: formatInventoryDate(row[category.dateField]),
+      expiryDateLabel: formatInventoryDate(expireDate),
+      stockBalance: category.stockField
+        ? extractNumberValue(row[category.stockField])
+        : null,
+      minQuantity: category.minQuantityField
+        ? extractNumberValue(row[category.minQuantityField])
+        : null,
+      status,
+      searchText: `${buildSearchText(category, row, itemName)} ${expireDate}`,
+    }]
+  })
+}
+
+function getAlertStatusLabel(status: AlertStatus): string {
+  switch (status) {
+    case 'out':
+      return 'كمية فارغة'
+    case 'low':
+      return 'كمية قليلة'
+    case 'expiring':
+      return 'تنتهي خلال شهر'
+    case 'expired':
+      return 'منتهي الصلاحية'
+  }
+}
+
+function getAlertStatusClass(status: AlertStatus): string {
+  switch (status) {
+    case 'out':
+    case 'expired':
+      return 'bg-red-100 text-red-700'
+    case 'low':
+      return 'bg-amber-100 text-amber-700'
+    case 'expiring':
+      return 'bg-orange-100 text-orange-700'
+  }
 }
 
 function formatNumber(value: number | null) {
@@ -195,10 +263,10 @@ const columns: DataTableColumn<LowStockRow>[] = [
       <span
         className={[
           'inline-flex min-w-[78px] items-center justify-center rounded-full px-3 py-1 text-xs font-bold',
-          getStockStatusClass(row.status),
+          getAlertStatusClass(row.status),
         ].join(' ')}
       >
-        {getStockStatusLabel(row.status)}
+        {getAlertStatusLabel(row.status)}
       </span>
     ),
   },
@@ -221,8 +289,13 @@ const columns: DataTableColumn<LowStockRow>[] = [
   },
   {
     id: 'dateLabel',
-    header: 'التاريخ',
+    header: 'تاريخ الحركة',
     renderCell: (row) => row.dateLabel,
+  },
+  {
+    id: 'expiryDateLabel',
+    header: 'تاريخ الانتهاء',
+    renderCell: (row) => row.expiryDateLabel,
   },
   {
     id: 'stockBalance',
@@ -320,6 +393,19 @@ export function LowStockPage() {
         return promises
       }, [])
 
+      requests.push(
+        (async () => {
+          const result = await getExpiryAlertRows('paints', 'expire_date')
+
+          return {
+            rows: result.data ? mapExpiryRows(result.data) : [],
+            error: result.error
+              ? `فشل تحميل تنبيهات صلاحية الدهانات: ${result.error}`
+              : null,
+          }
+        })(),
+      )
+
       const results = await Promise.all(requests)
 
       if (isCancelled) {
@@ -329,8 +415,15 @@ export function LowStockPage() {
       const rows = results
         .flatMap((result) => result.rows)
         .sort((firstRow, secondRow) => {
-          if (firstRow.status !== secondRow.status) {
-            return firstRow.status === 'out' ? -1 : 1
+          const priority: Record<AlertStatus, number> = {
+            expired: 0,
+            out: 1,
+            expiring: 2,
+            low: 3,
+          }
+
+          if (priority[firstRow.status] !== priority[secondRow.status]) {
+            return priority[firstRow.status] - priority[secondRow.status]
           }
 
           return secondRow.id.localeCompare(firstRow.id)
@@ -354,7 +447,7 @@ export function LowStockPage() {
     }
   }, [])
 
-  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<AlertStatusFilter>('all')
 
   const searchedRows = useMemo(
     () =>
@@ -379,6 +472,8 @@ export function LowStockPage() {
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
   const outOfStockCount = searchedRows.filter((row) => row.status === 'out').length
   const lowStockCount = searchedRows.filter((row) => row.status === 'low').length
+  const expiredCount = searchedRows.filter((row) => row.status === 'expired').length
+  const expiringCount = searchedRows.filter((row) => row.status === 'expiring').length
 
   return (
     <section className="space-y-6">
@@ -394,7 +489,7 @@ export function LowStockPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)]">
           <p className="text-sm text-[var(--app-text-muted)]">إجمالي النتائج</p>
           <p className="mt-2 text-2xl font-bold text-slate-900">
@@ -413,6 +508,18 @@ export function LowStockPage() {
             {lowStockCount}
           </p>
         </div>
+        <div className="rounded-[24px] border border-orange-100 bg-orange-50 px-5 py-4 shadow-[var(--app-shadow)]">
+          <p className="text-sm text-orange-700">تنتهي خلال شهر</p>
+          <p className="mt-2 text-2xl font-bold text-orange-700">
+            {expiringCount}
+          </p>
+        </div>
+        <div className="rounded-[24px] border border-rose-100 bg-rose-50 px-5 py-4 shadow-[var(--app-shadow)]">
+          <p className="text-sm text-rose-700">منتهي الصلاحية</p>
+          <p className="mt-2 text-2xl font-bold text-rose-700">
+            {expiredCount}
+          </p>
+        </div>
       </div>
 
       <div className="space-y-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] p-4 shadow-[var(--app-shadow)] md:p-6">
@@ -422,7 +529,7 @@ export function LowStockPage() {
               الأصناف التي تحتاج متابعة
             </p>
             <p className="text-sm text-[var(--app-text-muted)]">
-              الجدول يجمع الأصناف ذات الكمية القليلة والأصناف الفارغة في مكان واحد.
+              الجدول يجمع تنبيهات الكمية وتنبيهات صلاحية الدهانات في مكان واحد.
             </p>
           </div>
           <p className="text-sm text-slate-500">النتائج: {filteredRows.length}</p>
@@ -435,31 +542,33 @@ export function LowStockPage() {
         >
           <label className="min-w-[190px] flex-[0_1_230px] space-y-2">
             <span className="block text-sm font-medium text-slate-700">
-              حالة المخزون
+              نوع التنبيه
             </span>
             <select
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(event.target.value as StockStatusFilter)
+                setStatusFilter(event.target.value as AlertStatusFilter)
               }
               className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
             >
-              <option value="all">كل الأصناف</option>
-              <option value="low">أصناف قليلة</option>
-              <option value="out">أصناف منتهية</option>
+              <option value="all">كل التنبيهات</option>
+              <option value="low">كمية قليلة</option>
+              <option value="out">كمية فارغة</option>
+              <option value="expiring">تنتهي خلال شهر</option>
+              <option value="expired">منتهي الصلاحية</option>
             </select>
           </label>
         </DataFilters>
 
         {state.isLoading ? (
           <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-10 text-center text-sm text-slate-500">
-            جاري تحميل الأصناف قليلة الكمية والفارغة...
+            جاري تحميل التنبيهات...
           </div>
         ) : null}
 
         {!state.isLoading && filteredRows.length === 0 ? (
           <div className="rounded-[24px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-10 text-center text-sm text-slate-500">
-            لا توجد أصناف قليلة أو فارغة مطابقة للبحث الحالي.
+            لا توجد تنبيهات مطابقة للبحث الحالي.
           </div>
         ) : null}
 

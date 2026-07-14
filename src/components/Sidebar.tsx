@@ -192,7 +192,7 @@ function getSidebarIcon(path: string) {
 const navigationItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'استيراد البيانات', to: '/import' },
-  { label: 'الأصناف القليلة', to: '/low-stock' },
+  { label: 'التنبيهات', to: '/low-stock' },
   ...categoryOptions.map((category) => ({
     label: category.label,
     to: category.route,

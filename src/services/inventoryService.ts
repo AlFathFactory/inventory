@@ -6,6 +6,7 @@ import {
 import { getCategoryByTable } from '../config/categoryConfig'
 import type { ParsedInventoryRow, ParsedRowsByTable } from '../utils/excelParser'
 import type { NormalizedInventoryImport, NormalizedImportItem } from '../utils/jsonImportParser'
+import { getExpiryAlertStatus } from '../utils/expiryStatus'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -959,6 +960,44 @@ export async function getOutOfStockRows<
       normalizeError(
         error,
         `Failed to fetch out-of-stock rows from table "${tableName}".`,
+      ),
+    )
+  }
+}
+
+export async function getExpiryAlertRows<
+  TRow extends InventoryRow = InventoryRow,
+>(
+  tableName: string,
+  expireDateField: keyof TRow & string,
+): ServiceResult<TRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
+  try {
+    const { data, error } = await supabaseClient!.from(tableName).select('*')
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    const rows = ((data ?? []) as TRow[]).filter((row) => {
+      const expireDate = row[expireDateField]
+      return (
+        typeof expireDate === 'string' &&
+        getExpiryAlertStatus(expireDate) !== null
+      )
+    })
+
+    return createSuccess(rows)
+  } catch (error) {
+    return createFailure(
+      normalizeError(
+        error,
+        `Failed to fetch expiry alerts from table "${tableName}".`,
       ),
     )
   }

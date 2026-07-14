@@ -16,8 +16,8 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     subtitle: 'نظام كامل لإدارة المخزون والإنتاج',
   },
   '/low-stock': {
-    title: 'الأصناف القليلة',
-    subtitle: 'كل الأصناف التي وصلت إلى الحد الأدنى أو تحتاج إلى متابعة',
+    title: 'التنبيهات',
+    subtitle: 'تنبيهات المخزون وصلاحية الدهانات التي تحتاج إلى متابعة',
   },
   '/out-of-stock': {
     title: 'الأصناف المنتهية',
