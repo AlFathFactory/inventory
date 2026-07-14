@@ -77,7 +77,7 @@ export function useCategoryOperation({
       itemId,
       tableName,
       itemName: row.item_name,
-      projectName: row.project_name,
+      projectName: row.project_name || row.project || null,
       categoryName: row.category_name,
     }
 
@@ -125,7 +125,11 @@ export function useCategoryOperation({
         operationType,
         quantity: Number(form.quantity),
         operationDate: form.operationDate,
-        projectName: selectedItem.projectName || undefined,
+        projectName:
+          itemDetails.project_name ||
+          itemDetails.project ||
+          selectedItem.projectName ||
+          undefined,
         supplierName: operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
         purchaseOrderNumber: operationType === 'add'
           ? form.purchaseOrderNumber.trim() || undefined

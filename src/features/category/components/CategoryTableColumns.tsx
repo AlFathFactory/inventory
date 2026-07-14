@@ -147,22 +147,38 @@ function buildCategoryTableColumns({
   return [
     {
       id: 'project_name',
-      header: 'مشروع',
+      header: category.table === 'cylinders' ? 'المشروع' : 'مشروع',
       cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
-      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name),
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name ?? row.project),
     },
     {
       id: 'item_name',
-      header: 'صنف',
+      header: category.table === 'cylinders' ? 'نوع الاسطوانة' : 'صنف',
       cellClassName: 'px-4 py-3 font-semibold text-slate-800',
-      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.item_name),
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(
+        category.table === 'cylinders' ? row.type_name ?? row.item_name : row.item_name,
+      ),
     },
     {
-      id: 'stock_balance',
-      header: 'رصيد مخزني',
+      id: category.table === 'cylinders' ? 'gas_balance' : 'stock_balance',
+      header: category.table === 'cylinders' ? 'رصيد الغاز' : 'رصيد مخزني',
       cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
-      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.stock_balance),
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(
+        category.table === 'cylinders' ? row.gas_balance ?? row.stock_balance : row.stock_balance,
+      ),
     },
+    ...(category.table === 'cylinders' ? [
+      {
+        id: 'empty_count',
+        header: 'فارغ',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.empty_count),
+      },
+      {
+        id: 'full_count',
+        header: 'ملي',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.full_count),
+      },
+    ] : []),
     {
       id: 'min_quantity',
       header: 'الحد الأدنى',

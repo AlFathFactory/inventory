@@ -31,8 +31,10 @@ const fieldsByTable: Record<string, EditField[]> = {
   stock_screws: [],
   raw_materials: [],
   cylinders: [
+    { key: 'project', label: 'المشروع' },
     { key: 'type_name', label: 'نوع الاسطوانة', required: true },
     { key: 'gas_balance', label: 'رصيد الغاز', type: 'number' },
+    { key: 'stock_balance', label: 'الرصيد المخزني', type: 'number' },
     { key: 'empty_count', label: 'فارغ', type: 'number' },
     { key: 'full_count', label: 'ملي', type: 'number' },
     { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
@@ -117,7 +119,20 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
   )
 
   function updateField(key: string, value: string) {
-    setForm((current) => ({ ...current, [key]: value }))
+    setForm((current) => {
+      if (
+        category.table === 'cylinders' &&
+        (key === 'gas_balance' || key === 'stock_balance')
+      ) {
+        return {
+          ...current,
+          gas_balance: value,
+          stock_balance: value,
+        }
+      }
+
+      return { ...current, [key]: value }
+    })
     setErrors((current) => {
       const next = { ...current }
       delete next[key]
@@ -160,6 +175,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     if (category.table === 'cylinders') {
       const gasBalance = Number(form.gas_balance)
       Object.assign(patch, {
+        project: form.project?.trim() || null,
         type_name: form.type_name.trim(),
         gas_balance: gasBalance,
         stock_balance: gasBalance,

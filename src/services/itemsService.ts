@@ -10,6 +10,7 @@ export type CategorySummaryItem = {
   item_id: string | number
   item_key: string | null
   project_name: string | null
+  project?: string | null
   item_name: string | null
   stock_balance: number | string | null
   min_quantity: number | string | null
@@ -145,7 +146,7 @@ function mapCylinderSummaryItem(
     category_name: 'اسطوانات',
     item_id: itemId,
     item_key: typeof row.item_key === 'string' ? row.item_key : null,
-    project_name: null,
+    project_name: typeof row.project === 'string' ? row.project : null,
     item_name: typeof row.type_name === 'string' ? row.type_name : null,
     stock_balance: validGasBalance,
     min_quantity: validMinQuantity,

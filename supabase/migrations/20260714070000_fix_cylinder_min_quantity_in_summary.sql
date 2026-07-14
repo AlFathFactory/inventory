@@ -30,7 +30,7 @@ select 'raw_materials', 'خامات', id, item_key, project, item_name, stock_ba
        total_added, total_issued, weight, length, width, th, material_source, notes, created_at, updated_at
 from public.raw_materials
 union all
-select 'cylinders', 'اسطوانات', id, item_key, null, type_name, gas_balance, min_quantity, null,
+select 'cylinders', 'اسطوانات', id, item_key, project, type_name, gas_balance, min_quantity, null,
        case when gas_balance <= 0 then 'out_of_stock' when gas_balance <= min_quantity then 'low_stock' else 'available' end,
        null, null, null, null, null, null, null, notes, created_at, updated_at
 from public.cylinders;

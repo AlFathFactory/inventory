@@ -66,7 +66,10 @@ export function useItemDetailsPage(
     )
     setForm((current) => ({
       ...current,
-      projectName: detailsResult.data?.project_name ?? current.projectName,
+      projectName:
+        detailsResult.data?.project_name ??
+        detailsResult.data?.project ??
+        current.projectName,
     }))
     setIsLoading(false)
   }, [category, itemId])
@@ -168,7 +171,11 @@ export function useItemDetailsPage(
         operationType,
         quantity: Number(form.quantity),
         operationDate: form.operationDate,
-        projectName: operationType === 'adjust' ? undefined : form.projectName.trim() || undefined,
+        projectName:
+          details.project_name ||
+          details.project ||
+          form.projectName.trim() ||
+          undefined,
         supplierName: operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
         purchaseOrderNumber:
           operationType === 'add' ? form.purchaseOrderNumber.trim() || undefined : undefined,

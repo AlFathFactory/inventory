@@ -13,6 +13,7 @@ export type OperationFormState = {
 
 type ItemSnapshot = {
   project_name?: string | null
+  project?: string | null
   stock_balance?: string | number | null
 }
 
@@ -80,7 +81,7 @@ export function createInitialOperationFormState(
   return {
     quantity: '',
     operationDate: getTodayValue(),
-    projectName: details?.project_name ?? '',
+    projectName: details?.project_name ?? details?.project ?? '',
     supplierName: '',
     purchaseOrderNumber: '',
     issuedTo: '',

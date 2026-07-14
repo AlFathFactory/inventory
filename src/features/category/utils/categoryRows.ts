@@ -55,6 +55,7 @@ export async function loadCategoryRows(category: CategoryDefinition) {
 
 const searchableFields: Array<keyof CategorySummaryItem> = [
   'project_name',
+  'project',
   'item_name',
   'status',
   'material_source',

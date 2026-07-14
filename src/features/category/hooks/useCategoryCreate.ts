@@ -47,7 +47,20 @@ export function useCategoryCreate({
   }
 
   function updateField(field: string, value: string) {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }))
+    setForm((currentForm) => {
+      if (
+        category?.table === 'cylinders' &&
+        (field === 'gas_balance' || field === 'stock_balance')
+      ) {
+        return {
+          ...currentForm,
+          gas_balance: value,
+          stock_balance: value,
+        }
+      }
+
+      return { ...currentForm, [field]: value }
+    })
     setFormErrors((currentErrors) => {
       if (!(field in currentErrors)) return currentErrors
       const nextErrors = { ...currentErrors }

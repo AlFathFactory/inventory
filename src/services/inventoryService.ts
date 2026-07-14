@@ -851,6 +851,7 @@ export async function createInventoryItem(
     if (tableName === 'cylinders') {
       const gasBalance = toNumberValue(values.gas_balance) ?? 0
       Object.assign(payload, {
+        project: projectName || null,
         type_name: itemName,
         gas_balance: gasBalance,
         stock_balance: gasBalance,

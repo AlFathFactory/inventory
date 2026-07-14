@@ -423,7 +423,10 @@ export function OperationsPage() {
         operationType: activeView,
         quantity: Number(form.quantity),
         operationDate: form.operationDate,
-        projectName: form.projectName.trim() || undefined,
+        projectName:
+          form.projectName.trim() ||
+          String(selectedItem.project_name ?? selectedItem.project ?? '').trim() ||
+          undefined,
         itemCode: form.itemCode.trim() || undefined,
         supplierName: activeView === 'add' ? form.supplierName.trim() : undefined,
         purchaseOrderNumber:
