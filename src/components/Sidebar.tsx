@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from 'react'
 import { categoryOptions } from '../config/categoryConfig'
 import { SidebarNavItem } from './SidebarNavItem'
 
@@ -158,6 +159,20 @@ function GloveIcon({ className = '' }: IconProps) {
   )
 }
 
+function ChevronDownIcon({ className = '' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={className}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
+
 function getSidebarIcon(path: string) {
   const iconClassName = 'h-[18px] w-[18px]'
 
@@ -189,15 +204,50 @@ function getSidebarIcon(path: string) {
   }
 }
 
-const navigationItems = [
+const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
-  { label: 'استيراد البيانات', to: '/import' },
   { label: 'التنبيهات', to: '/low-stock' },
-  ...categoryOptions.map((category) => ({
-    label: category.label,
-    to: category.route,
-  })),
-] as const
+]
+
+const inventoryItems = categoryOptions.map((category) => ({
+  label: category.label,
+  to: category.route,
+}))
+
+type SidebarGroupProps = {
+  title: string
+  children: ReactNode
+  initiallyOpen?: boolean
+}
+
+function SidebarGroup({
+  title,
+  children,
+  initiallyOpen = true,
+}: SidebarGroupProps) {
+  const [isOpen, setIsOpen] = useState(initiallyOpen)
+
+  return (
+    <section className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
+      <button
+        type="button"
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
+        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-[13px] font-bold text-white transition-colors hover:bg-white/8"
+        aria-expanded={isOpen}
+      >
+        <span>{title}</span>
+        <ChevronDownIcon
+          className={[
+            'h-4 w-4 text-[#b9cff8] transition-transform duration-200',
+            isOpen ? 'rotate-180' : '',
+          ].join(' ')}
+        />
+      </button>
+
+      {isOpen ? <div className="mt-1 space-y-1">{children}</div> : null}
+    </section>
+  )
+}
 
 export function Sidebar() {
   return (
@@ -208,15 +258,33 @@ export function Sidebar() {
           <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المــخــــــــزون</p>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
-          {navigationItems.map((item) => (
+        <nav className="flex flex-1 flex-col gap-3 overflow-y-auto">
+          <SidebarGroup title="الإدارة">
+            {managementItems.map((item) => (
+              <SidebarNavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={getSidebarIcon(item.to)}
+              />
+            ))}
+          </SidebarGroup>
+
+          <SidebarGroup title="المخزن">
+            {inventoryItems.map((item) => (
+              <SidebarNavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={getSidebarIcon(item.to)}
+              />
+            ))}
             <SidebarNavItem
-              key={item.to}
-              to={item.to}
-              label={item.label}
-              icon={getSidebarIcon(item.to)}
+              to="/import"
+              label="استيراد البيانات"
+              icon={getSidebarIcon('/import')}
             />
-          ))}
+          </SidebarGroup>
         </nav>
       </div>
     </aside>
