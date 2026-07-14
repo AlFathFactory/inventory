@@ -2,7 +2,7 @@ import type { InventoryRow } from '../services/inventoryService'
 
 export type StockStatus = 'out' | 'low' | 'safe'
 
-function toComparableNumber(value: InventoryRow[string]): number | null {
+function toComparableNumber(value: InventoryRow[string] | undefined): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -15,27 +15,34 @@ function toComparableNumber(value: InventoryRow[string]): number | null {
   return null
 }
 
+export function getStockStatusFromValues(
+  stockValue: InventoryRow[string] | undefined,
+  minQuantityValue: InventoryRow[string] | undefined,
+): StockStatus | null {
+  const normalizedStockValue = toComparableNumber(stockValue)
+  const normalizedMinQuantityValue = toComparableNumber(minQuantityValue)
+
+  if (normalizedStockValue === null || normalizedMinQuantityValue === null) {
+    return null
+  }
+
+  if (normalizedStockValue <= 0) {
+    return 'out'
+  }
+
+  if (normalizedStockValue <= normalizedMinQuantityValue) {
+    return 'low'
+  }
+
+  return 'safe'
+}
+
 export function getStockStatus(
   row: InventoryRow,
   stockField: string,
   minQuantityField: string,
 ): StockStatus | null {
-  const stockValue = toComparableNumber(row[stockField])
-  const minQuantityValue = toComparableNumber(row[minQuantityField])
-
-  if (stockValue === null || minQuantityValue === null) {
-    return null
-  }
-
-  if (stockValue <= 0) {
-    return 'out'
-  }
-
-  if (stockValue <= minQuantityValue) {
-    return 'low'
-  }
-
-  return 'safe'
+  return getStockStatusFromValues(row[stockField], row[minQuantityField])
 }
 
 export function getStockStatusLabel(status: StockStatus): string {

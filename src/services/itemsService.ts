@@ -3,6 +3,10 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
+import {
+  getStockStatusFromValues,
+  getStockStatusLabel,
+} from '../utils/statusUtils'
 
 export type CategorySummaryItem = {
   table_name: string
@@ -132,6 +136,19 @@ function normalizeError(error: unknown, fallbackMessage: string): string {
   return fallbackMessage
 }
 
+function withComputedStockStatus<TItem extends CategorySummaryItem>(
+  item: TItem,
+): TItem {
+  const status = getStockStatusFromValues(
+    item.stock_balance,
+    item.min_quantity,
+  )
+
+  return status
+    ? { ...item, status: getStockStatusLabel(status) }
+    : item
+}
+
 function mapCylinderSummaryItem(
   row: Record<string, string | number | null>,
 ): CategorySummaryItem {
@@ -143,7 +160,7 @@ function mapCylinderSummaryItem(
     ? row.id
     : ''
 
-  return {
+  return withComputedStockStatus({
     ...row,
     table_name: 'cylinders',
     category_name: 'اسطوانات',
@@ -153,17 +170,13 @@ function mapCylinderSummaryItem(
     item_name: typeof row.type_name === 'string' ? row.type_name : null,
     stock_balance: validGasBalance,
     min_quantity: validMinQuantity,
-    status: validGasBalance <= 0
-      ? 'منتهي'
-      : validGasBalance <= validMinQuantity
-        ? 'قليل'
-        : 'آمن',
+    status: null,
     total_added: null,
     total_issued: null,
     source_rows_count: 1,
     updated_at: typeof row.updated_at === 'string' ? row.updated_at : null,
     created_at: typeof row.created_at === 'string' ? row.created_at : null,
-  }
+  })
 }
 
 export async function getCategorySummaryItems(
@@ -205,7 +218,9 @@ export async function getCategorySummaryItems(
       return createFailure(error.message)
     }
 
-    return createSuccess((data ?? []) as CategorySummaryItem[])
+    return createSuccess(
+      ((data ?? []) as CategorySummaryItem[]).map(withComputedStockStatus),
+    )
   } catch (error) {
     return createFailure(normalizeError(error, 'تعذر تحميل ملخص أصناف القسم'))
   }
@@ -308,7 +323,7 @@ export async function getItemDetails(
       return createFailure(error.message)
     }
 
-    return createSuccess(data as ItemDetails)
+    return createSuccess(withComputedStockStatus(data as ItemDetails))
   } catch (error) {
     return createFailure(normalizeError(error, 'تعذر تحميل تفاصيل الصنف'))
   }

@@ -23,7 +23,10 @@ import {
   getExpiryAlertStatus,
   type ExpiryAlertStatus,
 } from '../utils/expiryStatus'
-import type { StockStatus } from '../utils/statusUtils'
+import {
+  getStockStatusFromValues,
+  type StockStatus,
+} from '../utils/statusUtils'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 
 type AlertStatus = Exclude<StockStatus, 'safe'> | ExpiryAlertStatus
@@ -139,7 +142,7 @@ function mapLowStockRows(
   category: CategoryDefinition,
   rows: InventoryRow[],
 ): LowStockRow[] {
-  return rows.map((row, index) => {
+  return rows.flatMap((row, index) => {
     const itemName = getItemName(row)
     const stockBalance = category.stockField
       ? extractNumberValue(row[category.stockField])
@@ -147,9 +150,13 @@ function mapLowStockRows(
     const minQuantity = category.minQuantityField
       ? extractNumberValue(row[category.minQuantityField])
       : null
-    const status: StockStatus = stockBalance !== null && stockBalance <= 0 ? 'out' : 'low'
+    const status = getStockStatusFromValues(stockBalance, minQuantity)
 
-    return {
+    if (status === null || status === 'safe') {
+      return []
+    }
+
+    return [{
       id: `${category.table}-low-${index}`,
       categoryKey,
       categoryLabel: category.label,
@@ -162,7 +169,7 @@ function mapLowStockRows(
       minQuantity,
       status,
       searchText: buildSearchText(category, row, itemName),
-    }
+    }]
   })
 }
 
