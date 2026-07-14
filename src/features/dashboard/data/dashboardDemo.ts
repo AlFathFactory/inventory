@@ -3,11 +3,11 @@ import type { DashboardData } from '../types'
 export const dashboardDemo: DashboardData = {
   isDemo: true,
   stats: {
-    totalCategories: 9,
-    totalImportedFiles: 18,
-    totalMainRows: 1248,
-    lowStockItemsCount: 36,
-    outOfStockItemsCount: 11,
+    totalCategories: 0,
+    totalImportedFiles: 0,
+    totalMainRows: 0,
+    lowStockItemsCount: 0,
+    outOfStockItemsCount: 0,
     lastImportedFile: 'مخزن12 - 2025.xlsx',
   },
   inventoryRows: [
