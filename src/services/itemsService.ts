@@ -128,6 +128,40 @@ function normalizeError(error: unknown, fallbackMessage: string): string {
   return fallbackMessage
 }
 
+function mapCylinderSummaryItem(
+  row: Record<string, string | number | null>,
+): CategorySummaryItem {
+  const gasBalance = Number(row.gas_balance)
+  const minQuantity = Number(row.min_quantity)
+  const validGasBalance = Number.isFinite(gasBalance) ? gasBalance : 0
+  const validMinQuantity = Number.isFinite(minQuantity) ? minQuantity : 0
+  const itemId = typeof row.id === 'string' || typeof row.id === 'number'
+    ? row.id
+    : ''
+
+  return {
+    ...row,
+    table_name: 'cylinders',
+    category_name: 'اسطوانات',
+    item_id: itemId,
+    item_key: typeof row.item_key === 'string' ? row.item_key : null,
+    project_name: null,
+    item_name: typeof row.type_name === 'string' ? row.type_name : null,
+    stock_balance: validGasBalance,
+    min_quantity: validMinQuantity,
+    status: validGasBalance <= 0
+      ? 'منتهي'
+      : validGasBalance <= validMinQuantity
+        ? 'قليل'
+        : 'آمن',
+    total_added: null,
+    total_issued: null,
+    source_rows_count: 1,
+    updated_at: typeof row.updated_at === 'string' ? row.updated_at : null,
+    created_at: typeof row.created_at === 'string' ? row.created_at : null,
+  }
+}
+
 export async function getCategorySummaryItems(
   tableName: string,
 ): ServiceResult<CategorySummaryItem[]> {
@@ -138,6 +172,25 @@ export async function getCategorySummaryItems(
   }
 
   try {
+    // The cylinder table has cylinder-specific fields and is the authoritative
+    // source for min_quantity. Reading it directly also avoids stale summary
+    // views that previously projected the minimum quantity as NULL.
+    if (tableName === 'cylinders') {
+      const { data, error } = await supabaseClient!
+        .from('cylinders')
+        .select('*')
+        .order('type_name', { ascending: true })
+
+      if (error) {
+        return createFailure(error.message)
+      }
+
+      return createSuccess(
+        ((data ?? []) as Record<string, string | number | null>[])
+          .map(mapCylinderSummaryItem),
+      )
+    }
+
     const { data, error } = await supabaseClient!
       .from('inventory_category_items_summary_view')
       .select('*')
@@ -233,29 +286,11 @@ export async function getItemDetails(
         return createFailure(error?.message || 'تعذر تحميل بيانات الاسطوانة')
       }
 
-      const row = data as Record<string, string | number | null>
-      const gasBalance = Number(row.gas_balance)
-      const minQuantity = Number(row.min_quantity)
-      const validGasBalance = Number.isFinite(gasBalance) ? gasBalance : 0
-      const validMinQuantity = Number.isFinite(minQuantity) ? minQuantity : 0
-      return createSuccess({
-        ...row,
-        table_name: tableName,
-        category_name: 'اسطوانات',
-        item_id: row.id,
-        project_name: null,
-        item_name: row.type_name,
-        stock_balance: validGasBalance,
-        min_quantity: validMinQuantity,
-        status: validGasBalance <= 0
-          ? 'منتهي'
-          : validGasBalance <= validMinQuantity
-            ? 'قليل'
-            : 'آمن',
-        total_added: null,
-        total_issued: null,
-        source_rows_count: 1,
-      } as ItemDetails)
+      return createSuccess(
+        mapCylinderSummaryItem(
+          data as Record<string, string | number | null>,
+        ) as ItemDetails,
+      )
     }
 
     const { data, error } = await supabaseClient!
