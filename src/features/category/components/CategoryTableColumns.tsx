@@ -8,7 +8,6 @@ import { CategoryOperationButton } from './CategoryOperationButton'
 
 type CategoryTableColumnsProps = {
   category: CategoryDefinition | null
-  onViewDetails: (row: CategorySummaryItem) => void
   onEdit: (row: CategorySummaryItem) => void
   onDelete: (row: CategorySummaryItem) => void
   onArchive: (row: CategorySummaryItem) => void
@@ -43,43 +42,27 @@ function stopPropagation(action: () => void) {
 }
 
 export function useCategoryTableColumns(props: CategoryTableColumnsProps) {
-  const { category, onViewDetails, onEdit, onDelete, onArchive, onOperation } = props
+  const { category, onEdit, onDelete, onArchive, onOperation } = props
 
   return useMemo(
     () => category ? buildCategoryTableColumns({
       category,
-      onViewDetails,
       onEdit,
       onDelete,
       onArchive,
       onOperation,
     }) : [],
-    [category, onArchive, onDelete, onEdit, onOperation, onViewDetails],
+    [category, onArchive, onDelete, onEdit, onOperation],
   )
 }
 
 function buildCategoryTableColumns({
   category,
-  onViewDetails,
   onEdit,
   onDelete,
   onArchive,
   onOperation,
 }: CategoryTableColumnsProps & { category: CategoryDefinition }): DataTableColumn<CategorySummaryItem>[] {
-  const detailsColumn: DataTableColumn<CategorySummaryItem> = {
-    id: 'actions',
-    header: 'الإجراءات',
-    renderCell: (row) => (
-      <button
-        type="button"
-        onClick={stopPropagation(() => onViewDetails(row))}
-        className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
-      >
-        التفاصيل
-      </button>
-    ),
-  }
-
   if (isCustodyTable(category.table)) {
     const custodyColumns: DataTableColumn<CategorySummaryItem>[] = [
       ...(category.table === 'cutting_discs' ? [{
@@ -165,7 +148,7 @@ function buildCategoryTableColumns({
             </button>
           </div>
         ),
-      }] : [detailsColumn]),
+      }] : []),
     ]
 
     return custodyColumns.map((column) => ({
@@ -257,13 +240,6 @@ function buildCategoryTableColumns({
               <CategoryOperationButton label="جرد" color="blue" onClick={() => onOperation(row, 'adjust')} />
             </>
           ) : null}
-          <button
-            type="button"
-            onClick={stopPropagation(() => onViewDetails(row))}
-            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
-          >
-            التفاصيل
-          </button>
           <button
             type="button"
             onClick={stopPropagation(() => onDelete(row))}

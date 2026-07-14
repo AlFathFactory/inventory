@@ -22,7 +22,6 @@ export function CategoryPage() {
 
   const columns = useCategoryTableColumns({
     category,
-    onViewDetails: viewDetails,
     onEdit: (row) => void model.openEditModal(row),
     onDelete: model.openDeleteModal,
     onArchive: (row) => void model.handleArchiveGlove(row),
