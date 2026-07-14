@@ -1,0 +1,228 @@
+import { useMemo } from 'react'
+import type { CategoryDefinition } from '../../../config/categoryConfig'
+import type { DataTableColumn } from '../../../components/DataTable'
+import { isCustodyTable, type CategorySummaryItem } from '../../../services/itemsService'
+import type { InventoryOperationType } from '../../../services/operationsService'
+import { getStockStatusClass } from '../../../utils/statusUtils'
+import { CategoryOperationButton } from './CategoryOperationButton'
+
+type CategoryTableColumnsProps = {
+  category: CategoryDefinition | null
+  onViewDetails: (row: CategorySummaryItem) => void
+  onEdit: (row: CategorySummaryItem) => void
+  onArchive: (row: CategorySummaryItem) => void
+  onOperation: (
+    row: CategorySummaryItem,
+    operationType: InventoryOperationType,
+  ) => void
+}
+
+function getDisplayValue(value: string | number | null | undefined) {
+  return value === null || value === undefined || value === '' ? '—' : String(value)
+}
+
+function getStatusBadgeClass(status: string | null) {
+  switch (status) {
+    case 'آمن':
+      return getStockStatusClass('safe')
+    case 'قليل':
+      return getStockStatusClass('low')
+    case 'منتهي':
+      return getStockStatusClass('out')
+    default:
+      return 'bg-slate-100 text-slate-700'
+  }
+}
+
+function stopPropagation(action: () => void) {
+  return (event: React.MouseEvent) => {
+    event.stopPropagation()
+    action()
+  }
+}
+
+export function useCategoryTableColumns(props: CategoryTableColumnsProps) {
+  const { category, onViewDetails, onEdit, onArchive, onOperation } = props
+
+  return useMemo(
+    () => category ? buildCategoryTableColumns({
+      category,
+      onViewDetails,
+      onEdit,
+      onArchive,
+      onOperation,
+    }) : [],
+    [category, onArchive, onEdit, onOperation, onViewDetails],
+  )
+}
+
+function buildCategoryTableColumns({
+  category,
+  onViewDetails,
+  onEdit,
+  onArchive,
+  onOperation,
+}: CategoryTableColumnsProps & { category: CategoryDefinition }): DataTableColumn<CategorySummaryItem>[] {
+  const detailsColumn: DataTableColumn<CategorySummaryItem> = {
+    id: 'actions',
+    header: 'الإجراءات',
+    renderCell: (row) => (
+      <button
+        type="button"
+        onClick={stopPropagation(() => onViewDetails(row))}
+        className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+      >
+        التفاصيل
+      </button>
+    ),
+  }
+
+  if (isCustodyTable(category.table)) {
+    const custodyColumns: DataTableColumn<CategorySummaryItem>[] = [
+      ...(category.table === 'cutting_discs' ? [{
+        id: 'code',
+        header: 'الكود',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.code),
+      }] : []),
+      {
+        id: 'type_name',
+        header: 'النوع',
+        renderCell: (row) => getDisplayValue(row.type_name),
+      },
+      {
+        id: 'received_by',
+        header: 'المستلم',
+        renderCell: (row) => getDisplayValue(row.received_by),
+      },
+      {
+        id: 'received_date',
+        header: 'تاريخ الاستلام',
+        renderCell: (row) => getDisplayValue(row.received_date),
+      },
+      ...(category.table === 'cutting_discs' ? [{
+        id: 'scrapped_date',
+        header: 'تاريخ التكهين',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.scrapped_date),
+      }] : []),
+      ...(category.table === 'long_welding_gloves' ? [{
+        id: 'notes',
+        header: 'ملاحظات',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.notes),
+      }] : [{
+        id: 'source_sheet',
+        header: 'المصدر',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.source_sheet),
+      }]),
+      ...(category.table === 'long_welding_gloves' ? [{
+        id: 'actions',
+        header: 'إجراءات',
+        renderCell: (row: CategorySummaryItem) => (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={stopPropagation(() => onEdit(row))}
+              className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+            >
+              تعديل
+            </button>
+            <button
+              type="button"
+              onClick={stopPropagation(() => onArchive(row))}
+              className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+            >
+              أرشفة
+            </button>
+          </div>
+        ),
+      }] : [detailsColumn]),
+    ]
+
+    return custodyColumns.map((column) => ({
+      headerClassName: 'px-4 py-3 text-slate-700',
+      cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+      ...column,
+    }))
+  }
+
+  return [
+    {
+      id: 'project_name',
+      header: 'مشروع',
+      cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name),
+    },
+    {
+      id: 'item_name',
+      header: 'صنف',
+      cellClassName: 'px-4 py-3 font-semibold text-slate-800',
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.item_name),
+    },
+    {
+      id: 'stock_balance',
+      header: 'رصيد مخزني',
+      cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.stock_balance),
+    },
+    {
+      id: 'min_quantity',
+      header: 'الحد الأدنى',
+      cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.min_quantity),
+    },
+    {
+      id: 'status',
+      header: 'الحالة',
+      cellClassName: 'align-top px-4 py-3',
+      renderCell: (row: CategorySummaryItem) => (
+        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusBadgeClass(row.status)}`}>
+          {row.status || 'غير محدد'}
+        </span>
+      ),
+    },
+    ...(category.table === 'raw_materials' ? [
+      { id: 'weight', header: 'وزن', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.weight) },
+      { id: 'length', header: 'LENGTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.length) },
+      { id: 'width', header: 'WIDTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.width) },
+      { id: 'th', header: 'TH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.th) },
+    ] : []),
+    ...(category.table === 'paints' ? [{
+      id: 'expire_date',
+      header: 'تاريخ الانتهاء',
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.expire_date),
+    }] : []),
+    {
+      id: 'actions',
+      header: 'الإجراءات',
+      cellClassName: 'px-4 py-3',
+      renderCell: (row: CategorySummaryItem) => (
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={stopPropagation(() => onEdit(row))}
+            className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+          >
+            تعديل الصنف
+          </button>
+          {category.operationsEnabled ? (
+            <>
+              <CategoryOperationButton label="صرف" color="orange" onClick={() => onOperation(row, 'issue')} />
+              <CategoryOperationButton label="إضافة" color="emerald" onClick={() => onOperation(row, 'add')} />
+              <CategoryOperationButton label="جرد" color="blue" onClick={() => onOperation(row, 'adjust')} />
+            </>
+          ) : null}
+          <button
+            type="button"
+            onClick={stopPropagation(() => onViewDetails(row))}
+            className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+          >
+            التفاصيل
+          </button>
+        </div>
+      ),
+    },
+  ].map((column) => ({
+    headerClassName: 'px-4 py-3 text-slate-700',
+    cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+    ...column,
+  })) as DataTableColumn<CategorySummaryItem>[]
+}
