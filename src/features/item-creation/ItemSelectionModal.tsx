@@ -42,7 +42,15 @@ export function ItemSelectionModal({
     }
 
     return items.filter((item) =>
-      [item.item_name, item.project_name, item.status]
+      [
+        item.internal_code,
+        item.item_name,
+        item.project_name,
+        item.material_source,
+        item.code_number,
+        item.din,
+      ]
+        .filter(Boolean)
         .map((value) => String(value ?? '').toLowerCase())
         .some((value) => value.includes(normalizedSearchTerm)),
     )
@@ -103,6 +111,9 @@ export function ItemSelectionModal({
                   <div className="space-y-1">
                     <div className="font-semibold text-slate-900">
                       {getDisplayValue(item.item_name)}
+                    </div>
+                    <div dir="ltr" className="w-fit select-all font-mono text-sm font-semibold text-slate-600">
+                      {getDisplayValue(item.internal_code)}
                     </div>
                     <div className="text-sm text-slate-500">
                       المشروع: {getDisplayValue(item.project_name)}

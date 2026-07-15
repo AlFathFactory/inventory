@@ -34,6 +34,15 @@ export function ItemDetailsOverview({
             <h2 className="text-[2rem] font-bold tracking-tight text-slate-950">
               {details.item_name || `صنف ${itemId}`}
             </h2>
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <span className="text-[var(--app-text-muted)]">كود الصنف:</span>
+              <span
+                dir="ltr"
+                className="select-all rounded-lg bg-slate-100 px-2 py-1 font-mono font-semibold text-slate-800"
+              >
+                {getDisplayText(details.internal_code)}
+              </span>
+            </div>
             <p className="mt-2 text-sm text-[var(--app-text-muted)]">
               شاشة تفاصيل الصنف وسجل الحركات الكامل لهذا القسم.
             </p>

@@ -15,6 +15,7 @@ export type CuttingDiscInput = {
 
 export type CuttingDiscRecord = CuttingDiscInput & {
   id: string | number
+  internal_code?: string | null
   source_file: string | null
   source_sheet: string | null
   created_at: string | null

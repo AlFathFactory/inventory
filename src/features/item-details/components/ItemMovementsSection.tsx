@@ -10,6 +10,7 @@ import { ItemMovementsDateFilter } from './ItemMovementsDateFilter'
 
 type ItemMovementsSectionProps = {
   category: CategoryDefinition
+  internalCode?: string | null
   itemCode?: string | null
   filter: ItemMovementsDateFilterValue
   movements: ItemMovement[]
@@ -18,9 +19,18 @@ type ItemMovementsSectionProps = {
   onRefresh: () => void
 }
 
-export function ItemMovementsSection({ category, itemCode, filter, movements, totals, onFilterChange, onRefresh }: ItemMovementsSectionProps) {
+export function ItemMovementsSection({ category, internalCode, itemCode, filter, movements, totals, onFilterChange, onRefresh }: ItemMovementsSectionProps) {
   const hasFilter = Boolean(filter.fromDate || filter.toDate)
   const columns = useMemo<DataTableColumn<ItemMovement>[]>(() => [
+    {
+      id: 'internal_code',
+      header: 'كود الصنف',
+      renderCell: (row) => (
+        <span dir="ltr" className="inline-block select-all font-mono font-semibold text-slate-700">
+          {getDisplayText(row.internal_code || internalCode)}
+        </span>
+      ),
+    },
     { id: 'operation_date', header: 'التاريخ', renderCell: (row) => formatMovementDate(row.operation_date) },
     { id: 'operation_type', header: 'نوع العملية', renderCell: (row) => <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${row.operation_type === 'add' ? 'bg-emerald-50 text-emerald-700' : row.operation_type === 'issue' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>{getOperationTypeLabel(row.operation_type)}</span> },
     { id: 'issued_quantity', header: 'صرف', renderCell: (row) => getDisplayText(row.issued_quantity) },
@@ -38,7 +48,7 @@ export function ItemMovementsSection({ category, itemCode, filter, movements, to
     }] : []),
     { id: 'operation_code', header: 'كود العملية', renderCell: (row) => getDisplayText(getOperationCode(row)) },
     { id: 'notes', header: 'ملاحظات', renderCell: (row) => <div className="max-w-[240px] whitespace-normal leading-6">{getDisplayText(row.notes)}</div> },
-  ], [category.table, itemCode])
+  ], [category.table, internalCode, itemCode])
 
   return <div className="space-y-3">
     <div className="flex items-center justify-between gap-4">

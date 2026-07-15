@@ -143,7 +143,7 @@ export function useCategoryCreate({
           ? 'تم إضافة الصاروخ بنجاح'
           : category.table === 'long_welding_gloves'
           ? 'تمت إضافة سجل العهدة بنجاح'
-          : 'تم إضافة الصنف وتسجيله كحركة إضافة بنجاح',
+          : `تم إنشاء الصنف بكود: ${String(result.data?.internal_code ?? '')}`,
       })
     } finally {
       setIsSubmitting(false)

@@ -13,6 +13,7 @@ export type LongWeldingGloveInput = {
 
 export type LongWeldingGloveRecord = LongWeldingGloveInput & {
   id: string | number
+  internal_code?: string | null
   is_archived: boolean
 }
 

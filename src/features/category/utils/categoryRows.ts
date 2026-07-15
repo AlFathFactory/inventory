@@ -17,6 +17,7 @@ import {
 function mapGloveRows(rows: LongWeldingGloveRecord[] | null): CategorySummaryItem[] {
   return (rows ?? []).map((row) => ({
     id: row.id,
+    internal_code: row.internal_code,
     type_name: row.type_name,
     received_by: row.received_by,
     received_date: row.received_date,
@@ -84,6 +85,7 @@ export async function loadCategoryRows(category: CategoryDefinition) {
 }
 
 const searchableFields: Array<keyof CategorySummaryItem> = [
+  'internal_code',
   'project_name',
   'project',
   'item_name',

@@ -13,6 +13,7 @@ export type CategorySummaryItem = {
   category_name: string
   item_id: string | number
   item_key: string | null
+  internal_code?: string | null
   project_name: string | null
   project?: string | null
   item_name: string | null
@@ -47,6 +48,7 @@ export type ItemDetails = CategorySummaryItem
 export type CustodyTableName = 'cutting_discs' | 'long_welding_gloves'
 export type CustodyRecord = Record<string, string | number | null> & {
   id: string | number
+  internal_code?: string | null
   type_name: string | null
   received_by: string | null
   received_date: string | null
@@ -65,6 +67,7 @@ export type ItemMovement = {
   category_name: string | null
   category_label: string | null
   item_id: string | number
+  internal_code?: string | null
   item_name: string | null
   item_label: string | null
   project_name: string | null
@@ -421,12 +424,14 @@ export async function updateItemDetails({
   }
 
   try {
+    const editablePatch = { ...patch }
+    delete editablePatch.internal_code
     const { data, error } = await supabaseClient!.rpc(
       'update_inventory_item_details_rpc',
       {
         p_table_name: tableName,
         p_item_id: itemId,
-        p_patch: patch,
+        p_patch: editablePatch,
         p_adjust_date: adjustDate,
         p_notes: notes,
         p_updated_by: updatedBy || 'user',

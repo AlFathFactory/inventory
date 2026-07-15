@@ -41,6 +41,18 @@ function stopPropagation(action: () => void) {
   }
 }
 
+function renderInternalCode(value: string | null | undefined) {
+  return (
+    <span
+      dir="ltr"
+      onClick={(event) => event.stopPropagation()}
+      className="inline-block select-all font-mono font-semibold text-slate-700"
+    >
+      {getDisplayValue(value)}
+    </span>
+  )
+}
+
 export function useCategoryTableColumns(props: CategoryTableColumnsProps) {
   const { category, onEdit, onDelete, onArchive, onOperation } = props
 
@@ -65,6 +77,11 @@ function buildCategoryTableColumns({
 }: CategoryTableColumnsProps & { category: CategoryDefinition }): DataTableColumn<CategorySummaryItem>[] {
   if (isCustodyTable(category.table)) {
     const custodyColumns: DataTableColumn<CategorySummaryItem>[] = [
+      {
+        id: 'internal_code',
+        header: 'كود الصنف',
+        renderCell: (row) => renderInternalCode(row.internal_code),
+      },
       ...(category.table === 'cutting_discs' ? [{
         id: 'code',
         header: 'الكود',
@@ -160,10 +177,10 @@ function buildCategoryTableColumns({
 
   return [
     {
-      id: 'project_name',
-      header: category.table === 'cylinders' ? 'المشروع' : 'مشروع',
-      cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
-      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name ?? row.project),
+      id: 'internal_code',
+      header: 'كود الصنف',
+      cellClassName: 'whitespace-nowrap px-4 py-3',
+      renderCell: (row: CategorySummaryItem) => renderInternalCode(row.internal_code),
     },
     {
       id: 'item_name',
@@ -172,6 +189,12 @@ function buildCategoryTableColumns({
       renderCell: (row: CategorySummaryItem) => getDisplayValue(
         category.table === 'cylinders' ? row.type_name ?? row.item_name : row.item_name,
       ),
+    },
+    {
+      id: 'project_name',
+      header: category.table === 'cylinders' ? 'المشروع' : 'مشروع',
+      cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
+      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name ?? row.project),
     },
     ...(category.table === 'screws' || category.table === 'stock_screws' ? [
       {
@@ -236,6 +259,7 @@ function buildCategoryTableColumns({
     {
       id: 'actions',
       header: 'الإجراءات',
+      headerClassName: 'px-4 py-3 text-center text-slate-700',
       cellClassName: 'px-4 py-3',
       renderCell: (row: CategorySummaryItem) => (
         <div className="flex flex-wrap justify-end gap-2">

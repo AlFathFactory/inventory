@@ -54,6 +54,11 @@ export function ItemCreateModal({
                 ? 'أدخل بيانات الصاروخ ثم احفظ السجل.'
                 : `أدخل بيانات الصنف داخل قسم ${category.label}`}
             </p>
+            {category.operationsEnabled ? (
+              <p className="mt-2 text-sm font-medium text-[var(--app-primary)]">
+                سيتم إنشاء كود الصنف تلقائيًا بعد الحفظ
+              </p>
+            ) : null}
           </div>
           <button
             type="button"

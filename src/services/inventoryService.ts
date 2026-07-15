@@ -860,6 +860,8 @@ export async function createInventoryItem(
 
     if (tableName === 'raw_materials') {
       payload.code_number = toText(values.code_number) || null
+      payload.project = toText(values.project) || null
+      payload.material_source = toText(values.material_source) || null
     }
 
     payload[itemNameField] = itemName
@@ -914,7 +916,40 @@ export async function createInventoryItem(
       return createFailure(error?.message || 'تعذر إضافة الصنف')
     }
 
-    return createSuccess(data as InventoryRow)
+    const createdItem = data as InventoryRow
+    const createdItemId = createdItem.id
+
+    if (typeof createdItemId !== 'string' && typeof createdItemId !== 'number') {
+      return createFailure('تعذر تحديد الصنف الجديد لإنشاء كود الصنف')
+    }
+
+    const { data: codeResult, error: codeError } = await supabaseClient!.rpc(
+      'generate_inventory_internal_code_rpc',
+      {
+        p_table_name: tableName,
+        p_item_id: createdItemId,
+      },
+    )
+
+    if (codeError) {
+      throw new Error(codeError.message)
+    }
+
+    const codeRecord = Array.isArray(codeResult) ? codeResult[0] : codeResult
+    const internalCode = codeRecord && typeof codeRecord === 'object'
+      && 'internal_code' in codeRecord
+      && typeof codeRecord.internal_code === 'string'
+      ? codeRecord.internal_code
+      : null
+
+    if (!internalCode) {
+      return createFailure('تم إنشاء الصنف لكن تعذر قراءة كود الصنف المُنشأ')
+    }
+
+    return createSuccess({
+      ...createdItem,
+      internal_code: internalCode,
+    })
   } catch (error) {
     return createFailure(normalizeError(error, `Failed to create item in "${tableName}".`))
   }

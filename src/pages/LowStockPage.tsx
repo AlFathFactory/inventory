@@ -121,6 +121,14 @@ function buildSearchText(
   row: InventoryRow,
   itemName: string,
 ) {
+  const universalSearchValues = [
+    row.internal_code,
+    row.item_name,
+    row.project_name ?? row.project,
+    row.material_source,
+    row.code_number,
+    row.din,
+  ]
   const searchableValues = category.searchableFields
     .map((field) => row[field])
     .map((value) => {
@@ -132,7 +140,7 @@ function buildSearchText(
     })
     .join(' ')
 
-  return [category.label, category.table, itemName, searchableValues]
+  return [category.label, category.table, itemName, ...universalSearchValues, searchableValues]
     .join(' ')
     .toLowerCase()
 }

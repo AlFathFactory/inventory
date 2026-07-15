@@ -35,8 +35,8 @@ function CustodyDetailsView({
   if (error || !record) return <div className="rounded-[28px] border border-red-200 bg-red-50 p-10 text-center text-sm text-red-600">{error instanceof Error ? error.message : 'سجل العهدة غير موجود'}</div>
 
   const fields = tableName === 'cutting_discs'
-    ? [['الكود', record.code], ['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['تاريخ التكهين', record.scrapped_date], ['المصدر', record.source_sheet]]
-    : [['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['المصدر', record.source_sheet]]
+    ? [['كود الصنف', record.internal_code], ['الكود', record.code], ['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['تاريخ التكهين', record.scrapped_date], ['المصدر', record.source_sheet]]
+    : [['كود الصنف', record.internal_code], ['النوع', record.type_name], ['المستلم', record.received_by], ['تاريخ الاستلام', record.received_date], ['المصدر', record.source_sheet]]
 
   return (
     <section dir="rtl" className="space-y-6">
@@ -108,6 +108,7 @@ export function ItemDetailsPage() {
           />
           <ItemMovementsSection
             category={category}
+            internalCode={page.details.internal_code}
             itemCode={page.details.code_number}
             filter={page.movementDateFilter}
             movements={page.filteredMovements}
