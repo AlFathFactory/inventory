@@ -3,6 +3,7 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
+import { saveOfflineOperation } from './offlineQueueService'
 
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
@@ -22,6 +23,7 @@ export type ApplyInventoryOperationParams = {
   receivedBy?: string
   notes?: string
   createdBy?: string
+  localItemId?: string | null
 }
 
 const allowedInventoryOperationTables = new Set([
@@ -196,7 +198,6 @@ async function refreshInventoryViews(client: ReturnType<typeof getClientOrThrow>
 export async function applyInventoryOperation(
   params: ApplyInventoryOperationParams,
 ) {
-  const client = getClientOrThrow()
   const quantity = Number(params.quantity)
 
   if (!params.tableName || params.itemId === null || params.itemId === undefined || String(params.itemId).trim() === '') {
@@ -217,6 +218,32 @@ export async function applyInventoryOperation(
         : 'الكمية مطلوبة ويجب أن تكون أكبر من صفر',
     )
   }
+
+  if (!navigator.onLine) {
+    await saveOfflineOperation({
+      tableName: params.tableName,
+      itemId: params.localItemId ? null : params.itemId,
+      localItemId: params.localItemId,
+      operationType: params.operationType,
+      quantity,
+      payload: {
+        operationDate: params.operationDate,
+        projectName: params.projectName ?? null,
+        categoryName: params.categoryName ?? null,
+        itemName: params.itemName,
+        supplierName: params.supplierName ?? null,
+        purchaseOrderNumber: params.purchaseOrderNumber ?? null,
+        issuedTo: params.issuedTo ?? null,
+        receivedBy: params.receivedBy ?? null,
+        itemCode: params.itemCode ?? null,
+        notes: params.notes ?? null,
+        createdBy: 'offline-user',
+      },
+    })
+    return { ok: true, offline: true }
+  }
+
+  const client = getClientOrThrow()
 
   console.log('Operation payload', params)
 

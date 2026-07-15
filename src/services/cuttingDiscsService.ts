@@ -3,6 +3,7 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
+import { generateInventoryInternalCode } from './inventoryCodeService'
 
 export type CuttingDiscInput = {
   code: string | null
@@ -59,7 +60,12 @@ export async function createCuttingDisc(
 
   if (error) return { data: null, error: error.message }
   if (!data) return { data: null, error: 'تعذر إضافة سجل الصاروخ' }
-  return { data: data as CuttingDiscRecord, error: null }
+  try {
+    const internalCode = await generateInventoryInternalCode('cutting_discs', data.id)
+    return { data: { ...data, internal_code: internalCode } as CuttingDiscRecord, error: null }
+  } catch (codeError) {
+    return { data: null, error: codeError instanceof Error ? codeError.message : 'تعذر إنشاء كود الصنف' }
+  }
 }
 
 export async function updateCuttingDisc(

@@ -41,14 +41,17 @@ function stopPropagation(action: () => void) {
   }
 }
 
-function renderInternalCode(value: string | null | undefined) {
+function renderInternalCode(value: string | null | undefined, offlineState?: string | number | null) {
   return (
-    <span
-      dir="ltr"
-      onClick={(event) => event.stopPropagation()}
-      className="inline-block select-all font-mono font-semibold text-slate-700"
-    >
-      {getDisplayValue(value)}
+    <span className="flex flex-col items-start gap-1">
+      <span dir="ltr" onClick={(event) => event.stopPropagation()} className="inline-block select-all font-mono font-semibold text-slate-700">
+        {getDisplayValue(value)}
+      </span>
+      {offlineState ? (
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${offlineState === 'failed' ? 'bg-red-50 text-red-700' : offlineState === 'local' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-700'}`}>
+          {offlineState === 'failed' ? 'فشل الرفع' : offlineState === 'local' ? 'صنف محفوظ محليًا' : offlineState === 'edited' ? 'تم تعديله محليًا' : 'في انتظار المزامنة'}
+        </span>
+      ) : null}
     </span>
   )
 }
@@ -80,7 +83,7 @@ function buildCategoryTableColumns({
       {
         id: 'internal_code',
         header: 'كود الصنف',
-        renderCell: (row) => renderInternalCode(row.internal_code),
+        renderCell: (row) => renderInternalCode(row.internal_code, row.offline_state),
       },
       ...(category.table === 'cutting_discs' ? [{
         id: 'code',
@@ -187,7 +190,7 @@ function buildCategoryTableColumns({
       id: 'internal_code',
       header: 'كود الصنف',
       cellClassName: 'whitespace-nowrap px-4 py-3',
-      renderCell: (row: CategorySummaryItem) => renderInternalCode(row.internal_code),
+      renderCell: (row: CategorySummaryItem) => renderInternalCode(row.internal_code, row.offline_state),
     },
     {
       id: 'item_name',

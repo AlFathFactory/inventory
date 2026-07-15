@@ -11,6 +11,9 @@ import { createLongWeldingGlove } from '../../../services/longWeldingGlovesServi
 import { createCuttingDisc } from '../../../services/cuttingDiscsService'
 import { invalidateCategoryData } from '../../inventory/inventoryCache'
 import type { SetCategoryMessage } from './categoryHookTypes'
+import { saveOfflineItem } from '../../../services/offlineQueueService'
+import { generateTempInternalCode } from '../../../utils/tempCode'
+import { addOfflineItemToCache } from '../../inventory/offlineCache'
 
 type UseCategoryCreateOptions = {
   category: CategoryDefinition | null
@@ -114,6 +117,42 @@ export function useCategoryCreate({
 
       preparedValues.supplier_name = form.supplierName?.trim() || null
 
+      if (!navigator.onLine) {
+        const itemNameField = String(category.itemNameField ?? 'item_name')
+        const itemName = String(preparedValues[itemNameField] ?? form.type_name ?? form.item_name ?? '').trim()
+        const project = String(preparedValues.project ?? '').trim() || null
+        const stockField = category.table === 'cylinders' ? 'gas_balance' : 'stock_balance'
+        const initialBalance = Number(preparedValues[stockField] ?? 0)
+        const isCustody = category.table === 'cutting_discs' || category.table === 'long_welding_gloves'
+        const payload: Record<string, unknown> = {
+          ...preparedValues,
+          ...(!isCustody ? { item_key: [category.table, project ?? '', itemName,
+              preparedValues.din ?? '', preparedValues.code_number ?? '',
+              preparedValues.material_source ?? ''].join('::').toLowerCase() } : {}),
+          [itemNameField]: itemName,
+          ...(category.table === 'cylinders' ? {
+            type_name: itemName, gas_balance: initialBalance, stock_balance: initialBalance,
+            empty_count: Number(preparedValues.empty_count ?? 0),
+            full_count: Number(preparedValues.full_count ?? 0),
+          } : category.stockField ? {
+            stock_balance: initialBalance, added: initialBalance,
+            total_added: initialBalance, total_issued: 0,
+          } : {}),
+        }
+        const offlineItem = await saveOfflineItem({
+          tableName: category.table,
+          internalCode: generateTempInternalCode(category.table),
+          itemName,
+          project,
+          materialSource: String(preparedValues.material_source ?? '').trim() || null,
+          payload,
+        })
+        addOfflineItemToCache(queryClient, offlineItem)
+        close()
+        setMessage({ type: 'success', text: 'تم حفظ الصنف محليًا وسيتم رفعه عند عودة الإنترنت' })
+        return
+      }
+
       const result = category.table === 'cutting_discs'
         ? await createCuttingDisc({
             code: form.code?.trim() || null,
@@ -144,9 +183,9 @@ export function useCategoryCreate({
       setMessage({
         type: 'success',
         text: category.table === 'cutting_discs'
-          ? 'تم إضافة الصاروخ بنجاح'
+          ? `تمت إضافة الصاروخ بنجاح بكود: ${String(result.data?.internal_code ?? '')}`
           : category.table === 'long_welding_gloves'
-          ? 'تمت إضافة سجل العهدة بنجاح'
+          ? `تمت إضافة سجل العهدة بنجاح بكود: ${String(result.data?.internal_code ?? '')}`
           : `تم إنشاء الصنف بكود: ${String(result.data?.internal_code ?? '')}`,
       })
     } finally {

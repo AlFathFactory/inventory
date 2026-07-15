@@ -8,6 +8,7 @@ import {
   validateOperationForm,
 } from '../../inventory-operations/operationForm'
 import type { ItemMovement } from '../../../services/itemsService'
+import type { ItemDetails } from '../../../services/itemsService'
 import {
   applyInventoryOperation,
   type InventoryOperationType,
@@ -23,6 +24,7 @@ import {
   getInclusiveDateEndTimestamp,
 } from '../itemDetailsUtils'
 import type { ItemDetailsMessage, ItemMovementsDateFilterValue } from '../types'
+import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
 
 const emptyMovements: ItemMovement[] = []
 
@@ -139,6 +141,7 @@ export function useItemDetailsPage(
 
     setIsSubmitting(true)
     try {
+      const isOffline = !navigator.onLine
       await applyInventoryOperation({
         tableName: operationTableName,
         categoryName: details.category_name || category.label,
@@ -166,13 +169,29 @@ export function useItemDetailsPage(
         issuedTo:
           operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
         notes: form.notes.trim() || undefined,
+        localItemId: details.offline_state === 'local' ? String(operationItemId) : null,
       })
-      await invalidateItemData(queryClient, category.table, itemId)
+      if (isOffline) {
+        const currentBalance = Number(details.stock_balance ?? details.gas_balance ?? 0)
+        const quantity = Number(form.quantity)
+        const balance = operationType === 'add'
+          ? currentBalance + quantity
+          : operationType === 'issue' ? currentBalance - quantity : quantity
+        queryClient.setQueryData<ItemDetails>(inventoryKeys.item(category.table, itemId), {
+          ...details, stock_balance: balance,
+          ...(category.table === 'cylinders' ? { gas_balance: balance } : {}),
+          offline_state: details.offline_state === 'local' ? 'local' : 'pending',
+        })
+      } else {
+        await invalidateItemData(queryClient, category.table, itemId)
+      }
       closeOperationModal()
       setMessage({
         type: 'success',
         text:
-          operationType === 'add'
+          isOffline
+            ? 'تم حفظ العملية محليًا وستتم مزامنتها عند عودة الإنترنت'
+            : operationType === 'add'
             ? 'تمت إضافة الكمية بنجاح'
             : operationType === 'issue'
               ? 'تم صرف الكمية بنجاح'
@@ -188,13 +207,15 @@ export function useItemDetailsPage(
     }
   }
 
-  async function handleEditSuccess(balanceChanged: boolean) {
+  async function handleEditSuccess(balanceChanged: boolean, wasOffline = false) {
     if (!category || !itemId) return
     setIsEditOpen(false)
     await invalidateItemData(queryClient, category.table, itemId)
     setMessage({
       type: 'success',
-      text: balanceChanged
+      text: wasOffline
+        ? 'تم حفظ التعديل محليًا وستتم مزامنته عند عودة الإنترنت'
+        : balanceChanged
         ? 'تم تعديل بيانات الصنف والرصيد وتسجيل حركة الجرد بنجاح'
         : 'تم تعديل بيانات الصنف بنجاح',
     })

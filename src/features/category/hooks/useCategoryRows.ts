@@ -1,17 +1,24 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { liveQuery } from 'dexie'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import { usePagination } from '../../../hooks/usePagination'
 import type { CategorySummaryItem } from '../../../services/itemsService'
 import { categoryQueryOptions } from '../../inventory/inventoryQueries'
 import { useActiveProjects } from '../../projects/projectQueries'
 import { filterCategoryRows, filterCategoryRowsByProject } from '../utils/categoryRows'
+import { offlineDb, type OfflineItem, type OfflineOperation } from '../../../lib/offlineDb'
+import { projectOfflineChanges } from '../../inventory/offlineCache'
+import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 
 const emptyCategoryRows: CategorySummaryItem[] = []
 
 export function useCategoryRows(category: CategoryDefinition | null) {
+  const { isOnline } = useNetworkStatus()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProjectName, setSelectedProjectName] = useState('')
+  const [offlineItems, setOfflineItems] = useState<OfflineItem[]>([])
+  const [offlineOperations, setOfflineOperations] = useState<OfflineOperation[]>([])
   const query = useQuery({
     ...(category
       ? categoryQueryOptions(category)
@@ -24,7 +31,23 @@ export function useCategoryRows(category: CategoryDefinition | null) {
   const projectsQuery = useActiveProjects(Boolean(
     category?.createFields?.some((field) => String(field.key) === 'project'),
   ))
-  const rows = query.data ?? emptyCategoryRows
+  useEffect(() => {
+    if (!category) return
+    setOfflineItems([])
+    setOfflineOperations([])
+    const subscription = liveQuery(async () => Promise.all([
+      offlineDb.offline_items.where('tableName').equals(category.table).toArray(),
+      offlineDb.offline_operations.where('tableName').equals(category.table).toArray(),
+    ])).subscribe(([items, operations]) => {
+      setOfflineItems(items)
+      setOfflineOperations(operations)
+    })
+    return () => subscription.unsubscribe()
+  }, [category])
+  const rows = useMemo(
+    () => projectOfflineChanges(query.data ?? emptyCategoryRows, offlineItems, offlineOperations),
+    [offlineItems, offlineOperations, query.data],
+  )
   const deferredSearchTerm = useDeferredValue(searchTerm)
 
   useEffect(() => {
@@ -45,8 +68,8 @@ export function useCategoryRows(category: CategoryDefinition | null) {
     rows,
     filteredRows,
     pagination,
-    isLoading: query.isPending,
-    error: query.error instanceof Error ? query.error.message : null,
+    isLoading: query.isPending && isOnline,
+    error: isOnline && query.error instanceof Error ? query.error.message : null,
     searchTerm,
     setSearchTerm,
     projectOptions,

@@ -7,6 +7,7 @@ import { getCategoryByTable } from '../config/categoryConfig'
 import type { ParsedInventoryRow, ParsedRowsByTable } from '../utils/excelParser'
 import type { NormalizedInventoryImport, NormalizedImportItem } from '../utils/jsonImportParser'
 import { getExpiryAlertStatus } from '../utils/expiryStatus'
+import { generateInventoryInternalCode } from './inventoryCodeService'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -924,28 +925,7 @@ export async function createInventoryItem(
       return createFailure('تعذر تحديد الصنف الجديد لإنشاء كود الصنف')
     }
 
-    const { data: codeResult, error: codeError } = await supabaseClient!.rpc(
-      'generate_inventory_internal_code_rpc',
-      {
-        p_table_name: tableName,
-        p_item_id: createdItemId,
-      },
-    )
-
-    if (codeError) {
-      throw new Error(codeError.message)
-    }
-
-    const codeRecord = Array.isArray(codeResult) ? codeResult[0] : codeResult
-    const internalCode = codeRecord && typeof codeRecord === 'object'
-      && 'internal_code' in codeRecord
-      && typeof codeRecord.internal_code === 'string'
-      ? codeRecord.internal_code
-      : null
-
-    if (!internalCode) {
-      return createFailure('تم إنشاء الصنف لكن تعذر قراءة كود الصنف المُنشأ')
-    }
+    const internalCode = await generateInventoryInternalCode(tableName, createdItemId)
 
     return createSuccess({
       ...createdItem,

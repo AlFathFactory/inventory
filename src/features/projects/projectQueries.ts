@@ -1,5 +1,6 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { getActiveProjects, getProjects, getUnregisteredItemProjectNames } from '../../services/projectsService'
+import { getCachedProjects } from '../../services/offlineBootstrapService'
 
 export const projectKeys = {
   all: ['projects'] as const,
@@ -14,12 +15,16 @@ function requireData<T>(result: { data: T | null; error: string | null }) {
 
 export const projectsQueryOptions = queryOptions({
   queryKey: projectKeys.all,
-  queryFn: async () => requireData(await getProjects()),
+  queryFn: async () => navigator.onLine
+    ? requireData(await getProjects())
+    : getCachedProjects(),
 })
 
 export const activeProjectsQueryOptions = queryOptions({
   queryKey: projectKeys.active,
-  queryFn: async () => requireData(await getActiveProjects()),
+  queryFn: async () => navigator.onLine
+    ? requireData(await getActiveProjects())
+    : getCachedProjects(true),
 })
 
 export const unregisteredProjectsQueryOptions = queryOptions({

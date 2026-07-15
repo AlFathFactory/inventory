@@ -5,6 +5,7 @@ import { updateItemDetails, type ItemDetails } from '../../services/itemsService
 import { updateLongWeldingGlove } from '../../services/longWeldingGlovesService'
 import { updateCuttingDisc } from '../../services/cuttingDiscsService'
 import { useActiveProjects } from '../projects/projectQueries'
+import { saveOfflineOperation } from '../../services/offlineQueueService'
 
 type EditField = {
   key: string
@@ -102,7 +103,7 @@ type Props = {
   itemId: string
   itemData: ItemDetails
   onClose: () => void
-  onSuccess: (balanceChanged: boolean) => void | Promise<void>
+  onSuccess: (balanceChanged: boolean, wasOffline?: boolean) => void | Promise<void>
 }
 
 function initialValue(item: ItemDetails, key: string) {
@@ -217,6 +218,20 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     }
     setIsSubmitting(true)
     setSubmitError(null)
+    if (!navigator.onLine) {
+      delete patch.internal_code
+      await saveOfflineOperation({
+        tableName: category.table,
+        itemId: itemData.offline_state === 'local' ? null : itemId,
+        localItemId: itemData.offline_state === 'local' ? itemId : null,
+        operationType: 'edit_item',
+        quantity: null,
+        payload: patch,
+      })
+      setIsSubmitting(false)
+      await onSuccess(balanceChanged, true)
+      return
+    }
     const result = category.table === 'cutting_discs'
       ? await updateCuttingDisc(itemId, {
           code: form.code?.trim() || null,

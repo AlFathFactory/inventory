@@ -85,8 +85,11 @@ export function useCategoryOperation({
     setQuickAction(null)
     setIsPreparing(true)
     setMessage(null)
-    const result = await queryClient
-      .fetchQuery(itemQueryOptions(item.tableName, String(item.itemId)))
+    const result = await (navigator.onLine
+      ? queryClient.fetchQuery(itemQueryOptions(item.tableName, String(item.itemId)))
+      : Promise.resolve(queryClient.getQueryData<ItemDetails>(
+          ['inventory', 'item', item.tableName, String(item.itemId)],
+        ) ?? row as ItemDetails))
       .then((data) => ({ data, error: null }))
       .catch((error: unknown) => ({
         data: null,
@@ -124,6 +127,7 @@ export function useCategoryOperation({
 
     setIsSubmitting(true)
     try {
+      const isOffline = !navigator.onLine
       await applyInventoryOperation({
         tableName: selectedItem.tableName,
         categoryName: selectedItem.categoryName,
@@ -147,17 +151,24 @@ export function useCategoryOperation({
           : undefined,
         issuedTo: operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
         notes: form.notes.trim() || undefined,
+        localItemId: selectedItem.offline_state === 'local'
+          ? String(selectedItem.itemId)
+          : null,
       })
 
-      await invalidateItemData(
-        queryClient,
-        selectedItem.tableName,
-        String(selectedItem.itemId),
-      )
+      if (!isOffline) {
+        await invalidateItemData(queryClient, selectedItem.tableName, String(selectedItem.itemId))
+      }
       close()
       setMessage({
         type: 'success',
-        text: operationType === 'add'
+        text: isOffline
+          ? operationType === 'add'
+            ? 'تم تسجيل الإضافة محليًا وستتم مزامنتها عند عودة الإنترنت'
+            : operationType === 'issue'
+              ? 'تم تسجيل الصرف محليًا وستتم مزامنته عند عودة الإنترنت'
+              : 'تم تسجيل الجرد محليًا وستتم مزامنته عند عودة الإنترنت'
+          : operationType === 'add'
           ? 'تمت إضافة الكمية بنجاح'
           : operationType === 'issue'
             ? 'تم صرف الكمية بنجاح'

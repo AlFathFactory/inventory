@@ -33,8 +33,9 @@ export function useCategoryEdit({
     setIsPreparing(true)
     setMessage(null)
     const itemId = String(row.item_id)
-    const result = await (
-      category.table === 'long_welding_gloves' || category.table === 'cutting_discs'
+    const result = await (!navigator.onLine
+      ? Promise.resolve(row as ItemDetails)
+      : category.table === 'long_welding_gloves' || category.table === 'cutting_discs'
         ? queryClient.fetchQuery(custodyItemQueryOptions(category.table, itemId))
         : queryClient.fetchQuery(itemQueryOptions(category.table, itemId))
     )
@@ -69,18 +70,18 @@ export function useCategoryEdit({
     } as ItemDetails : result.data as ItemDetails)
   }
 
-  async function handleSuccess(balanceChanged: boolean) {
+  async function handleSuccess(balanceChanged: boolean, wasOffline = false) {
     if (!category || !editingItem) return
 
-    await invalidateItemData(
-      queryClient,
-      category.table,
-      String(editingItem.item_id),
-    )
+    if (!wasOffline) {
+      await invalidateItemData(queryClient, category.table, String(editingItem.item_id))
+    }
     setEditingItem(null)
     setMessage({
       type: 'success',
-      text: category.table === 'cutting_discs'
+      text: wasOffline
+        ? 'تم حفظ التعديل محليًا وستتم مزامنته عند عودة الإنترنت'
+        : category.table === 'cutting_discs'
         ? 'تم تعديل الصاروخ بنجاح'
         : category.table === 'long_welding_gloves'
         ? 'تم تعديل سجل العهدة بنجاح'

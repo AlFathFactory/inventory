@@ -3,6 +3,7 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
+import { generateInventoryInternalCode } from './inventoryCodeService'
 
 export type LongWeldingGloveInput = {
   type_name: string
@@ -45,9 +46,13 @@ export async function createLongWeldingGlove(
     .insert(values)
     .select()
     .single()
-  return error
-    ? { data: null, error: error.message }
-    : { data: data as LongWeldingGloveRecord, error: null }
+  if (error) return { data: null, error: error.message }
+  try {
+    const internalCode = await generateInventoryInternalCode('long_welding_gloves', data.id)
+    return { data: { ...data, internal_code: internalCode } as LongWeldingGloveRecord, error: null }
+  } catch (codeError) {
+    return { data: null, error: codeError instanceof Error ? codeError.message : 'تعذر إنشاء كود الصنف' }
+  }
 }
 
 export async function updateLongWeldingGlove(

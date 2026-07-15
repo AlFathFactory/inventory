@@ -8,6 +8,18 @@ import {
 } from '../../services/itemsService'
 import { loadCategoryRows } from '../category/utils/categoryRows'
 import { inventoryKeys } from './inventoryQueryKeys'
+import { getCachedCategoryRows } from '../../services/offlineBootstrapService'
+import { offlineDb } from '../../lib/offlineDb'
+import { projectOfflineChanges } from './offlineCache'
+
+async function getProjectedCachedCategoryRows(tableName: string) {
+  const [rows, items, operations] = await Promise.all([
+    getCachedCategoryRows(tableName),
+    offlineDb.offline_items.where('tableName').equals(tableName).toArray(),
+    offlineDb.offline_operations.where('tableName').equals(tableName).toArray(),
+  ])
+  return projectOfflineChanges(rows, items, operations)
+}
 
 function requireData<T>(result: { data: T | null; error: string | null }): T {
   if (result.error || result.data === null) {
@@ -20,21 +32,31 @@ function requireData<T>(result: { data: T | null; error: string | null }): T {
 export function categoryQueryOptions(category: CategoryDefinition) {
   return queryOptions({
     queryKey: inventoryKeys.category(category.table),
-    queryFn: async () => requireData(await loadCategoryRows(category)),
+    queryFn: async () => navigator.onLine
+      ? requireData(await loadCategoryRows(category))
+      : getCachedCategoryRows(category.table),
   })
 }
 
 export function itemQueryOptions(tableName: string, itemId: string) {
   return queryOptions({
     queryKey: inventoryKeys.item(tableName, itemId),
-    queryFn: async () => requireData(await getItemDetails(tableName, itemId)),
+    queryFn: async () => {
+      if (navigator.onLine) return requireData(await getItemDetails(tableName, itemId))
+      const item = (await getProjectedCachedCategoryRows(tableName))
+        .find((row) => String(row.item_id) === itemId)
+      if (!item) throw new Error('الصنف غير موجود في البيانات المحلية')
+      return item
+    },
   })
 }
 
 export function movementsQueryOptions(tableName: string, itemId: string) {
   return queryOptions({
     queryKey: inventoryKeys.movements(tableName, itemId),
-    queryFn: async () => requireData(await getItemMovements(tableName, itemId)),
+    queryFn: async () => navigator.onLine
+      ? requireData(await getItemMovements(tableName, itemId))
+      : [],
   })
 }
 
@@ -44,6 +66,12 @@ export function custodyItemQueryOptions(
 ) {
   return queryOptions({
     queryKey: inventoryKeys.custodyItem(tableName, itemId),
-    queryFn: async () => requireData(await getCustodyRecord(tableName, itemId)),
+    queryFn: async () => {
+      if (navigator.onLine) return requireData(await getCustodyRecord(tableName, itemId))
+      const item = (await getProjectedCachedCategoryRows(tableName))
+        .find((row) => String(row.item_id) === itemId)
+      if (!item) throw new Error('سجل العهدة غير موجود في البيانات المحلية')
+      return item
+    },
   })
 }

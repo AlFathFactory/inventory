@@ -8,6 +8,7 @@ import { ItemCodeGuidePage } from '../pages/ItemCodeGuidePage'
 import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
+import { SyncCenterPage } from '../pages/SyncCenterPage'
 
 // Hash routing keeps every request on index.html, so deep links continue to
 // work when the static host is not configured with an SPA fallback.
@@ -35,6 +36,10 @@ const router = createHashRouter([
       {
         path: 'projects',
         element: <ProjectsPage />,
+      },
+      {
+        path: 'sync-center',
+        element: <SyncCenterPage />,
       },
       {
         path: 'out-of-stock',
