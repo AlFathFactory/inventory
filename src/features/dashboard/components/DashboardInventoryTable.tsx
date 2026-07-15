@@ -1,5 +1,4 @@
 import { DataTable, type DataTableColumn } from '../../../components/DataTable'
-import { InventoryDateCell } from '../../../components/InventoryDateCell'
 import { TablePagination } from '../../../components/TablePagination'
 import {
   getStockStatusClass,
@@ -42,32 +41,6 @@ const columns: DataTableColumn<DashboardInventoryRow>[] = [
     id: 'projectName',
     header: 'المشروع',
     renderCell: (row) => row.projectName ?? '—',
-  },
-  {
-    id: 'dateLabel',
-    header: 'التاريخ',
-    renderCell: (row) => (
-      <InventoryDateCell
-        dateLabel={row.dateLabel}
-        hasAdded={row.addedQuantity !== null && row.addedQuantity !== 0}
-        hasIssued={row.issuedQuantity !== null && row.issuedQuantity !== 0}
-      />
-    ),
-  },
-  {
-    id: 'addedQuantity',
-    header: 'إضافة',
-    renderCell: (row) => formatNumber(row.addedQuantity),
-  },
-  {
-    id: 'issuedQuantity',
-    header: 'صرف',
-    renderCell: (row) => formatNumber(row.issuedQuantity),
-  },
-  {
-    id: 'stockBalance',
-    header: 'الرصيد',
-    renderCell: (row) => formatNumber(row.stockBalance),
   },
   {
     id: 'minQuantity',
