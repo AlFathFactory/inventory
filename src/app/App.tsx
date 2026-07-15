@@ -4,6 +4,7 @@ import { CategoryPage } from '../pages/CategoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ImportExcelPage } from '../pages/ImportExcelPage'
 import { ItemDetailsPage } from '../pages/ItemDetailsPage'
+import { ItemCodeGuidePage } from '../pages/ItemCodeGuidePage'
 import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 
@@ -25,6 +26,10 @@ const router = createHashRouter([
       {
         path: 'low-stock',
         element: <LowStockPage />,
+      },
+      {
+        path: 'item-code-guide',
+        element: <ItemCodeGuidePage />,
       },
       {
         path: 'out-of-stock',

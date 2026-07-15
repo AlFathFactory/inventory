@@ -159,6 +159,21 @@ function GloveIcon({ className = '' }: IconProps) {
   )
 }
 
+function GuideIcon({ className = '' }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+    >
+      <path d="M5 4.5h10.5A3.5 3.5 0 0 1 19 8v11.5H8.5A3.5 3.5 0 0 1 5 16V4.5Z" />
+      <path d="M8.5 16H19M9 8h6M9 11h5" />
+    </svg>
+  )
+}
+
 function ChevronDownIcon({ className = '' }: IconProps) {
   return (
     <svg
@@ -183,6 +198,8 @@ function getSidebarIcon(path: string) {
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
       return <AlertIcon className={iconClassName} />
+    case '/item-code-guide':
+      return <GuideIcon className={iconClassName} />
     case '/category/consumables':
       return <LayersIcon className={iconClassName} />
     case '/category/paints':
@@ -285,6 +302,14 @@ export function Sidebar() {
               icon={getSidebarIcon('/import')}
             />
           </SidebarGroup>
+
+          <div className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
+            <SidebarNavItem
+              to="/item-code-guide"
+              label="دليل أكواد الأصناف"
+              icon={getSidebarIcon('/item-code-guide')}
+            />
+          </div>
         </nav>
       </div>
     </aside>

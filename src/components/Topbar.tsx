@@ -19,6 +19,10 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     title: 'التنبيهات',
     subtitle: 'تنبيهات المخزون وصلاحية الدهانات التي تحتاج إلى متابعة',
   },
+  '/item-code-guide': {
+    title: 'دليل أكواد الأصناف',
+    subtitle: 'افهم معنى كود الصنف بسرعة وابحث عنه بسهولة داخل المخزن.',
+  },
   '/out-of-stock': {
     title: 'الأصناف المنتهية',
     subtitle: 'الأصناف التي رصيدها صفر وتحتاج إلى إجراء سريع',
