@@ -56,6 +56,11 @@ const columns: DataTableColumn<DashboardInventoryRow>[] = [
     renderCell: (row) => row.projectName ?? '—',
   },
   {
+    id: 'stockBalance',
+    header: 'الرصيد',
+    renderCell: (row) => formatNumber(row.stockBalance),
+  },
+  {
     id: 'minQuantity',
     header: 'الحد الأدنى',
     renderCell: (row) => formatNumber(row.minQuantity),
