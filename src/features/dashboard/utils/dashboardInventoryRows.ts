@@ -107,6 +107,7 @@ export function buildDashboardInventoryRows(
         return {
           id: `${category.table}-${itemId}`,
           itemId,
+          internalCode: extractStringValue(row.internal_code),
           categoryKey,
           categoryLabel: category.label,
           itemName,

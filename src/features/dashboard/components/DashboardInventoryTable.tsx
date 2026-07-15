@@ -26,6 +26,19 @@ function formatNumber(value: number | null) {
 
 const columns: DataTableColumn<DashboardInventoryRow>[] = [
   {
+    id: 'internalCode',
+    header: 'كود الصنف',
+    renderCell: (row) => (
+      <span
+        dir="ltr"
+        onClick={(event) => event.stopPropagation()}
+        className="inline-block select-all font-mono font-semibold text-slate-700"
+      >
+        {row.internalCode ?? '—'}
+      </span>
+    ),
+  },
+  {
     id: 'categoryLabel',
     header: 'القسم',
     renderCell: (row) => row.categoryLabel,
