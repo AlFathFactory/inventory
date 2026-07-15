@@ -15,6 +15,7 @@ function requireData<T>(result: { data: T | null; error: string | null }) {
 
 export const projectsQueryOptions = queryOptions({
   queryKey: projectKeys.all,
+  networkMode: 'always',
   queryFn: async () => navigator.onLine
     ? requireData(await getProjects())
     : getCachedProjects(),
@@ -22,6 +23,7 @@ export const projectsQueryOptions = queryOptions({
 
 export const activeProjectsQueryOptions = queryOptions({
   queryKey: projectKeys.active,
+  networkMode: 'always',
   queryFn: async () => navigator.onLine
     ? requireData(await getActiveProjects())
     : getCachedProjects(true),
@@ -29,7 +31,10 @@ export const activeProjectsQueryOptions = queryOptions({
 
 export const unregisteredProjectsQueryOptions = queryOptions({
   queryKey: projectKeys.unregistered,
-  queryFn: async () => requireData(await getUnregisteredItemProjectNames()),
+  networkMode: 'always',
+  queryFn: async () => navigator.onLine
+    ? requireData(await getUnregisteredItemProjectNames())
+    : [],
 })
 
 export function useActiveProjects(enabled = true) {

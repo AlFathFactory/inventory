@@ -32,6 +32,7 @@ function requireData<T>(result: { data: T | null; error: string | null }): T {
 export function categoryQueryOptions(category: CategoryDefinition) {
   return queryOptions({
     queryKey: inventoryKeys.category(category.table),
+    networkMode: 'always',
     queryFn: async () => navigator.onLine
       ? requireData(await loadCategoryRows(category))
       : getCachedCategoryRows(category.table),
@@ -41,6 +42,7 @@ export function categoryQueryOptions(category: CategoryDefinition) {
 export function itemQueryOptions(tableName: string, itemId: string) {
   return queryOptions({
     queryKey: inventoryKeys.item(tableName, itemId),
+    networkMode: 'always',
     queryFn: async () => {
       if (navigator.onLine) return requireData(await getItemDetails(tableName, itemId))
       const item = (await getProjectedCachedCategoryRows(tableName))
@@ -54,6 +56,7 @@ export function itemQueryOptions(tableName: string, itemId: string) {
 export function movementsQueryOptions(tableName: string, itemId: string) {
   return queryOptions({
     queryKey: inventoryKeys.movements(tableName, itemId),
+    networkMode: 'always',
     queryFn: async () => navigator.onLine
       ? requireData(await getItemMovements(tableName, itemId))
       : [],
@@ -66,6 +69,7 @@ export function custodyItemQueryOptions(
 ) {
   return queryOptions({
     queryKey: inventoryKeys.custodyItem(tableName, itemId),
+    networkMode: 'always',
     queryFn: async () => {
       if (navigator.onLine) return requireData(await getCustodyRecord(tableName, itemId))
       const item = (await getProjectedCachedCategoryRows(tableName))
