@@ -6,6 +6,7 @@ import { getInventoryRowDateTimestamp } from '../utils/dashboardInventoryRows'
 type DashboardInventoryFilters = {
   searchTerm: string
   categoryKey: string
+  projectName: string
   fromDate: string
   toDate: string
 }
@@ -24,6 +25,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
   const [filters, setFilters] = useState<DashboardInventoryFilters>({
     searchTerm: '',
     categoryKey: 'all',
+    projectName: 'all',
     fromDate: '',
     toDate: '',
   })
@@ -43,6 +45,13 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
       if (
         filters.categoryKey !== 'all' &&
         row.categoryKey !== filters.categoryKey
+      ) {
+        return false
+      }
+
+      if (
+        filters.projectName !== 'all' &&
+        row.projectName !== filters.projectName
       ) {
         return false
       }
@@ -69,7 +78,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
 
       return true
     })
-  }, [filters.categoryKey, filters.fromDate, filters.toDate, normalizedSearchTerm, rows])
+  }, [filters.categoryKey, filters.fromDate, filters.projectName, filters.toDate, normalizedSearchTerm, rows])
 
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
 
@@ -81,6 +90,8 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
       setFilters((currentValue) => ({ ...currentValue, searchTerm })),
     setCategoryKey: (categoryKey: string) =>
       setFilters((currentValue) => ({ ...currentValue, categoryKey })),
+    setProjectName: (projectName: string) =>
+      setFilters((currentValue) => ({ ...currentValue, projectName })),
     setFromDate: (fromDate: string) =>
       setFilters((currentValue) => ({ ...currentValue, fromDate })),
     setToDate: (toDate: string) =>
@@ -89,6 +100,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
       setFilters({
         searchTerm: '',
         categoryKey: 'all',
+        projectName: 'all',
         fromDate: '',
         toDate: '',
       }),

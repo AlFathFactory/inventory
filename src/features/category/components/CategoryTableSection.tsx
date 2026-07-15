@@ -15,6 +15,9 @@ type CategoryTableSectionProps = {
   message: CategoryMessage
   searchTerm: string
   onSearchChange: (value: string) => void
+  projectOptions: string[]
+  selectedProjectName: string
+  onProjectChange: (value: string) => void
   rows: CategorySummaryItem[]
   pagination: CategoryPageModel['pagination']
   isLoading: boolean
@@ -31,6 +34,9 @@ export function CategoryTableSection({
   message,
   searchTerm,
   onSearchChange,
+  projectOptions,
+  selectedProjectName,
+  onProjectChange,
   rows,
   pagination,
   isLoading,
@@ -57,8 +63,18 @@ export function CategoryTableSection({
           ? 'ابحث بالكود أو النوع أو المستلم أو الملاحظات'
           : isCustodyCategory
           ? 'ابحث بالكود أو النوع أو المستلم أو المصدر'
-          : 'ابحث بكود الصنف أو اسم الصنف أو المشروع أو المصدر أو الكود الخارجي أو DIN'}
-      />
+          : 'ابحث بكود الصنف أو اسم الصنف أو المشروع أو المورد أو المصدر أو الكود الخارجي أو DIN'}
+      >
+        {!isCustodyCategory ? (
+          <label className="min-w-[200px] flex-[0_1_240px] space-y-2">
+            <span className="block text-sm font-medium text-slate-700">المشروع</span>
+            <select value={selectedProjectName} onChange={(event) => onProjectChange(event.target.value)} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400">
+              <option value="">كل المشاريع</option>
+              {projectOptions.map((projectName) => <option key={projectName} value={projectName}>{projectName}</option>)}
+            </select>
+          </label>
+        ) : null}
+      </DataFilters>
 
       {isLoading ? <StatusPanel>جاري تحميل البيانات...</StatusPanel> : null}
       {isPreparingOperation ? <StatusPanel compact>جاري تجهيز بيانات الصنف...</StatusPanel> : null}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
@@ -56,15 +56,6 @@ export function useItemDetailsPage(
     if (!category || !itemId) return
     await Promise.all([itemQuery.refetch(), movementsQuery.refetch()])
   }, [category, itemId, itemQuery, movementsQuery])
-
-  useEffect(() => {
-    if (!details) return
-    setForm((current) => ({
-      ...current,
-      projectName:
-        details.project_name ?? details.project ?? current.projectName,
-    }))
-  }, [details])
 
   const monthlyMovementSummaries = useMemo(
     () => buildMonthlyMovementSummaries(movements),
@@ -159,7 +150,6 @@ export function useItemDetailsPage(
         projectName:
           details.project_name ||
           details.project ||
-          form.projectName.trim() ||
           undefined,
         itemCode:
           category.table === 'raw_materials' ||

@@ -13,11 +13,13 @@ import {
 } from '../lib/supabaseClient'
 import { categoryConfig } from '../config/categoryConfig'
 import { prefetchInventoryItem } from '../features/inventory/inventoryCache'
+import { useActiveProjects } from '../features/projects/projectQueries'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { data, isLoading, error } = useDashboardData()
+  const projectsQuery = useActiveProjects()
   const inventoryTable = useDashboardInventoryTable(data.inventoryRows)
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
 
@@ -96,10 +98,13 @@ export function DashboardPage() {
           <DashboardInventoryFilters
             searchValue={inventoryTable.filters.searchTerm}
             categoryValue={inventoryTable.filters.categoryKey}
+            projectValue={inventoryTable.filters.projectName}
+            projectOptions={(projectsQuery.data ?? []).map((project) => project.name)}
             fromDate={inventoryTable.filters.fromDate}
             toDate={inventoryTable.filters.toDate}
             onSearchChange={inventoryTable.setSearchTerm}
             onCategoryChange={inventoryTable.setCategoryKey}
+            onProjectChange={inventoryTable.setProjectName}
             onFromDateChange={inventoryTable.setFromDate}
             onToDateChange={inventoryTable.setToDate}
             onClear={inventoryTable.clearFilters}

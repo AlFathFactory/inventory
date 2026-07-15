@@ -71,6 +71,9 @@ export function CategoryPage() {
         message={model.message}
         searchTerm={model.searchTerm}
         onSearchChange={model.setSearchTerm}
+        projectOptions={model.projectOptions}
+        selectedProjectName={model.selectedProjectName}
+        onProjectChange={model.setSelectedProjectName}
         rows={model.filteredRows}
         pagination={model.pagination}
         isLoading={model.isLoading}

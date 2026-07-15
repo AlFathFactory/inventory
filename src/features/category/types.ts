@@ -12,6 +12,5 @@ export type SelectedInventoryItem = CategorySummaryItem & {
   itemId: string | number
   tableName: string
   itemName: string | null
-  projectName: string | null
   categoryName: string
 }

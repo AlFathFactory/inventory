@@ -4,7 +4,6 @@ import { getLocalDateString } from '../../utils/dateUtils'
 export type OperationFormState = {
   quantity: string
   operationDate: string
-  projectName: string
   supplierName: string
   purchaseOrderNumber: string
   issuedTo: string
@@ -76,12 +75,11 @@ export function getOperationTypeLabel(operationType: string | null) {
 }
 
 export function createInitialOperationFormState(
-  details: ItemSnapshot | null,
+  _details: ItemSnapshot | null,
 ): OperationFormState {
   return {
     quantity: '',
     operationDate: getTodayValue(),
-    projectName: details?.project_name ?? details?.project ?? '',
     supplierName: '',
     purchaseOrderNumber: '',
     issuedTo: '',
@@ -114,10 +112,6 @@ export function validateOperationForm({
 
   if (!form.operationDate) {
     nextErrors.operationDate = 'التاريخ مطلوب'
-  }
-
-  if ((operationType === 'add' || operationType === 'issue') && !form.projectName.trim()) {
-    nextErrors.projectName = 'اسم المشروع مطلوب'
   }
 
   if (operationType === 'add' && !form.supplierName.trim()) {

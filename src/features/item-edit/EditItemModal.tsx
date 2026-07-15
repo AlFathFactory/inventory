@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { CategoryDefinition } from '../../config/categoryConfig'
 import { updateItemDetails, type ItemDetails } from '../../services/itemsService'
 import { updateLongWeldingGlove } from '../../services/longWeldingGlovesService'
 import { updateCuttingDisc } from '../../services/cuttingDiscsService'
+import { useActiveProjects } from '../projects/projectQueries'
 
 type EditField = {
   key: string
@@ -121,6 +123,9 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     () => [...(fieldsByTable[category.table] ?? []), supplierField],
     [category.table],
   )
+  const hasProjectField = fields.some((field) => field.key === 'project')
+  const projectsQuery = useActiveProjects(hasProjectField)
+  const activeProjects = projectsQuery.data ?? []
   const initialForm = useMemo(
     () => Object.fromEntries(fields.map((field) => [
       field.formKey ?? field.key,
@@ -257,7 +262,16 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           {fields.map((field) => (
             <label key={field.key} className={field.type === 'textarea' ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
               <span className="block text-sm font-semibold text-slate-700">{field.label}{field.required ? ' *' : ''}</span>
-              {field.type === 'textarea' ? (
+              {field.key === 'project' ? (
+                <>
+                  <select value={form[field.formKey ?? field.key] ?? ''} disabled={projectsQuery.isPending || activeProjects.length === 0} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]">
+                    <option value="">{activeProjects.length === 0 ? 'لا توجد مشاريع مسجلة، أضف مشروع أولًا' : 'اختر المشروع'}</option>
+                    {form.project && !activeProjects.some((project) => project.name === form.project) ? <option value={form.project}>{form.project} (غير مسجل أو غير نشط)</option> : null}
+                    {activeProjects.map((project) => <option key={project.id} value={project.name}>{project.name}</option>)}
+                  </select>
+                  <Link to="/projects" className="inline-flex text-xs font-bold text-[var(--app-primary)] hover:underline">+ إضافة مشروع جديد</Link>
+                </>
+              ) : field.type === 'textarea' ? (
                 <textarea value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} rows={3} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--app-primary)]" />
               ) : (
                 <input type={field.type ?? 'text'} name={field.formKey ?? field.key} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? 'any' : undefined} value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} placeholder={field.key === 'supplier_name' ? 'اكتب اسم المورد إن وجد' : undefined} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />

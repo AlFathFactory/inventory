@@ -123,3 +123,13 @@ export function filterCategoryRows(
     ),
   )
 }
+
+export function filterCategoryRowsByProject(
+  rows: CategorySummaryItem[],
+  selectedProjectName: string,
+) {
+  if (!selectedProjectName) return rows
+  return rows.filter(
+    (row) => (row.project_name ?? row.project ?? '') === selectedProjectName,
+  )
+}

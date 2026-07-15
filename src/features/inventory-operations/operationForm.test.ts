@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { validateOperationQuantity } from './operationForm'
+import {
+  createInitialOperationFormState,
+  validateOperationForm,
+  validateOperationQuantity,
+} from './operationForm'
 
 describe('validateOperationQuantity', () => {
   it.each(['add', 'issue'] as const)('%s requires a quantity greater than zero', (type) => {
@@ -20,5 +24,20 @@ describe('validateOperationQuantity', () => {
 
   it.each(['', '   '])('rejects empty input', (value) => {
     expect(validateOperationQuantity(value, 'adjust')).not.toBeNull()
+  })
+
+  it('does not require or accept a manually entered project', () => {
+    const form = {
+      ...createInitialOperationFormState({ project_name: null, stock_balance: 10 }),
+      quantity: '1',
+      supplierName: 'مورد',
+    }
+
+    expect(validateOperationForm({
+      details: { project_name: null, stock_balance: 10 },
+      form,
+      operationType: 'add',
+    })).toEqual({ isValid: true, errors: {} })
+    expect('projectName' in form).toBe(false)
   })
 })

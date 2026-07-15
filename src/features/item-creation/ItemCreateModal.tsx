@@ -1,5 +1,7 @@
 import type { CategoryDefinition } from '../../config/categoryConfig'
 import type { ItemCreateFormState } from './itemCreateForm'
+import { Link } from 'react-router-dom'
+import { useActiveProjects } from '../projects/projectQueries'
 
 type ItemCreateModalProps = {
   category: CategoryDefinition
@@ -40,6 +42,9 @@ export function ItemCreateModal({
 }: ItemCreateModalProps) {
   const createFields = category.createFields ?? []
   const isCuttingDiscs = category.table === 'cutting_discs'
+  const hasProjectField = createFields.some((field) => String(field.key) === 'project')
+  const projectsQuery = useActiveProjects(hasProjectField)
+  const activeProjects = projectsQuery.data ?? []
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
@@ -75,6 +80,39 @@ export function ItemCreateModal({
             const fieldKey = field.formKey ?? String(field.key)
             const label = category.columns[field.key] ?? fieldKey
             const hasError = Boolean(formErrors[fieldKey])
+
+            if (String(field.key) === 'project') {
+              return (
+                <label key={fieldKey} className="space-y-2 text-right">
+                  <span className="block text-sm font-semibold text-slate-700">
+                    اسم المشروع{field.required ? ' *' : ''}
+                  </span>
+                  <select
+                    name={fieldKey}
+                    value={form[fieldKey] ?? ''}
+                    disabled={projectsQuery.isPending || activeProjects.length === 0}
+                    onChange={(event) => onFieldChange(fieldKey, event.target.value)}
+                    className={fieldClassName(hasError)}
+                  >
+                    <option value="">
+                      {activeProjects.length === 0
+                        ? 'لا توجد مشاريع مسجلة، أضف مشروع أولًا'
+                        : 'اختر المشروع'}
+                    </option>
+                    {activeProjects.map((project) => (
+                      <option key={project.id} value={project.name}>{project.name}</option>
+                    ))}
+                  </select>
+                  {projectsQuery.error instanceof Error ? (
+                    <p className="text-xs text-red-600">{projectsQuery.error.message}</p>
+                  ) : null}
+                  {hasError ? <p className="text-xs text-red-600">{formErrors[fieldKey]}</p> : null}
+                  <Link to="/projects" className="inline-flex text-xs font-bold text-[var(--app-primary)] hover:underline">
+                    + إضافة مشروع جديد
+                  </Link>
+                </label>
+              )
+            }
 
             if (field.inputType === 'textarea') {
               return (

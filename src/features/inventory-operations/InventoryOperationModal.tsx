@@ -9,6 +9,7 @@ import {
 type InventoryOperationItemData = Record<string, unknown> & {
   item_name?: string | null
   project_name?: string | null
+  project?: string | null
   category_name?: string | null
 }
 
@@ -64,6 +65,7 @@ export function InventoryOperationModal({
 
   const itemNameField = String(category.itemNameField ?? 'item_name')
   const itemName = getDisplayText(itemData[itemNameField] as string | number | null | undefined)
+  const projectName = getDisplayText(itemData.project_name ?? itemData.project)
   const attributeFields = category.attributeFields ?? []
 
   return (
@@ -115,23 +117,12 @@ export function InventoryOperationModal({
         </div>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          {(operationType === 'add' || operationType === 'issue') ? (
-            <label className="space-y-2 text-right">
-              <span className="block text-sm font-semibold text-slate-700">
-                اسم المشروع
-              </span>
-              <input
-                type="text"
-                value={form.projectName}
-                onChange={(event) => onFieldChange('projectName', event.target.value)}
-                className={fieldClassName(Boolean(formErrors.projectName))}
-                placeholder="اكتب اسم المشروع"
-              />
-              {formErrors.projectName ? (
-                <p className="text-xs text-red-600">{formErrors.projectName}</p>
-              ) : null}
-            </label>
-          ) : null}
+          <div className="space-y-2 text-right">
+            <span className="block text-sm font-semibold text-slate-700">اسم المشروع</span>
+            <div className="flex h-[46px] w-full items-center rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 text-sm font-semibold text-slate-800">
+              {projectName}
+            </div>
+          </div>
 
           <label className="space-y-2 text-right">
             <span className="block text-sm font-semibold text-slate-700">

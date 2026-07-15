@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CategorySummaryItem } from '../../../services/itemsService'
-import { filterCategoryRows } from './categoryRows'
+import { filterCategoryRows, filterCategoryRowsByProject } from './categoryRows'
 
 const row: CategorySummaryItem = {
   table_name: 'consumables',
@@ -23,5 +23,10 @@ const row: CategorySummaryItem = {
 describe('filterCategoryRows', () => {
   it('finds an item by its supplier name', () => {
     expect(filterCategoryRows([row], 'المورد الرئيسي')).toEqual([row])
+  })
+
+  it('filters projects by exact stored name', () => {
+    expect(filterCategoryRowsByProject([row], 'مشروع الاختبار')).toEqual([row])
+    expect(filterCategoryRowsByProject([row], 'مشروع')).toEqual([])
   })
 })

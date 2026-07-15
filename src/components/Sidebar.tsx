@@ -200,6 +200,8 @@ function getSidebarIcon(path: string) {
       return <AlertIcon className={iconClassName} />
     case '/item-code-guide':
       return <GuideIcon className={iconClassName} />
+    case '/projects':
+      return <LayersIcon className={iconClassName} />
     case '/category/consumables':
       return <LayersIcon className={iconClassName} />
     case '/category/paints':
@@ -224,6 +226,7 @@ function getSidebarIcon(path: string) {
 const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'التنبيهات', to: '/low-stock' },
+  { label: 'إدارة المشاريع', to: '/projects' },
 ]
 
 const inventoryItems = categoryOptions.map((category) => ({

@@ -3,10 +3,13 @@ import { categoryOptions } from '../../../config/categoryConfig'
 type DashboardInventoryFiltersProps = {
   searchValue: string
   categoryValue: string
+  projectValue: string
+  projectOptions: string[]
   fromDate: string
   toDate: string
   onSearchChange: (value: string) => void
   onCategoryChange: (value: string) => void
+  onProjectChange: (value: string) => void
   onFromDateChange: (value: string) => void
   onToDateChange: (value: string) => void
   onClear: () => void
@@ -19,16 +22,19 @@ function inputClassName() {
 export function DashboardInventoryFilters({
   searchValue,
   categoryValue,
+  projectValue,
+  projectOptions,
   fromDate,
   toDate,
   onSearchChange,
   onCategoryChange,
+  onProjectChange,
   onFromDateChange,
   onToDateChange,
   onClear,
 }: DashboardInventoryFiltersProps) {
   return (
-    <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(220px,0.7fr)_minmax(160px,0.5fr)_minmax(160px,0.5fr)_auto]">
+    <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.65fr)_minmax(180px,0.65fr)_minmax(150px,0.5fr)_minmax(150px,0.5fr)_auto]">
       <label className="space-y-2">
         <span className="block text-sm font-medium text-slate-700">بحث</span>
         <input
@@ -38,6 +44,20 @@ export function DashboardInventoryFilters({
           placeholder="ابحث في القسم أو الصنف أو المشروع أو أي بيانات مرتبطة"
           className={inputClassName()}
         />
+      </label>
+
+      <label className="space-y-2">
+        <span className="block text-sm font-medium text-slate-700">المشروع</span>
+        <select
+          value={projectValue}
+          onChange={(event) => onProjectChange(event.target.value)}
+          className={inputClassName()}
+        >
+          <option value="all">كل المشاريع</option>
+          {projectOptions.map((projectName) => (
+            <option key={projectName} value={projectName}>{projectName}</option>
+          ))}
+        </select>
       </label>
 
       <label className="space-y-2">

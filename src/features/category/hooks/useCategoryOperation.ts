@@ -79,7 +79,6 @@ export function useCategoryOperation({
       itemId,
       tableName,
       itemName: row.item_name,
-      projectName: row.project_name || row.project || null,
       categoryName: row.category_name,
     }
 
@@ -136,7 +135,6 @@ export function useCategoryOperation({
         projectName:
           itemDetails.project_name ||
           itemDetails.project ||
-          selectedItem.projectName ||
           undefined,
         itemCode: category.table === 'raw_materials' ||
           category.table === 'screws' ||
