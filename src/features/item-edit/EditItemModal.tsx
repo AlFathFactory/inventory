@@ -12,6 +12,16 @@ type EditField = {
   required?: boolean
 }
 
+type EditItemFormState = Record<string, string> & {
+  supplierName?: string
+}
+
+const supplierField: EditField = {
+  key: 'supplier_name',
+  formKey: 'supplierName',
+  label: 'اسم المورد',
+}
+
 const fieldsByTable: Record<string, EditField[]> = {
   consumables: [
     { key: 'project', label: 'اسم المشروع', required: true },
@@ -107,7 +117,10 @@ function initialValue(item: ItemDetails, key: string) {
 
 export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }: Props) {
   const isCuttingDiscs = category.table === 'cutting_discs'
-  const fields = useMemo(() => fieldsByTable[category.table] ?? [], [category.table])
+  const fields = useMemo(
+    () => [...(fieldsByTable[category.table] ?? []), supplierField],
+    [category.table],
+  )
   const initialForm = useMemo(
     () => Object.fromEntries(fields.map((field) => [
       field.formKey ?? field.key,
@@ -115,7 +128,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     ])),
     [fields, itemData],
   )
-  const [form, setForm] = useState<Record<string, string>>(initialForm)
+  const [form, setForm] = useState<EditItemFormState>(initialForm)
   const [adjustDate, setAdjustDate] = useState('')
   const [adjustNotes, setAdjustNotes] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -207,6 +220,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           received_date: form.received_date || null,
           scrapped_date: form.scrapped_date || null,
           notes: form.notes?.trim() || null,
+          supplier_name: form.supplierName?.trim() || null,
         })
       : category.table === 'long_welding_gloves'
       ? await updateLongWeldingGlove(itemId, {
@@ -214,6 +228,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           received_by: form.received_by.trim(),
           received_date: form.received_date,
           notes: form.notes?.trim() || null,
+          supplier_name: form.supplierName?.trim() || null,
         })
       : await updateItemDetails({
       tableName: category.table,
@@ -245,7 +260,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
               {field.type === 'textarea' ? (
                 <textarea value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} rows={3} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--app-primary)]" />
               ) : (
-                <input type={field.type ?? 'text'} name={field.formKey ?? field.key} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? 'any' : undefined} value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
+                <input type={field.type ?? 'text'} name={field.formKey ?? field.key} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? 'any' : undefined} value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} placeholder={field.key === 'supplier_name' ? 'اكتب اسم المورد إن وجد' : undefined} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
               )}
               {errors[field.formKey ?? field.key] ? <span className="block text-xs text-red-600">{errors[field.formKey ?? field.key]}</span> : null}
             </label>

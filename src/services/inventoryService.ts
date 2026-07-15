@@ -843,6 +843,7 @@ export async function createInventoryItem(
 
     const payload: Record<string, JsonValue> = {
       item_key: buildItemKey(tableName, values),
+      supplier_name: toText(values.supplier_name) || null,
     }
 
     Object.keys(category.columns).forEach((columnKey) => {

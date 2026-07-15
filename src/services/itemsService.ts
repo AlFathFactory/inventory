@@ -28,6 +28,7 @@ export type CategorySummaryItem = {
   width?: number | string | null
   th?: number | string | null
   material_source?: string | null
+  supplier_name?: string | null
   din?: string | null
   code_number?: string | null
   notes?: string | null
@@ -49,6 +50,7 @@ export type CustodyTableName = 'cutting_discs' | 'long_welding_gloves'
 export type CustodyRecord = Record<string, string | number | null> & {
   id: string | number
   internal_code?: string | null
+  supplier_name?: string | null
   type_name: string | null
   received_by: string | null
   received_date: string | null

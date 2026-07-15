@@ -112,6 +112,8 @@ export function useCategoryCreate({
         preparedValues.code_number = form.codeNumber?.trim() || null
       }
 
+      preparedValues.supplier_name = form.supplierName?.trim() || null
+
       const result = category.table === 'cutting_discs'
         ? await createCuttingDisc({
             code: form.code?.trim() || null,
@@ -120,6 +122,7 @@ export function useCategoryCreate({
             received_date: form.received_date || null,
             scrapped_date: form.scrapped_date || null,
             notes: form.notes?.trim() || null,
+            supplier_name: form.supplierName?.trim() || null,
           })
         : category.table === 'long_welding_gloves'
         ? await createLongWeldingGlove({
@@ -127,6 +130,7 @@ export function useCategoryCreate({
             received_by: String(preparedValues.received_by ?? ''),
             received_date: String(preparedValues.received_date ?? ''),
             notes: preparedValues.notes ? String(preparedValues.notes) : null,
+            supplier_name: form.supplierName?.trim() || null,
           })
         : await createInventoryItem(category.table, preparedValues)
 

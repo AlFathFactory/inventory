@@ -114,6 +114,24 @@ export function ItemCreateModal({
           })}
         </div>
 
+        <section className="mt-6 border-t border-[var(--app-border)] pt-6">
+          <h4 className="text-right text-base font-bold text-slate-900">بيانات المورد</h4>
+          <label className="mt-4 block space-y-2 text-right">
+            <span className="block text-sm font-semibold text-slate-700">اسم المورد</span>
+            <input
+              type="text"
+              name="supplierName"
+              value={form.supplierName ?? ''}
+              onChange={(event) => onFieldChange('supplierName', event.target.value)}
+              className={fieldClassName(Boolean(formErrors.supplierName))}
+              placeholder="اكتب اسم المورد إن وجد"
+            />
+            {formErrors.supplierName ? (
+              <p className="text-xs text-red-600">{formErrors.supplierName}</p>
+            ) : null}
+          </label>
+        </section>
+
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-start">
           <button
             type="button"

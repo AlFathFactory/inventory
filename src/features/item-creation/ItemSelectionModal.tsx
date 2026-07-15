@@ -47,6 +47,7 @@ export function ItemSelectionModal({
         item.item_name,
         item.project_name,
         item.material_source,
+        item.supplier_name,
         item.code_number,
         item.din,
       ]

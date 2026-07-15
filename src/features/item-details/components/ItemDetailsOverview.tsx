@@ -47,9 +47,10 @@ export function ItemDetailsOverview({
               شاشة تفاصيل الصنف وسجل الحركات الكامل لهذا القسم.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <Info label="اسم القسم" value={details.category_name || category.label} />
             <Info label="اسم المشروع" value={getDisplayText(details.project_name)} />
+            <Info label="اسم المورد" value={getDisplayText(details.supplier_name)} />
           </div>
         </div>
         <Link to={backTo ?? category.route} className="inline-flex h-[44px] items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">

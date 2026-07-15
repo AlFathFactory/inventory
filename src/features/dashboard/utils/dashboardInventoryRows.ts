@@ -59,6 +59,7 @@ function buildSearchText(
     row.item_name,
     row.project_name ?? row.project,
     row.material_source,
+    row.supplier_name,
     row.code_number,
     row.din,
   ]

@@ -11,6 +11,7 @@ export type CuttingDiscInput = {
   received_date: string | null
   scrapped_date: string | null
   notes: string | null
+  supplier_name?: string | null
 }
 
 export type CuttingDiscRecord = CuttingDiscInput & {

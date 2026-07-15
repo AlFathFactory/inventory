@@ -9,6 +9,7 @@ export type LongWeldingGloveInput = {
   received_by: string
   received_date: string
   notes: string | null
+  supplier_name?: string | null
 }
 
 export type LongWeldingGloveRecord = LongWeldingGloveInput & {

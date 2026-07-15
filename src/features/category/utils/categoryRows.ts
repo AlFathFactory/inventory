@@ -18,6 +18,7 @@ function mapGloveRows(rows: LongWeldingGloveRecord[] | null): CategorySummaryIte
   return (rows ?? []).map((row) => ({
     id: row.id,
     internal_code: row.internal_code,
+    supplier_name: row.supplier_name,
     type_name: row.type_name,
     received_by: row.received_by,
     received_date: row.received_date,
@@ -91,6 +92,7 @@ const searchableFields: Array<keyof CategorySummaryItem> = [
   'item_name',
   'status',
   'material_source',
+  'supplier_name',
   'din',
   'code_number',
   'weight',

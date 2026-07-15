@@ -1,6 +1,8 @@
 import type { CategoryDefinition } from '../../config/categoryConfig'
 
-export type ItemCreateFormState = Record<string, string>
+export type ItemCreateFormState = Record<string, string> & {
+  supplierName?: string
+}
 
 export function createInitialItemCreateFormState(category: CategoryDefinition) {
   const nextState: ItemCreateFormState = {}
@@ -8,6 +10,8 @@ export function createInitialItemCreateFormState(category: CategoryDefinition) {
   ;(category.createFields ?? []).forEach((field) => {
     nextState[field.formKey ?? String(field.key)] = ''
   })
+
+  nextState.supplierName = ''
 
   return nextState
 }
