@@ -228,12 +228,12 @@ function getSidebarIcon(path: string) {
 const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'التنبيهات', to: '/low-stock' },
-  { label: 'إدارة المشاريع', to: '/projects' },
 ]
 
 const inventoryItems = [
   { label: 'جميع الأقسام', to: '/' },
   { label: 'التنبيهات', to: '/low-stock' },
+  { label: 'إدارة المشاريع', to: '/projects' },
   ...categoryOptions.map((category) => ({
     label: category.label,
     to: category.route,
