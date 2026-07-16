@@ -229,13 +229,17 @@ const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'التنبيهات', to: '/low-stock' },
   { label: 'إدارة المشاريع', to: '/projects' },
-  { label: 'مركز المزامنة', to: '/sync-center' },
 ]
 
-const inventoryItems = categoryOptions.map((category) => ({
-  label: category.label,
-  to: category.route,
-}))
+const inventoryItems = [
+  { label: 'جميع الأقسام', to: '/' },
+  { label: 'التنبيهات', to: '/low-stock' },
+  ...categoryOptions.map((category) => ({
+    label: category.label,
+    to: category.route,
+  })),
+  { label: 'مركز المزامنة', to: '/sync-center' },
+]
 
 type SidebarGroupProps = {
   title: string
