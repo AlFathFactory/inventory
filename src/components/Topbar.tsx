@@ -73,10 +73,10 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     }
 
   return (
-    <header className="px-6 pt-6 lg:px-8">
+    <header className="px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <div className="flex flex-col-reverse gap-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)] sm:flex-row sm:items-start sm:justify-between lg:h-[74px] lg:items-center lg:px-7">
         <div className="text-right">
-          <h1 className="text-[24px] font-bold tracking-tight text-slate-900">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-[24px]">
             {copy.title}
           </h1>
           <p className="mt-1 text-[13px] text-[var(--app-text-muted)]">

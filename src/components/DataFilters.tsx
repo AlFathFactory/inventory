@@ -30,7 +30,7 @@ export function DataFilters({
 }: DataFiltersProps) {
   return (
     <div className="flex flex-wrap items-end gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4">
-      <label className="min-w-[240px] flex-1 space-y-2">
+      <label className="w-full min-w-0 flex-1 space-y-2 sm:min-w-[240px]">
         <span className="block text-sm font-medium text-slate-700">بحث</span>
         <input
           type="search"
@@ -45,7 +45,7 @@ export function DataFilters({
 
       {showDateFilter && onDateRangeChange ? (
         <>
-          <label className="min-w-[180px] flex-[0_1_220px] space-y-2">
+          <label className="w-full min-w-0 flex-[0_1_220px] space-y-2 sm:min-w-[180px]">
             <span className="block text-sm font-medium text-slate-700">من تاريخ</span>
             <input
               type="date"
@@ -60,7 +60,7 @@ export function DataFilters({
             />
           </label>
 
-          <label className="min-w-[180px] flex-[0_1_220px] space-y-2">
+          <label className="w-full min-w-0 flex-[0_1_220px] space-y-2 sm:min-w-[180px]">
             <span className="block text-sm font-medium text-slate-700">إلى تاريخ</span>
             <input
               type="date"
@@ -75,7 +75,7 @@ export function DataFilters({
             />
           </label>
 
-          <div className="flex min-w-[110px] items-end">
+          <div className="flex w-full min-w-0 items-end sm:min-w-[110px] sm:w-auto">
             <button
               type="button"
               onClick={() => onDateRangeChange({ fromDate: '', toDate: '' })}

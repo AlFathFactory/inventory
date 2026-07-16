@@ -38,7 +38,7 @@ export function DashboardLayout() {
         <div className="hidden lg:block"><Sidebar /></div>
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <Topbar onMenuClick={() => setIsDrawerOpen(true)} />
-          <main className="min-w-0 flex-1 px-4 pb-7 pt-8 sm:px-6 lg:px-8">
+          <main className="min-w-0 flex-1 px-4 pb-7 pt-6 sm:px-6 sm:pt-8 lg:px-8">
             <Outlet />
           </main>
         </div>
