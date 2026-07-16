@@ -50,18 +50,18 @@ export function ItemMovementsSection({ category, internalCode, itemCode, filter,
     { id: 'notes', header: 'ملاحظات', renderCell: (row) => <div className="max-w-[240px] whitespace-normal leading-6">{getDisplayText(row.notes)}</div> },
   ], [category.table, internalCode, itemCode])
 
-  return <div className="space-y-3">
-    <div className="flex items-center justify-between gap-4">
+  return <div className="min-w-0 space-y-3">
+    <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-right"><h3 className="text-[1.6rem] font-bold text-slate-900">سجل الحركات</h3><p className="mt-1 text-sm text-[var(--app-text-muted)]">جميع الحركات المرتبطة بهذا الصنف مرتبة من الأحدث إلى الأقدم.</p></div>
-      <button type="button" onClick={onRefresh} className="inline-flex h-[42px] items-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">تحديث البيانات</button>
+      <button type="button" onClick={onRefresh} className="inline-flex h-[42px] shrink-0 items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">تحديث البيانات</button>
     </div>
     <ItemMovementsDateFilter fromDate={filter.fromDate} toDate={filter.toDate} onFromDateChange={(fromDate) => onFilterChange({ ...filter, fromDate })} onToDateChange={(toDate) => onFilterChange({ ...filter, toDate })} onClear={() => onFilterChange({ fromDate: '', toDate: '' })} />
     <div className="grid gap-4 md:grid-cols-2">
       <ItemDetailsSummaryCard label={hasFilter ? 'إجمالي الإضافة للفترة المحددة' : 'إجمالي الإضافة لكل الحركات'} value={totals.totalAdded.toLocaleString()} toneClassName="bg-emerald-50 text-slate-900" />
       <ItemDetailsSummaryCard label={hasFilter ? 'إجمالي الصرف للفترة المحددة' : 'إجمالي الصرف لكل الحركات'} value={totals.totalIssued.toLocaleString()} toneClassName="bg-orange-50 text-slate-900" />
     </div>
-    <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
-      {movements.length === 0 ? <div className="px-5 py-12 text-center text-sm text-slate-500">{hasFilter ? 'لا توجد حركات ضمن الفترة المحددة' : 'لا توجد حركات مسجلة لهذا الصنف حتى الآن'}</div> : <DataTable columns={columns} rows={movements} getRowKey={(row) => String(row.id)} stickyHeader maxHeightClassName="max-h-[68vh] overflow-auto" rowClassName="hover:bg-slate-50" />}
+    <div className="min-w-0 max-w-full overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
+      {movements.length === 0 ? <div className="px-5 py-12 text-center text-sm text-slate-500">{hasFilter ? 'لا توجد حركات ضمن الفترة المحددة' : 'لا توجد حركات مسجلة لهذا الصنف حتى الآن'}</div> : <DataTable columns={columns} rows={movements} getRowKey={(row) => String(row.id)} stickyHeader maxHeightClassName="max-h-[68vh] w-full max-w-full overflow-auto overscroll-contain [scrollbar-gutter:stable]" rowClassName="hover:bg-slate-50" />}
     </div>
   </div>
 }
