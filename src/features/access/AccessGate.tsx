@@ -40,7 +40,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(21,94,239,0.38),transparent_55%)]" />
           <div className="relative">
             <div className="inline-flex">
-              <img src="/logo.png" alt="مصنع الفاتح" className="h-40 w-56 object-contain" />
+              <img src="/logo.png" alt="مصنع الفاتح" className="h-28 w-56 object-contain" />
             </div>
             <p className="mt-8 text-sm font-semibold tracking-wide text-amber-300">نظام إدارة المخزون</p>
             <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">مرحباً بك في مصنع الفاتح</h1>
