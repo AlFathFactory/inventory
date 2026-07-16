@@ -1,10 +1,17 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useAccess } from './AccessContext'
 
 export function AccessGate({ children }: { children: ReactNode }) {
   const { user, unlock } = useAccess()
   const [password, setPassword] = useState('')
   const [hasError, setHasError] = useState(false)
+
+  useEffect(() => {
+    if (!user) {
+      setPassword('')
+      setHasError(false)
+    }
+  }, [user])
 
   if (user) return <>{children}</>
 
