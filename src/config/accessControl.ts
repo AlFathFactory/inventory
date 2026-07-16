@@ -1,0 +1,34 @@
+export type AccessArea = 'management' | 'inventory'
+
+export type AccessUser = {
+  /** A label shown only after access is granted. */
+  name: string
+  /** This is intentionally a simple client-side access code, not authentication. */
+  password: string
+  areas: AccessArea[]
+}
+
+// Add, remove, or change entries here to manage passwords and area access.
+// Passwords are included in the frontend bundle, so this is a convenience gate,
+// not protection for sensitive data.
+export const accessUsers: AccessUser[] = [
+  { name: 'الإدارة', password: 'mang26', areas: ['management'] },
+  { name: 'المخزن', password: 'inv26', areas: ['inventory'] },
+  { name: 'ادمن', password: 'admin26', areas: ['management', 'inventory'] },
+]
+
+const sharedPaths = ['/item-code-guide']
+const managementPaths = ['/', '/low-stock']
+const inventoryPaths = ['/', '/low-stock', '/projects', '/sync-center']
+
+export function canAccessPath(areas: AccessArea[], pathname: string) {
+  if (sharedPaths.includes(pathname)) return true
+  if (areas.includes('management') && managementPaths.includes(pathname)) {
+    return true
+  }
+
+  return (
+    areas.includes('inventory') &&
+    (inventoryPaths.includes(pathname) || pathname.startsWith('/category/'))
+  )
+}

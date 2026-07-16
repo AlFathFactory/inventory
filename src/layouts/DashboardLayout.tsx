@@ -1,9 +1,18 @@
-import { Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { Topbar } from '../components/Topbar'
 import { OfflineStatusBanner } from '../components/OfflineStatusBanner'
+import { canAccessPath } from '../config/accessControl'
+import { useAccess } from '../features/access/AccessContext'
 
 export function DashboardLayout() {
+  const { user } = useAccess()
+  const location = useLocation()
+
+  if (!user || !canAccessPath(user.areas, location.pathname)) {
+    return <Navigate to="/" replace />
+  }
+
   return (
     <div
       dir="rtl"

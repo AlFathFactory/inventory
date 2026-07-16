@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { categoryOptions } from '../config/categoryConfig'
 import { SidebarNavItem } from './SidebarNavItem'
+import { useAccess } from '../features/access/AccessContext'
 
 type IconProps = {
   className?: string
@@ -245,14 +246,18 @@ type SidebarGroupProps = {
   title: string
   children: ReactNode
   initiallyOpen?: boolean
+  showWhen?: boolean
 }
 
 function SidebarGroup({
   title,
   children,
   initiallyOpen = true,
+  showWhen = true,
 }: SidebarGroupProps) {
   const [isOpen, setIsOpen] = useState(initiallyOpen)
+
+  if (!showWhen) return null
 
   return (
     <section className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
@@ -277,6 +282,8 @@ function SidebarGroup({
 }
 
 export function Sidebar() {
+  const { user, lock } = useAccess()
+
   return (
     <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
       <div className="flex h-full flex-col px-[18px] pb-8 pt-7">
@@ -285,8 +292,8 @@ export function Sidebar() {
           <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المــخــــــــزون</p>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-3 overflow-y-auto">
-          <SidebarGroup title="الإدارة">
+        <nav className="flex flex-col gap-3 overflow-y-auto">
+          <SidebarGroup title="الإدارة" showWhen={user?.areas.includes('management') ?? false}>
             {managementItems.map((item) => (
               <SidebarNavItem
                 key={item.to}
@@ -297,7 +304,7 @@ export function Sidebar() {
             ))}
           </SidebarGroup>
 
-          <SidebarGroup title="المخزن">
+          <SidebarGroup title="المخزن" showWhen={user?.areas.includes('inventory') ?? false}>
             {inventoryItems.map((item) => (
               <SidebarNavItem
                 key={item.to}
@@ -308,6 +315,7 @@ export function Sidebar() {
             ))}
             <SidebarNavItem
               to="/import"
+              hidden={!user?.areas.includes('inventory')}
               label="استيراد البيانات"
               icon={getSidebarIcon('/import')}
             />
@@ -319,6 +327,12 @@ export function Sidebar() {
               label="دليل أكواد الأصناف"
               icon={getSidebarIcon('/item-code-guide')}
             />
+          </div>
+
+          <div className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
+            <button type="button" onClick={lock} className="w-full rounded-xl px-3 py-2 text-sm font-semibold text-[#d6e4ff] transition hover:bg-white/10">
+             تسجيل الخروج
+            </button>
           </div>
         </nav>
       </div>

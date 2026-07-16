@@ -5,9 +5,12 @@ type SidebarNavItemProps = {
   icon: ReactNode
   label: string
   to: string
+  hidden?: boolean
 }
 
-export function SidebarNavItem({ icon, label, to }: SidebarNavItemProps) {
+export function SidebarNavItem({ icon, label, to, hidden = false }: SidebarNavItemProps) {
+  if (hidden) return null
+
   return (
     <NavLink to={to} end={to === '/'}>
       {({ isActive }) => (

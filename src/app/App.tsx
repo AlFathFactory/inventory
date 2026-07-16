@@ -9,6 +9,8 @@ import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
 import { SyncCenterPage } from '../pages/SyncCenterPage'
+import { AccessGate } from '../features/access/AccessGate'
+import { AccessProvider } from '../features/access/AccessContext'
 
 // Hash routing keeps every request on index.html, so deep links continue to
 // work when the static host is not configured with an SPA fallback.
@@ -62,5 +64,11 @@ const router = createHashRouter([
 ])
 
 export function App() {
-  return <RouterProvider router={router} />
+  return (
+    <AccessProvider>
+      <AccessGate>
+        <RouterProvider router={router} />
+      </AccessGate>
+    </AccessProvider>
+  )
 }
