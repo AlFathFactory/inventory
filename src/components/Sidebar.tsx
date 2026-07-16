@@ -281,11 +281,33 @@ function SidebarGroup({
   )
 }
 
-export function Sidebar() {
+type SidebarProps = {
+  drawer?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ drawer = false, onClose }: SidebarProps) {
   const { user, lock } = useAccess()
 
   return (
-    <aside className="w-full bg-[var(--app-sidebar)] text-white lg:min-h-screen lg:w-[260px] lg:flex-none">
+    <aside
+      className={[
+        'relative bg-[var(--app-sidebar)] text-white',
+        drawer
+          ? 'h-[100dvh] w-[min(86vw,340px)] overflow-y-auto shadow-[-12px_0_32px_rgba(3,12,45,0.28)]'
+          : 'min-h-screen w-[260px] flex-none',
+      ].join(' ')}
+    >
+      {drawer ? (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-xl text-[#d6e4ff] transition hover:bg-white/10 hover:text-white"
+          aria-label="Close navigation"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      ) : null}
       <div className="flex h-full flex-col px-[18px] pb-8 pt-7">
         <div className="mb-6 text-right">
           <h2 className="text-[25px] font-bold tracking-tight">مصنع الفــــتـــــــــــــــح</h2>
@@ -300,6 +322,7 @@ export function Sidebar() {
                 to={item.to}
                 label={item.label}
                 icon={getSidebarIcon(item.to)}
+                onNavigate={onClose}
               />
             ))}
           </SidebarGroup>
@@ -311,6 +334,7 @@ export function Sidebar() {
                 to={item.to}
                 label={item.label}
                 icon={getSidebarIcon(item.to)}
+                onNavigate={onClose}
               />
             ))}
             <SidebarNavItem
@@ -318,6 +342,7 @@ export function Sidebar() {
               hidden={!user?.areas.includes('inventory')}
               label="استيراد البيانات"
               icon={getSidebarIcon('/import')}
+              onNavigate={onClose}
             />
           </SidebarGroup>
 
@@ -326,11 +351,12 @@ export function Sidebar() {
               to="/item-code-guide"
               label="دليل أكواد الأصناف"
               icon={getSidebarIcon('/item-code-guide')}
+              onNavigate={onClose}
             />
           </div>
 
           <div className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
-            <button type="button" onClick={lock} className="w-full rounded-xl px-3 py-2 text-sm font-semibold text-[#d6e4ff] transition hover:bg-white/10">
+            <button type="button" onClick={() => { lock(); onClose?.() }} className="w-full rounded-xl px-3 py-2 text-sm font-semibold text-[#d6e4ff] transition hover:bg-white/10">
              تسجيل الخروج
             </button>
           </div>

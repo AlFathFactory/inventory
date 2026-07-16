@@ -6,13 +6,14 @@ type SidebarNavItemProps = {
   label: string
   to: string
   hidden?: boolean
+  onNavigate?: () => void
 }
 
-export function SidebarNavItem({ icon, label, to, hidden = false }: SidebarNavItemProps) {
+export function SidebarNavItem({ icon, label, to, hidden = false, onNavigate }: SidebarNavItemProps) {
   if (hidden) return null
 
   return (
-    <NavLink to={to} end={to === '/'}>
+    <NavLink to={to} end={to === '/'} onClick={onNavigate}>
       {({ isActive }) => (
         <span
           className={[

@@ -6,6 +6,12 @@ type TopbarCopy = {
   subtitle: string
 }
 
+type TopbarProps = { onMenuClick: () => void }
+
+function MenuIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+}
+
 const topbarCopyByPath: Record<string, TopbarCopy> = {
   '/': {
     title: 'لوحة التحكم',
@@ -57,7 +63,7 @@ function getCategoryTopbarCopy(pathname: string): TopbarCopy | null {
   }
 }
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: TopbarProps) {
   const location = useLocation()
   const copy =
     topbarCopyByPath[location.pathname] ??
@@ -68,7 +74,7 @@ export function Topbar() {
 
   return (
     <header className="px-6 pt-6 lg:px-8">
-      <div className="flex flex-col-reverse gap-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)] lg:h-[74px] lg:flex-row lg:items-center lg:justify-between lg:px-7">
+      <div className="flex flex-col-reverse gap-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)] sm:flex-row sm:items-start sm:justify-between lg:h-[74px] lg:items-center lg:px-7">
         <div className="text-right">
           <h1 className="text-[24px] font-bold tracking-tight text-slate-900">
             {copy.title}
@@ -77,6 +83,7 @@ export function Topbar() {
             {copy.subtitle}
           </p>
         </div>
+        <button type="button" onClick={onMenuClick} className="flex h-10 w-10 shrink-0 items-center justify-center self-start rounded-xl border border-[var(--app-border)] text-slate-700 transition hover:bg-slate-50 lg:hidden" aria-label="Open navigation" aria-controls="mobile-navigation"><MenuIcon /></button>
       </div>
     </header>
   )
