@@ -40,24 +40,24 @@ export function AccessGate({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(21,94,239,0.38),transparent_55%)]" />
           <div className="relative">
             <div className="inline-flex">
-              <img src="/logo.png" alt="مصنع الفاتح" className="h-28 w-56 object-contain" />
+              <img src="/logoo.png" alt="مصنع الفاتح" className="h-28 w-60 object-contain" />
             </div>
             <p className="mt-8 text-sm font-semibold tracking-wide text-amber-300">نظام إدارة المخزون</p>
             <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">مرحباً بك في مصنع الفاتح</h1>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-blue-100">بوابة بسيطة وآمنة لتنظيم الوصول إلى أقسام النظام.</p>
-          </div>
-          <div className="relative mt-10 flex items-center gap-3 text-sm text-blue-100">
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
-            أدخل رمزك للمتابعة
-          </div>
+<div>
+  <p className="mt-4 inline-flex max-w-sm items-center gap-3 text-sm leading-7 text-blue-100">
+    <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+    <span>
+      بوابة بسيطة وآمنة لتنظيم الوصول إلى أقسام النظام.
+    </span>
+  </p>
+</div>        </div>
+         
         </div>
 
         <div className="flex items-center p-7 sm:p-12">
           <div className="w-full">
             <div className="mb-8 text-right">
-              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-                <LockIcon />
-              </div>
               <h2 className="text-2xl font-bold text-slate-900">رمز الدخول</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">أدخل الرمز المخصص لك للوصول إلى القسم المسموح به.</p>
             </div>
