@@ -4,6 +4,7 @@ import type { DataTableColumn } from '../../../components/DataTable'
 import { isCustodyTable, type CategorySummaryItem } from '../../../services/itemsService'
 import type { InventoryOperationType } from '../../../services/operationsService'
 import { getStockStatusClass } from '../../../utils/statusUtils'
+import { CategoryActionsDropdown } from './CategoryActionsDropdown'
 import { CategoryOperationButton } from './CategoryOperationButton'
 
 type CategoryTableColumnsProps = {
@@ -278,7 +279,13 @@ function buildCategoryTableColumns({
       header: 'الإجراءات',
       headerClassName: 'px-4 py-3 text-center text-slate-700',
       cellClassName: 'px-4 py-3',
-      renderCell: (row: CategorySummaryItem) => (
+      renderCell: (row: CategorySummaryItem) => category.table === 'raw_materials' ? (
+        <CategoryActionsDropdown
+          onEdit={() => onEdit(row)}
+          onDelete={() => onDelete(row)}
+          onOperation={(operationType) => onOperation(row, operationType)}
+        />
+      ) : (
         <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
@@ -304,7 +311,9 @@ function buildCategoryTableColumns({
         </div>
       ),
     },
-  ].map((column) => ({
+  ].filter((column) => (
+    category.table !== 'raw_materials' || !['internal_code', 'supplier_name'].includes(column.id)
+  )).map((column) => ({
     headerClassName: 'px-4 py-3 text-slate-700',
     cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
     ...column,
