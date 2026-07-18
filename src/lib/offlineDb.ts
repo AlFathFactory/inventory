@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-export type OfflineStatus = 'pending' | 'syncing' | 'synced' | 'failed'
+export type OfflineStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict'
 export type OfflineOperationType = 'add' | 'issue' | 'adjust' | 'edit_item'
 
 export interface OfflineOperation {
@@ -10,6 +10,7 @@ export interface OfflineOperation {
   localItemId: string | null
   operationType: OfflineOperationType
   quantity: number | null
+  baseUpdatedAt: string | null
   payload: Record<string, unknown>
   status: OfflineStatus
   errorMessage: string | null
@@ -80,6 +81,13 @@ class OfflineInventoryDatabase extends Dexie {
       offline_operations: 'id, tableName, itemId, localItemId, operationType, status, createdAt',
     })
     this.version(2).stores({
+      offline_items: 'localId, serverId, tableName, internalCode, status, createdAt',
+      offline_operations: 'id, tableName, itemId, localItemId, operationType, status, createdAt',
+      cached_inventory_items: 'id, [tableName+itemId], tableName, itemId, internalCode, projectName, cachedAt',
+      cached_projects: 'id, name, code, status, cachedAt',
+      offline_cache_metadata: 'key, status, updatedAt',
+    })
+    this.version(3).stores({
       offline_items: 'localId, serverId, tableName, internalCode, status, createdAt',
       offline_operations: 'id, tableName, itemId, localItemId, operationType, status, createdAt',
       cached_inventory_items: 'id, [tableName+itemId], tableName, itemId, internalCode, projectName, cachedAt',

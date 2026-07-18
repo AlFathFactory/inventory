@@ -226,6 +226,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
         localItemId: itemData.offline_state === 'local' ? itemId : null,
         operationType: 'edit_item',
         quantity: null,
+        baseUpdatedAt: itemData.updated_at ?? null,
         payload: patch,
       })
       setIsSubmitting(false)

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
 import { offlineDb, type OfflineItem, type OfflineOperation } from '../lib/offlineDb'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
-import { retryFailedItem, retryFailedOperation } from '../services/offlineQueueService'
+import { dismissConflictingOperation, retryFailedItem, retryFailedOperation } from '../services/offlineQueueService'
 import { syncOfflineData } from '../services/syncService'
 import { prepareOfflineData } from '../services/offlineBootstrapService'
 import { useOfflineCacheStatus } from '../hooks/useOfflineCacheStatus'
@@ -28,6 +28,7 @@ export function SyncCenterPage() {
     ...items.filter((x) => x.status === 'failed').map((x) => ({ id: x.localId, kind: 'item' as const, label: x.itemName, error: x.errorMessage })),
     ...operations.filter((x) => x.status === 'failed').map((x) => ({ id: x.id, kind: 'operation' as const, label: `${x.operationType} — ${x.tableName}`, error: x.errorMessage })),
   ]
+  const conflicts = operations.filter((x) => x.status === 'conflict')
   const lastSync = [...items, ...operations].map((x) => x.syncedAt).filter(Boolean).sort().at(-1)
 
   async function sync() {
@@ -46,6 +47,10 @@ export function SyncCenterPage() {
     if (kind === 'item') await retryFailedItem(id)
     else await retryFailedOperation(id)
     if (isOnline) await sync()
+  }
+
+  async function discardConflict(id: string) {
+    await dismissConflictingOperation(id)
   }
 
   async function prepare() {
@@ -89,6 +94,7 @@ export function SyncCenterPage() {
       </div>
       <div className="rounded-3xl border border-[var(--app-border)] bg-white p-6"><h3 className="font-bold">آخر مزامنة</h3><p className="mt-2 text-sm text-slate-600">{lastSync ? new Date(lastSync).toLocaleString('ar-EG') : 'لم تتم مزامنة بيانات بعد'}</p></div>
       {failures.length ? <div className="rounded-3xl border border-red-100 bg-white p-6"><h3 className="font-bold text-red-700">فشل الرفع</h3><div className="mt-4 space-y-3">{failures.map((failure) => <div key={`${failure.kind}-${failure.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-red-50 p-4"><div><p className="font-semibold">{failure.label}</p><p className="mt-1 text-xs text-red-700">{failure.error}</p></div><button type="button" onClick={() => void retry(failure.kind, failure.id)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-red-700 shadow-sm">إعادة المحاولة</button></div>)}</div></div> : null}
+      {conflicts.length ? <div className="rounded-3xl border border-amber-200 bg-white p-6"><h3 className="font-bold text-amber-800">تعارضات تحتاج مراجعة</h3><div className="mt-4 space-y-3">{conflicts.map((conflict) => <div key={conflict.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4"><div><p className="font-semibold">{`${conflict.operationType} — ${conflict.tableName}`}</p><p className="mt-1 text-xs text-amber-800">{conflict.errorMessage}</p></div><div className="flex gap-2"><button type="button" onClick={() => void retry('operation', conflict.id)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-amber-800 shadow-sm">إعادة المحاولة</button><button type="button" onClick={() => void discardConflict(conflict.id)} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-800">تجاهل التعديل المحلي</button></div></div>)}</div></div> : null}
     </section>
   )
 }

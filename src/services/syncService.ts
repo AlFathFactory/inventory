@@ -3,7 +3,8 @@ import { queryClient } from '../lib/queryClient'
 import { supabaseClient } from '../lib/supabaseClient'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 import { getPendingItems, getPendingOperations, recoverInterruptedSyncs } from './offlineQueueService'
-import { generateInventoryInternalCode } from './inventoryCodeService'
+import { isInventoryTable, isStockInventoryTable } from './inventoryTablePolicy'
+import { getLocalDateString } from '../utils/dateUtils'
 
 let activeSync: Promise<void> | null = null
 
@@ -34,6 +35,9 @@ async function syncPendingItems() {
   const client = requireClient()
   for (const item of await getPendingItems()) {
     try {
+      if (!isInventoryTable(item.tableName)) {
+        throw new Error(`Unsupported inventory table: ${item.tableName}`)
+      }
       await offlineDb.offline_items.update(item.localId, { status: 'syncing', errorMessage: null })
       const payload = { ...item.payload }
       delete payload.internal_code
@@ -43,16 +47,25 @@ async function syncPendingItems() {
         if (error || !data) throw new Error(error?.message ?? 'تعذر استكمال رفع الصنف')
         created = data as Record<string, unknown>
       } else {
-        const { data, error: insertError } = await client
-          .from(item.tableName).insert(payload as never).select('*').single()
+        const { data, error: insertError } = await client.rpc('create_inventory_item_rpc', {
+          p_table_name: item.tableName,
+          p_payload: payload,
+          p_created_by: 'offline-user',
+        })
         if (insertError || !data) throw new Error(insertError?.message ?? 'فشل رفع الصنف')
-        created = data as Record<string, unknown>
-        await offlineDb.offline_items.update(item.localId, { serverId: String(created.id) })
+        if (typeof data !== 'object' || !('ok' in data) || !data.ok || !('row' in data)) {
+          throw new Error('Inventory create RPC returned an invalid response.')
+        }
+        const response = data as { item_id: string | number; internal_code?: string | null; row: Record<string, unknown> }
+        created = response.row
+        await offlineDb.offline_items.update(item.localId, {
+          serverId: String(response.item_id),
+          internalCode: response.internal_code ?? item.internalCode,
+        })
       }
 
-      const internalCode = await generateInventoryInternalCode(item.tableName, created.id)
       await offlineDb.offline_items.update(item.localId, {
-        serverId: String(created.id), internalCode, status: 'synced',
+        serverId: String(created.id), status: 'synced',
         syncedAt: new Date().toISOString(), errorMessage: null,
       })
     } catch (error) {
@@ -66,6 +79,12 @@ async function syncPendingItems() {
 async function syncPendingOperations() {
   for (const operation of await getPendingOperations()) {
     try {
+      if (!isInventoryTable(operation.tableName)) {
+        throw new Error(`Unsupported inventory table: ${operation.tableName}`)
+      }
+      if (operation.operationType !== 'edit_item' && !isStockInventoryTable(operation.tableName)) {
+        throw new Error(`Unsupported stock operation table: ${operation.tableName}`)
+      }
       await offlineDb.offline_operations.update(operation.id, { status: 'syncing', errorMessage: null })
       let itemId = operation.itemId
       if (!itemId && operation.localItemId) {
@@ -74,8 +93,10 @@ async function syncPendingOperations() {
         itemId = localItem.serverId
       }
       if (!itemId) throw new Error('لا يوجد معرّف صالح للصنف')
-      if (operation.operationType === 'edit_item') await syncEdit(operation, itemId)
-      else await syncStockOperation(operation, itemId)
+      if (operation.operationType === 'edit_item') {
+        const hasConflict = await syncEdit(operation, itemId)
+        if (hasConflict) continue
+      } else await syncStockOperation(operation, itemId)
       await offlineDb.offline_operations.update(operation.id, {
         status: 'synced', syncedAt: new Date().toISOString(), errorMessage: null,
       })
@@ -93,7 +114,7 @@ async function syncStockOperation(operation: OfflineOperation, itemId: string) {
   const { data, error } = await client.rpc('apply_inventory_operation_transactional_rpc', {
     p_table_name: operation.tableName, p_item_id: itemId,
     p_operation_type: operation.operationType, p_quantity: operation.quantity,
-    p_operation_date: p.operationDate ?? new Date().toISOString().slice(0, 10),
+    p_operation_date: p.operationDate ?? getLocalDateString(),
     p_project_name: p.projectName ?? null, p_category_name: p.categoryName ?? null,
     p_item_name: p.itemName ?? null, p_supplier_name: p.supplierName ?? null,
     p_issued_to: p.issuedTo ?? null, p_received_by: p.receivedBy ?? p.issuedTo ?? null,
@@ -108,15 +129,29 @@ async function syncEdit(operation: OfflineOperation, itemId: string) {
   const client = requireClient()
   const patch = { ...operation.payload }
   delete patch.internal_code
-  if (operation.tableName === 'cutting_discs' || operation.tableName === 'long_welding_gloves') {
-    const { error } = await client.from(operation.tableName).update(patch as never).eq('id', itemId)
-    if (error) throw new Error(error.message)
-    return
-  }
-  const { error } = await client.rpc('update_inventory_item_details_rpc', {
-    p_table_name: operation.tableName, p_item_id: itemId, p_patch: patch,
-    p_adjust_date: null, p_notes: patch.notes ?? null,
-    p_updated_by: patch.updatedBy ?? 'offline-user',
-  })
+  const isCustody = operation.tableName === 'cutting_discs' || operation.tableName === 'long_welding_gloves'
+  const { data, error } = await client.rpc(
+    isCustody
+      ? 'update_custody_item_details_with_version_rpc'
+      : 'update_inventory_item_details_with_version_rpc',
+    isCustody
+      ? {
+          p_table_name: operation.tableName, p_item_id: itemId, p_patch: patch,
+          p_base_updated_at: operation.baseUpdatedAt,
+          p_updated_by: 'offline-user',
+        }
+      : {
+          p_table_name: operation.tableName, p_item_id: itemId, p_patch: patch,
+          p_base_updated_at: operation.baseUpdatedAt,
+          p_adjust_date: null, p_notes: patch.notes ?? null,
+          p_updated_by: 'offline-user',
+        },
+  )
   if (error) throw new Error(error.message)
+  if (data && typeof data === 'object' && 'conflict' in data && data.conflict) {
+    const reason = 'reason' in data && typeof data.reason === 'string' ? data.reason : 'stale_version'
+    await offlineDb.offline_operations.update(operation.id, { status: 'conflict', errorMessage: reason })
+    return true
+  }
+  return false
 }

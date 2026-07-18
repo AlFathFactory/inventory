@@ -5,6 +5,7 @@ import {
   type OfflineOperation,
   type OfflineOperationType,
 } from '../lib/offlineDb'
+import { isInventoryTable, isStockInventoryTable } from './inventoryTablePolicy'
 
 export async function saveOfflineOperation(params: {
   tableName: string
@@ -12,13 +13,19 @@ export async function saveOfflineOperation(params: {
   localItemId?: string | null
   operationType: OfflineOperationType
   quantity?: number | null
+  baseUpdatedAt?: string | null
   payload: Record<string, unknown>
 }) {
+  if (!isStockInventoryTable(params.tableName)) {
+    throw new Error(`Unsupported offline stock table: ${params.tableName}`)
+  }
+
   const operation: OfflineOperation = {
     id: uuid(), tableName: params.tableName,
     itemId: params.itemId === null || params.itemId === undefined ? null : String(params.itemId),
     localItemId: params.localItemId ?? null,
     operationType: params.operationType, quantity: params.quantity ?? null,
+    baseUpdatedAt: params.baseUpdatedAt ?? null,
     payload: params.payload, status: 'pending', errorMessage: null,
     createdAt: new Date().toISOString(), syncedAt: null,
   }
@@ -34,6 +41,10 @@ export async function saveOfflineItem(params: {
   materialSource?: string | null
   payload: Record<string, unknown>
 }) {
+  if (!isInventoryTable(params.tableName)) {
+    throw new Error(`Unsupported offline inventory table: ${params.tableName}`)
+  }
+
   const item: OfflineItem = {
     localId: uuid(), serverId: null, tableName: params.tableName,
     internalCode: params.internalCode, itemName: params.itemName,
@@ -49,6 +60,11 @@ export const getPendingItems = () => offlineDb.offline_items.where('status').equ
 export const getPendingOperations = () => offlineDb.offline_operations.where('status').equals('pending').sortBy('createdAt')
 export const retryFailedItem = (localId: string) => offlineDb.offline_items.update(localId, { status: 'pending', errorMessage: null })
 export const retryFailedOperation = (id: string) => offlineDb.offline_operations.update(id, { status: 'pending', errorMessage: null })
+export const dismissConflictingOperation = (id: string) => offlineDb.offline_operations.update(id, {
+  status: 'synced',
+  errorMessage: 'Local edit discarded after a server-version conflict.',
+  syncedAt: new Date().toISOString(),
+})
 
 export async function recoverInterruptedSyncs() {
   await offlineDb.transaction('rw', offlineDb.offline_items, offlineDb.offline_operations, async () => {

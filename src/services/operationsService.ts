@@ -4,6 +4,7 @@ import {
   supabaseClient,
 } from '../lib/supabaseClient'
 import { saveOfflineOperation } from './offlineQueueService'
+import { isStockInventoryTable } from './inventoryTablePolicy'
 
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
@@ -25,21 +26,6 @@ export type ApplyInventoryOperationParams = {
   createdBy?: string
   localItemId?: string | null
 }
-
-const allowedInventoryOperationTables = new Set([
-  'consumables',
-  'paints',
-  'screws',
-  'stock_screws',
-  'raw_materials',
-  'cylinders',
-])
-
-const inventoryViews = [
-  'inventory_category_items_summary_view',
-  'inventory_item_details_view',
-  'inventory_item_movements_view',
-] as const
 
 export type RecentInventoryOperation = {
   id: string
@@ -182,19 +168,6 @@ function getOperationErrorMessage(message: string) {
   return message || 'فشل تنفيذ حركة المخزون'
 }
 
-async function refreshInventoryViews(client: ReturnType<typeof getClientOrThrow>) {
-  const results = await Promise.all(
-    inventoryViews.map((view) => client.from(view).select('*').limit(1)),
-  )
-  const refreshErrors = results.flatMap((result, index) =>
-    result.error ? [`${inventoryViews[index]}: ${result.error.message}`] : [],
-  )
-
-  if (refreshErrors.length > 0) {
-    console.warn('Inventory operation succeeded, but view refresh failed', refreshErrors)
-  }
-}
-
 export async function applyInventoryOperation(
   params: ApplyInventoryOperationParams,
 ) {
@@ -204,7 +177,7 @@ export async function applyInventoryOperation(
     throw new Error('بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى')
   }
 
-  if (!allowedInventoryOperationTables.has(params.tableName)) {
+  if (!isStockInventoryTable(params.tableName)) {
     throw new Error(`Unsupported inventory table: ${params.tableName}`)
   }
 
@@ -245,8 +218,6 @@ export async function applyInventoryOperation(
 
   const client = getClientOrThrow()
 
-  console.log('Operation payload', params)
-
   const { data, error } = await client.rpc(
     'apply_inventory_operation_transactional_rpc',
     {
@@ -276,7 +247,6 @@ export async function applyInventoryOperation(
     throw new Error('فشل تنفيذ حركة المخزون')
   }
 
-  await refreshInventoryViews(client)
   return data
 }
 

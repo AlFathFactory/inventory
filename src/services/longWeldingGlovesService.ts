@@ -3,7 +3,6 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
-import { generateInventoryInternalCode } from './inventoryCodeService'
 
 export type LongWeldingGloveInput = {
   type_name: string
@@ -41,15 +40,18 @@ export async function createLongWeldingGlove(
   values: LongWeldingGloveInput,
 ): Result<LongWeldingGloveRecord> {
   if (!isSupabaseConfigured || !supabaseClient) return unavailable()
-  const { data, error } = await supabaseClient
-    .from('long_welding_gloves')
-    .insert(values)
-    .select()
-    .single()
+  const { data, error } = await supabaseClient.rpc('create_inventory_item_rpc', {
+    p_table_name: 'long_welding_gloves',
+    p_payload: values,
+    p_created_by: 'user',
+  })
   if (error) return { data: null, error: error.message }
   try {
-    const internalCode = await generateInventoryInternalCode('long_welding_gloves', data.id)
-    return { data: { ...data, internal_code: internalCode } as LongWeldingGloveRecord, error: null }
+    if (typeof data !== 'object' || !('ok' in data) || !data.ok || !('row' in data)) {
+      return { data: null, error: 'Inventory create RPC returned an invalid response.' }
+    }
+    const response = data as { row: LongWeldingGloveRecord; internal_code?: string | null }
+    return { data: { ...response.row, internal_code: response.internal_code ?? null }, error: null }
   } catch (codeError) {
     return { data: null, error: codeError instanceof Error ? codeError.message : 'تعذر إنشاء كود الصنف' }
   }
@@ -60,22 +62,24 @@ export async function updateLongWeldingGlove(
   values: LongWeldingGloveInput,
 ): Result<LongWeldingGloveRecord> {
   if (!isSupabaseConfigured || !supabaseClient) return unavailable()
-  const { data, error } = await supabaseClient
-    .from('long_welding_gloves')
-    .update(values)
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await supabaseClient.rpc('update_custody_item_details_rpc', {
+    p_table_name: 'long_welding_gloves',
+    p_item_id: id,
+    p_patch: values,
+    p_updated_by: 'user',
+  })
   return error
     ? { data: null, error: error.message }
-    : { data: data as LongWeldingGloveRecord, error: null }
+    : { data: ((data as { row?: LongWeldingGloveRecord }).row ?? data) as LongWeldingGloveRecord, error: null }
 }
 
 export async function archiveLongWeldingGlove(id: string): Result<null> {
   if (!isSupabaseConfigured || !supabaseClient) return unavailable()
-  const { error } = await supabaseClient
-    .from('long_welding_gloves')
-    .update({ is_archived: true })
-    .eq('id', id)
+  const { error } = await supabaseClient.rpc('update_custody_item_details_rpc', {
+    p_table_name: 'long_welding_gloves',
+    p_item_id: id,
+    p_patch: { is_archived: true },
+    p_updated_by: 'user',
+  })
   return error ? { data: null, error: error.message } : { data: null, error: null }
 }

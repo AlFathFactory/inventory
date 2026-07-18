@@ -7,7 +7,6 @@ import { getCategoryByTable } from '../config/categoryConfig'
 import type { ParsedInventoryRow, ParsedRowsByTable } from '../utils/excelParser'
 import type { NormalizedInventoryImport, NormalizedImportItem } from '../utils/jsonImportParser'
 import { getExpiryAlertStatus } from '../utils/expiryStatus'
-import { generateInventoryInternalCode } from './inventoryCodeService'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -505,7 +504,11 @@ export async function importNormalizedInventoryJson(
       if (saveError || !saved) throw new Error(saveError?.message || 'Failed to save item.')
 
       resolvedItems.set(`${item.table_name}::${item.item_key}`, { tableName: item.table_name, row: saved as InventoryRow })
-      existing ? updatedItemsCount++ : insertedItemsCount++
+      if (existing) {
+        updatedItemsCount += 1
+      } else {
+        insertedItemsCount += 1
+      }
     } catch (error) {
       errors.push(`${item.table_name}/${item.item_key}: ${normalizeError(error, 'Failed to import item.')}`)
     }
@@ -905,11 +908,11 @@ export async function createInventoryItem(
       })
     }
 
-    const { data, error } = await supabaseClient!
-      .from(tableName)
-      .insert(payload as never)
-      .select('*')
-      .single()
+    const { data, error } = await supabaseClient!.rpc('create_inventory_item_rpc', {
+      p_table_name: tableName,
+      p_payload: payload,
+      p_created_by: 'user',
+    })
 
     if (error || !data) {
       if (error?.code === '23505') {
@@ -918,14 +921,19 @@ export async function createInventoryItem(
       return createFailure(error?.message || 'تعذر إضافة الصنف')
     }
 
-    const createdItem = data as InventoryRow
+    if (typeof data !== 'object' || !('ok' in data) || !data.ok || !('row' in data)) {
+      return createFailure('Inventory create RPC returned an invalid response.')
+    }
+
+    const response = data as { row: InventoryRow; internal_code?: string | null }
+    const createdItem = response.row
     const createdItemId = createdItem.id
 
     if (typeof createdItemId !== 'string' && typeof createdItemId !== 'number') {
       return createFailure('تعذر تحديد الصنف الجديد لإنشاء كود الصنف')
     }
 
-    const internalCode = await generateInventoryInternalCode(tableName, createdItemId)
+    const internalCode = response.internal_code ?? null
 
     return createSuccess({
       ...createdItem,

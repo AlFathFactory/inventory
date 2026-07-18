@@ -3,7 +3,6 @@ import {
   isSupabaseConfigured,
   supabaseClient,
 } from '../lib/supabaseClient'
-import { generateInventoryInternalCode } from './inventoryCodeService'
 
 export type CuttingDiscInput = {
   code: string | null
@@ -52,17 +51,20 @@ export async function createCuttingDisc(
     ...values,
     source_sheet: 'صواريخ',
   }
-  const { data, error } = await supabaseClient
-    .from('cutting_discs')
-    .insert(payload)
-    .select()
-    .single()
+  const { data, error } = await supabaseClient.rpc('create_inventory_item_rpc', {
+    p_table_name: 'cutting_discs',
+    p_payload: payload,
+    p_created_by: 'user',
+  })
 
   if (error) return { data: null, error: error.message }
   if (!data) return { data: null, error: 'تعذر إضافة سجل الصاروخ' }
   try {
-    const internalCode = await generateInventoryInternalCode('cutting_discs', data.id)
-    return { data: { ...data, internal_code: internalCode } as CuttingDiscRecord, error: null }
+    if (typeof data !== 'object' || !('ok' in data) || !data.ok || !('row' in data)) {
+      return { data: null, error: 'Inventory create RPC returned an invalid response.' }
+    }
+    const response = data as { row: CuttingDiscRecord; internal_code?: string | null }
+    return { data: { ...response.row, internal_code: response.internal_code ?? null }, error: null }
   } catch (codeError) {
     return { data: null, error: codeError instanceof Error ? codeError.message : 'تعذر إنشاء كود الصنف' }
   }
@@ -74,14 +76,14 @@ export async function updateCuttingDisc(
 ): Result<CuttingDiscRecord> {
   if (!isSupabaseConfigured || !supabaseClient) return unavailable()
 
-  const { data, error } = await supabaseClient
-    .from('cutting_discs')
-    .update(values)
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await supabaseClient.rpc('update_custody_item_details_rpc', {
+    p_table_name: 'cutting_discs',
+    p_item_id: id,
+    p_patch: values,
+    p_updated_by: 'user',
+  })
 
   if (error) return { data: null, error: error.message }
   if (!data) return { data: null, error: 'لم يتم العثور على سجل الصاروخ' }
-  return { data: data as CuttingDiscRecord, error: null }
+  return { data: ((data as { row?: CuttingDiscRecord }).row ?? data) as CuttingDiscRecord, error: null }
 }

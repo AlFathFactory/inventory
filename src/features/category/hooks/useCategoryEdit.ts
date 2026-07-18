@@ -65,8 +65,8 @@ export function useCategoryEdit({
       total_added: null,
       total_issued: null,
       source_rows_count: 1,
-      updated_at: null,
-      created_at: null,
+      updated_at: result.data.updated_at ?? null,
+      created_at: result.data.created_at ?? null,
     } as ItemDetails : result.data as ItemDetails)
   }
 
