@@ -287,6 +287,80 @@ function getInclusiveDateEndTimestamp(value: string) {
   return new Date(year, month - 1, day, 23, 59, 59, 999).getTime()
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;',
+  }[character] ?? character))
+}
+
+function generateLowStockReport(rows: LowStockRow[], showExpiryDate: boolean) {
+  const reportWindow = window.open('', '_blank')
+
+  if (!reportWindow) {
+    window.alert('تعذر فتح معاينة التقرير. يرجى السماح بالنوافذ المنبثقة ثم المحاولة مرة أخرى.')
+    return
+  }
+
+  reportWindow.opener = null
+
+  const headers = [
+    'الحالة',
+    'القسم',
+    'الصنف',
+    'المشروع',
+    ...(showExpiryDate ? ['تاريخ الانتهاء'] : []),
+    'الرصيد الحالي',
+    'الحد الأدنى',
+  ]
+  const reportRows = rows.map((row) => [
+    getAlertStatusLabel(row.status),
+    row.categoryLabel,
+    row.itemName,
+    row.projectName ?? '—',
+    ...(showExpiryDate ? [row.expiryDateLabel] : []),
+    formatNumber(row.stockBalance),
+    formatNumber(row.minQuantity),
+  ])
+  const generatedAt = new Intl.DateTimeFormat('ar-EG', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date())
+
+  reportWindow.document.write(`<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>تقرير تنبيهات المخزون</title>
+    <style>
+      @page { size: A4 landscape; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body { color: #0f172a; font-family: Arial, Tahoma, sans-serif; font-size: 12px; }
+      h1 { margin: 0; font-size: 22px; }
+      .meta { display: flex; justify-content: space-between; margin: 8px 0 20px; color: #475569; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; vertical-align: top; }
+      th { background: #e2e8f0; font-weight: 700; }
+      tr { break-inside: avoid; }
+    </style>
+  </head>
+  <body>
+    <h1>تقرير تنبيهات المخزون</h1>
+    <div class="meta"><span>عدد النتائج: ${rows.length}</span><span>تاريخ الإنشاء: ${escapeHtml(generatedAt)}</span></div>
+    <table>
+      <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+      <tbody>${reportRows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+  </body>
+</html>`)
+  reportWindow.document.close()
+  reportWindow.focus()
+  reportWindow.print()
+}
+
 const columns: DataTableColumn<LowStockRow>[] = [
   {
     id: 'status',
@@ -520,11 +594,16 @@ export function LowStockPage() {
     })
   }, [categoryFilter, dateRange.fromDate, dateRange.toDate, projectFilter, searchedRows, statusFilter])
 
+  const hasPaintRows = useMemo(
+    () => filteredRows.some((row) => row.categoryKey === 'paints'),
+    [filteredRows],
+  )
+
   const tableColumns = useMemo(
-    () => filteredRows.some((row) => row.categoryKey === 'paints')
+    () => hasPaintRows
       ? columns
       : columns.filter((column) => column.id !== 'expiryDateLabel'),
-    [filteredRows],
+    [hasPaintRows],
   )
 
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
@@ -590,7 +669,17 @@ export function LowStockPage() {
               الجدول يجمع تنبيهات الكمية وتنبيهات صلاحية الدهانات في مكان واحد.
             </p>
           </div>
-          <p className="text-sm text-slate-500">النتائج: {filteredRows.length}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">النتائج: {filteredRows.length}</p>
+            <button
+              type="button"
+              onClick={() => generateLowStockReport(filteredRows, hasPaintRows)}
+              disabled={filteredRows.length === 0}
+              className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              إنشاء تقرير PDF
+            </button>
+          </div>
         </div>
 
         <DataFilters
