@@ -13,6 +13,7 @@ import {
   type ItemDetails,
 } from '../services/itemsService'
 import { custodyItemQueryOptions } from '../features/inventory/inventoryQueries'
+import { ToastOnChange } from '../components/ToastProvider'
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? '—' : String(value)
@@ -76,11 +77,7 @@ export function ItemDetailsPage() {
 
   return (
     <section dir="rtl" className="space-y-6">
-      {page.message ? (
-        <div className={`rounded-[24px] border px-5 py-4 text-sm ${page.message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-          {page.message.text}
-        </div>
-      ) : null}
+      <ToastOnChange message={page.message?.text ?? null} type={page.message?.type} />
 
       {page.isLoading ? (
         <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">

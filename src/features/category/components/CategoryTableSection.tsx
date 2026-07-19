@@ -5,6 +5,7 @@ import type { CategoryDefinition } from '../../../config/categoryConfig'
 import type { CategorySummaryItem } from '../../../services/itemsService'
 import type { CategoryMessage } from '../types'
 import type { CategoryPageModel } from '../hooks/useCategoryPage'
+import { ToastOnChange } from '../../../components/ToastProvider'
 
 type CategoryTableSectionProps = {
   category: CategoryDefinition
@@ -45,16 +46,7 @@ export function CategoryTableSection({
 }: CategoryTableSectionProps) {
   return (
     <>
-      {message ? (
-        <div className={[
-          'rounded-[24px] border px-5 py-4 text-sm',
-          message.type === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            : 'border-red-200 bg-red-50 text-red-700',
-        ].join(' ')}>
-          {message.text}
-        </div>
-      ) : null}
+      <ToastOnChange message={message?.text ?? null} type={message?.type} />
 
       <DataFilters
         searchValue={searchTerm}

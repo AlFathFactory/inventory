@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { TablePagination } from '../components/TablePagination'
 import { usePagination } from '../hooks/usePagination'
+import { ToastOnChange } from '../components/ToastProvider'
 import {
   importInventoryRowsFromExcel,
   importNormalizedInventoryJson,
@@ -362,18 +363,7 @@ export function ImportExcelPage() {
         ) : null}
       </div>
 
-      {status ? (
-        <div
-          className={[
-            'rounded-[18px] border px-4 py-4 text-sm shadow-[var(--app-shadow)]',
-            status.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-red-200 bg-red-50 text-red-700',
-          ].join(' ')}
-        >
-          {status.message}
-        </div>
-      ) : null}
+      <ToastOnChange message={status?.message ?? null} type={status?.type} />
 
       {jsonDocument ? (
         <div className="space-y-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-[var(--app-shadow)]">

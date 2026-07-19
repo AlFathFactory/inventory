@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ToastOnChange } from '../components/ToastProvider'
 import {
   createProject,
   setProjectStatus,
@@ -42,7 +43,7 @@ export function ProjectsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [form, setForm] = useState<ProjectFormState>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [pendingName, setPendingName] = useState<string | null>(null)
   const usedProjectNames = useMemo(() => new Set(usedProjectNamesQuery.data ?? []), [usedProjectNamesQuery.data])
@@ -108,7 +109,7 @@ export function ProjectsPage() {
     setEditingProject(null)
     setForm(emptyForm)
     await refreshProjects()
-    setMessage(editingProject ? 'تم تعديل المشروع بنجاح' : 'تمت إضافة المشروع بنجاح')
+    setMessage({ text: editingProject ? 'تم تعديل المشروع بنجاح' : 'تمت إضافة المشروع بنجاح', type: 'success' })
   }
 
   async function toggleStatus(project: Project) {
@@ -120,11 +121,11 @@ export function ProjectsPage() {
     const result = await setProjectStatus(project.id, nextStatus)
     setPendingName(null)
     if (result.error) {
-      setMessage(result.error)
+      setMessage({ text: result.error, type: 'error' })
       return
     }
     await refreshProjects()
-    setMessage(nextStatus === 'active' ? 'تم تنشيط المشروع' : 'تم إلغاء تنشيط المشروع')
+    setMessage({ text: nextStatus === 'active' ? 'تم تنشيط المشروع' : 'تم إلغاء تنشيط المشروع', type: 'success' })
   }
 
   async function addImportedName(name: string) {
@@ -133,11 +134,11 @@ export function ProjectsPage() {
     const result = await createProject({ name, status: 'active' })
     setPendingName(null)
     if (result.error) {
-      setMessage(result.error)
+      setMessage({ text: result.error, type: 'error' })
       return
     }
     await refreshProjects()
-    setMessage(`تمت إضافة مشروع «${name}»`)
+    setMessage({ text: `تمت إضافة مشروع «${name}»`, type: 'success' })
   }
 
   const queryError = projectsQuery.error instanceof Error
@@ -160,7 +161,7 @@ export function ProjectsPage() {
         </button>
       </div>
 
-      {message ? <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">{message}</div> : null}
+      <ToastOnChange message={message?.text ?? null} type={message?.type} />
       {queryError ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{queryError}</div> : null}
 
       <div className="rounded-[28px] border border-[var(--app-border)] bg-white p-5 shadow-[var(--app-shadow)]">
