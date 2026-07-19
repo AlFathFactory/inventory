@@ -23,6 +23,8 @@ export type ProjectInput = {
   notes?: string | null
 }
 
+export const usedProjectRenameMessage = 'لا يمكن تعديل اسم هذا المشروع لأنه مرتبط بأصناف أو حركات مخزون. يمكنك إنشاء مشروع جديد بالاسم الصحيح وإيقاف المشروع القديم.'
+
 type Result<T> = Promise<{ data: T; error: null } | { data: null; error: string }>
 
 const itemProjectTables = [
@@ -43,9 +45,24 @@ function normalizeName(value: string) {
 }
 
 function projectError(error: { code?: string; message: string }) {
+  if (error.code === 'P0001') return usedProjectRenameMessage
   return error.code === '23505'
     ? 'اسم المشروع أو كود المشروع مسجل بالفعل'
     : error.message
+}
+
+export async function getUsedProjectNames(): Result<string[]> {
+  if (!isSupabaseConfigured || !supabaseClient) return unavailable()
+
+  const { data, error } = await supabaseClient.rpc('get_used_project_names')
+  if (error) return { data: null, error: error.message }
+
+  return {
+    data: (data ?? [])
+      .map((row: { name?: string | null }) => String(row.name ?? ''))
+      .filter(Boolean),
+    error: null,
+  }
 }
 
 export async function getProjects(): Result<Project[]> {

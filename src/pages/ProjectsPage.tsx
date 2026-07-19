@@ -11,6 +11,7 @@ import {
   projectKeys,
   projectsQueryOptions,
   unregisteredProjectsQueryOptions,
+  usedProjectNamesQueryOptions,
 } from '../features/projects/projectQueries'
 
 type ProjectFormState = {
@@ -35,6 +36,7 @@ export function ProjectsPage() {
   const queryClient = useQueryClient()
   const projectsQuery = useQuery(projectsQueryOptions)
   const unregisteredQuery = useQuery(unregisteredProjectsQueryOptions)
+  const usedProjectNamesQuery = useQuery(usedProjectNamesQueryOptions)
   const [searchTerm, setSearchTerm] = useState('')
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -43,6 +45,8 @@ export function ProjectsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [pendingName, setPendingName] = useState<string | null>(null)
+  const usedProjectNames = useMemo(() => new Set(usedProjectNamesQuery.data ?? []), [usedProjectNamesQuery.data])
+  const editingProjectIsUsed = editingProject ? usedProjectNames.has(editingProject.name) : false
 
   const filteredProjects = useMemo(() => {
     const search = searchTerm.trim().toLowerCase()
@@ -59,6 +63,7 @@ export function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: projectKeys.all }),
       queryClient.invalidateQueries({ queryKey: projectKeys.active }),
       queryClient.invalidateQueries({ queryKey: projectKeys.unregistered }),
+      queryClient.invalidateQueries({ queryKey: projectKeys.used }),
     ])
   }
 
@@ -139,6 +144,8 @@ export function ProjectsPage() {
     ? projectsQuery.error.message
     : unregisteredQuery.error instanceof Error
       ? unregisteredQuery.error.message
+      : usedProjectNamesQuery.error instanceof Error
+        ? usedProjectNamesQuery.error.message
       : null
 
   return (
@@ -168,7 +175,7 @@ export function ProjectsPage() {
             <tbody className="divide-y divide-slate-100">
               {filteredProjects.map((project) => (
                 <tr key={project.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-semibold text-slate-900">{project.name}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-900"><span>{project.name}</span>{usedProjectNames.has(project.name) ? <span className="mr-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">مستخدم</span> : null}</td>
                   <td className="px-4 py-3">{project.code || '—'}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${project.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{statusLabel(project.status)}</span></td>
                   <td className="max-w-xs px-4 py-3 text-slate-600">{project.notes || '—'}</td>
@@ -202,12 +209,13 @@ export function ProjectsPage() {
           <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between"><h3 className="text-xl font-bold text-slate-900">{editingProject ? 'تعديل المشروع' : 'إضافة مشروع جديد'}</h3><button type="button" onClick={() => setIsFormOpen(false)} aria-label="إغلاق" className="h-10 w-10 rounded-full bg-slate-100 text-xl">×</button></div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <ProjectField label="اسم المشروع *"><input autoFocus value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] px-4 text-sm" /></ProjectField>
+              <ProjectField label="اسم المشروع *"><input autoFocus value={form.name} disabled={editingProjectIsUsed} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] px-4 text-sm disabled:bg-slate-50 disabled:text-slate-500" />{editingProjectIsUsed ? <p className="text-xs text-amber-700">المشاريع المستخدمة لا يمكن تغيير اسمها للحفاظ على سلامة بيانات الأصناف والحركات.</p> : null}</ProjectField>
               <ProjectField label="كود المشروع (اختياري)"><input value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] px-4 text-sm" /></ProjectField>
               <ProjectField label="الحالة"><select value={form.status} disabled={!editingProject} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as ProjectStatus }))} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm disabled:bg-slate-50"><option value="active">نشط</option><option value="inactive">غير نشط</option></select></ProjectField>
               <ProjectField label="ملاحظات" wide><textarea rows={3} value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} className="w-full rounded-2xl border border-[var(--app-border)] px-4 py-3 text-sm" /></ProjectField>
             </div>
             {formError ? <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</p> : null}
+            {editingProjectIsUsed ? <button type="button" onClick={() => openCreate()} className="mt-5 text-sm font-bold text-[var(--app-primary)] hover:underline">إنشاء مشروع جديد بدلًا منه</button> : null}
             <div className="mt-6 flex gap-3"><button type="button" onClick={() => setIsFormOpen(false)} className="h-[44px] rounded-2xl px-5 text-sm font-bold text-slate-700">إلغاء</button><button type="button" disabled={isSaving} onClick={() => void saveProject()} className="h-[44px] rounded-2xl bg-[var(--app-primary)] px-6 text-sm font-bold text-white disabled:opacity-50">{isSaving ? 'جاري الحفظ...' : 'حفظ'}</button></div>
           </div>
         </div>

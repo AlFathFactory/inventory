@@ -1,11 +1,12 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { getActiveProjects, getProjects, getUnregisteredItemProjectNames } from '../../services/projectsService'
+import { getActiveProjects, getProjects, getUnregisteredItemProjectNames, getUsedProjectNames } from '../../services/projectsService'
 import { getCachedProjects } from '../../services/offlineBootstrapService'
 
 export const projectKeys = {
   all: ['projects'] as const,
   active: ['projects', 'active'] as const,
   unregistered: ['projects', 'unregistered-item-names'] as const,
+  used: ['projects', 'used-names'] as const,
 }
 
 function requireData<T>(result: { data: T | null; error: string | null }) {
@@ -34,6 +35,14 @@ export const unregisteredProjectsQueryOptions = queryOptions({
   networkMode: 'always',
   queryFn: async () => navigator.onLine
     ? requireData(await getUnregisteredItemProjectNames())
+    : [],
+})
+
+export const usedProjectNamesQueryOptions = queryOptions({
+  queryKey: projectKeys.used,
+  networkMode: 'always',
+  queryFn: async () => navigator.onLine
+    ? requireData(await getUsedProjectNames())
     : [],
 })
 
