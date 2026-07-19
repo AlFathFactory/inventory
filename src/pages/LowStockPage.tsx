@@ -520,6 +520,13 @@ export function LowStockPage() {
     })
   }, [categoryFilter, dateRange.fromDate, dateRange.toDate, projectFilter, searchedRows, statusFilter])
 
+  const tableColumns = useMemo(
+    () => filteredRows.some((row) => row.categoryKey === 'paints')
+      ? columns
+      : columns.filter((column) => column.id !== 'expiryDateLabel'),
+    [filteredRows],
+  )
+
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
   const outOfStockCount = searchedRows.filter((row) => row.status === 'out').length
   const lowStockCount = searchedRows.filter((row) => row.status === 'low').length
@@ -657,7 +664,7 @@ export function LowStockPage() {
         {!state.isLoading && filteredRows.length > 0 ? (
           <div className="overflow-hidden rounded-[24px] border border-[var(--app-border)]">
             <DataTable
-              columns={columns}
+              columns={tableColumns}
               rows={pagination.paginatedItems}
               getRowKey={(row) => row.id}
               stickyHeader
