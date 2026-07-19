@@ -677,7 +677,7 @@ export function LowStockPage() {
               disabled={filteredRows.length === 0}
               className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              إنشاء تقرير PDF
+              إنشاء تقرير
             </button>
           </div>
         </div>
