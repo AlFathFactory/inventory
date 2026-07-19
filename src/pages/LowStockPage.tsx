@@ -37,6 +37,7 @@ type LowStockRow = {
   categoryLabel: string
   itemName: string
   projectName: string | null
+  dateValue: string | null
   dateLabel: string
   expiryDateLabel: string
   stockBalance: number | null
@@ -172,6 +173,7 @@ function mapLowStockRows(
       itemName,
       projectName:
         extractStringValue(row.project) ?? extractStringValue(row.received_by),
+      dateValue: extractStringValue(row[category.dateField]),
       dateLabel: formatInventoryDate(row[category.dateField]),
       expiryDateLabel: '—',
       stockBalance,
@@ -197,6 +199,7 @@ function mapOutOfStockRows(
       itemName,
       projectName:
         extractStringValue(row.project) ?? extractStringValue(row.received_by),
+      dateValue: extractStringValue(row[category.dateField]),
       dateLabel: formatInventoryDate(row[category.dateField]),
       expiryDateLabel: '—',
       stockBalance: extractNumberValue(row[category.stockField]),
@@ -230,6 +233,7 @@ function mapExpiryRows(rows: InventoryRow[]): LowStockRow[] {
       categoryLabel: category.label,
       itemName,
       projectName: extractStringValue(row.project),
+      dateValue: extractStringValue(row[category.dateField]),
       dateLabel: formatInventoryDate(row[category.dateField]),
       expiryDateLabel: formatInventoryDate(expireDate),
       stockBalance: category.stockField
@@ -271,6 +275,16 @@ function getAlertStatusClass(status: AlertStatus): string {
 
 function formatNumber(value: number | null) {
   return value === null ? '—' : value.toLocaleString()
+}
+
+function getInclusiveDateEndTimestamp(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+
+  if (!year || !month || !day) {
+    return null
+  }
+
+  return new Date(year, month - 1, day, 23, 59, 59, 999).getTime()
 }
 
 const columns: DataTableColumn<LowStockRow>[] = [
@@ -451,6 +465,18 @@ export function LowStockPage() {
   }
 
   const [statusFilter, setStatusFilter] = useState<AlertStatusFilter>('all')
+  const [projectFilter, setProjectFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [dateRange, setDateRange] = useState({ fromDate: '', toDate: '' })
+
+  const projectOptions = useMemo(
+    () => Array.from(new Set(
+      state.rows
+        .map((row) => row.projectName)
+        .filter((projectName): projectName is string => Boolean(projectName)),
+    )).sort((first, second) => first.localeCompare(second, 'ar')),
+    [state.rows],
+  )
 
   const searchedRows = useMemo(
     () =>
@@ -464,13 +490,40 @@ export function LowStockPage() {
     [normalizedSearchTerm, state.rows],
   )
 
-  const filteredRows = useMemo(
-    () =>
-      searchedRows.filter(
-        (row) => statusFilter === 'all' || row.status === statusFilter,
-      ),
-    [searchedRows, statusFilter],
-  )
+  const filteredRows = useMemo(() => {
+    const fromTimestamp = dateRange.fromDate
+      ? new Date(dateRange.fromDate).getTime()
+      : null
+    const toTimestamp = dateRange.toDate
+      ? getInclusiveDateEndTimestamp(dateRange.toDate)
+      : null
+
+    return searchedRows.filter((row) => {
+      if (statusFilter !== 'all' && row.status !== statusFilter) {
+        return false
+      }
+
+      if (projectFilter !== 'all' && row.projectName !== projectFilter) {
+        return false
+      }
+
+      if (categoryFilter !== 'all' && row.categoryKey !== categoryFilter) {
+        return false
+      }
+
+      if (fromTimestamp !== null || toTimestamp !== null) {
+        const rowTimestamp = row.dateValue ? new Date(row.dateValue).getTime() : 0
+
+        if (!rowTimestamp ||
+          (fromTimestamp !== null && rowTimestamp < fromTimestamp) ||
+          (toTimestamp !== null && rowTimestamp > toTimestamp)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [categoryFilter, dateRange.fromDate, dateRange.toDate, projectFilter, searchedRows, statusFilter])
 
   const pagination = usePagination(filteredRows, { initialPageSize: 10 })
   const outOfStockCount = searchedRows.filter((row) => row.status === 'out').length
@@ -541,6 +594,9 @@ export function LowStockPage() {
         <DataFilters
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
+          showDateFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
           searchPlaceholder="ابحث باسم الصنف أو المشروع أو القسم"
         >
           <label className="min-w-[190px] flex-[0_1_230px] space-y-2">
@@ -559,6 +615,34 @@ export function LowStockPage() {
               <option value="out">كمية فارغة</option>
               <option value="expiring">تنتهي خلال شهر</option>
               <option value="expired">منتهي الصلاحية</option>
+            </select>
+          </label>
+
+          <label className="min-w-[190px] flex-[0_1_230px] space-y-2">
+            <span className="block text-sm font-medium text-slate-700">المشروع</span>
+            <select
+              value={projectFilter}
+              onChange={(event) => setProjectFilter(event.target.value)}
+              className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+            >
+              <option value="all">كل المشاريع</option>
+              {projectOptions.map((projectName) => (
+                <option key={projectName} value={projectName}>{projectName}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="min-w-[190px] flex-[0_1_230px] space-y-2">
+            <span className="block text-sm font-medium text-slate-700">القسم</span>
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+            >
+              <option value="all">كل الأقسام</option>
+              {categoryEntries.map(([categoryKey, category]) => (
+                <option key={categoryKey} value={categoryKey}>{category.label}</option>
+              ))}
             </select>
           </label>
         </DataFilters>
