@@ -320,11 +320,6 @@ const columns: DataTableColumn<LowStockRow>[] = [
     renderCell: (row) => row.projectName ?? '—',
   },
   {
-    id: 'dateLabel',
-    header: 'تاريخ الحركة',
-    renderCell: (row) => row.dateLabel,
-  },
-  {
     id: 'expiryDateLabel',
     header: 'تاريخ الانتهاء',
     renderCell: (row) => row.expiryDateLabel,
