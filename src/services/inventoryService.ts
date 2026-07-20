@@ -42,6 +42,12 @@ export type ServiceResult<TData> = Promise<ServiceSuccess<TData> | ServiceFailur
 export type InventoryImportResult = {
   importedRowCount: number
   processedItemCount: number
+  matchedItemsCount?: number
+  newItemsCount?: number
+  ambiguousItemsCount?: number
+  matchedByItemKeyCount?: number
+  matchedByInternalCodeCount?: number
+  matchedByBusinessIdentityCount?: number
   insertedItemsCount: number
   updatedItemsCount: number
   insertedMovementsCount: number

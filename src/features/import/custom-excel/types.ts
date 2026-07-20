@@ -14,6 +14,7 @@ export type CustomExcelSource = {
 }
 
 export type CustomInventoryFields = {
+  internal_code?: string
   din?: string
   code_number?: string
   weight?: number | null
@@ -29,6 +30,7 @@ export type CustomInventoryFields = {
 }
 
 export type CustomInventoryItem = {
+  client_key: string
   table_name: StockTableName
   item_key: string
   project_name: string
@@ -59,6 +61,43 @@ export type CustomInventoryMovement = {
   import_key: string
   notes?: string
   source: CustomExcelSource
+}
+
+export type InventoryMatchStatus = 'matched' | 'ambiguous' | 'not_found'
+
+export type InventoryItemMatch = {
+  status: InventoryMatchStatus
+  item_id: string | null
+  match_method: string | null
+  match_count: number
+  candidate_ids?: string[]
+}
+
+export type InventoryMatchResultRow = {
+  client_key: string
+  table_name: string
+  item_key: string
+  match: InventoryItemMatch
+}
+
+export type InventoryMatchedItem = {
+  sourceItem: CustomInventoryItem
+  itemId: string
+  matchMethod: string
+}
+
+export type InventoryAmbiguousItem = {
+  sourceItem: CustomInventoryItem
+  candidateIds: string[]
+  matchMethod: string | null
+}
+
+export type InventoryMatchingSummary = {
+  matched: InventoryMatchedItem[]
+  newItems: CustomInventoryItem[]
+  ambiguous: InventoryAmbiguousItem[]
+  newMovementsCount: number
+  duplicateMovementsCount: number
 }
 
 export type CustomCuttingDisc = {
@@ -103,6 +142,9 @@ export type CustomExcelPreview = {
   errors: string[]
   warnings: string[]
   ignoredSheets: string[]
+  duplicateItemsCount: number
+  duplicateMovementsCount: number
+  matching?: InventoryMatchingSummary
   sheetDiagnoses?: CustomSheetDiagnosis[]
 }
 

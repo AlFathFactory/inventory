@@ -17,6 +17,10 @@ declare
   s jsonb;
   v_table text;
   v_id uuid;
+  v_resolved_id uuid;
+  v_match_status text;
+  v_client_key text;
+  v_action text;
   v_item_key text;
   v_existing_key text;
   v_project text;
@@ -39,6 +43,7 @@ declare
   v_skipped integer := 0;
   v_errors jsonb := '[]'::jsonb;
   v_items_needing_codes jsonb := '[]'::jsonb;
+  v_item_results jsonb := '[]'::jsonb;
 begin
   if p_items is null or jsonb_typeof(p_items) <> 'array' then
     raise exception 'p_items must be a JSON array';
@@ -53,6 +58,9 @@ begin
       end if;
 
       v_item_key := nullif(btrim(r->>'item_key'), '');
+      v_client_key := nullif(btrim(r->>'client_key'), '');
+      v_match_status := nullif(btrim(r->>'match_status'), '');
+      v_resolved_id := nullif(r->>'resolved_item_id', '')::uuid;
       v_project := nullif(btrim(r->>'project_name'), '');
       v_item_name := nullif(btrim(r->>'item_name'), '');
       v_type_name := coalesce(nullif(btrim(r->>'type_name'), ''), v_item_name);
@@ -68,38 +76,39 @@ begin
       v_th := public.safe_to_numeric(coalesce(f->>'th', r->>'th'));
       v_weight := public.safe_to_numeric(coalesce(f->>'weight', r->>'weight'));
       v_dimension_text := nullif(btrim(coalesce(f->>'dimension_text', r->>'dimension_text')), '');
-      v_id := null;
+      v_id := v_resolved_id;
       v_existing_key := null;
+      v_action := null;
 
-      if v_item_key is null or v_item_name is null then
-        raise exception 'item_key and item_name are required';
+      if v_client_key is null or v_item_key is null or v_item_name is null then
+        raise exception 'client_key, item_key and item_name are required';
+      end if;
+      if v_match_status not in ('matched','not_found') then
+        raise exception 'match_status must be matched or not_found';
+      end if;
+      if v_match_status = 'matched' and v_resolved_id is null then
+        raise exception 'resolved_item_id is required for matched items';
+      end if;
+      if v_match_status = 'not_found' and v_resolved_id is not null then
+        raise exception 'resolved_item_id is not allowed for not_found items';
+      end if;
+
+      if v_match_status = 'matched' then
+        execute format('select item_key from public.%I where id=$1 and is_archived is not true', v_table)
+          into v_existing_key using v_resolved_id;
+        if v_existing_key is null then
+          raise exception 'resolved_item_id does not identify an active row in %', v_table;
+        end if;
+      else
+        execute format('select id from public.%I where item_key=$1 and is_archived is not true limit 1', v_table)
+          into v_id using v_item_key;
+        if v_id is not null then
+          raise exception 'item_key appeared after matching; run matching again';
+        end if;
+        v_id := null;
       end if;
 
       if v_table in ('consumables','paints') then
-        if v_table = 'consumables' then
-          select id, item_key into v_id, v_existing_key
-          from public.consumables
-          where is_archived is not true and (
-            item_key = v_item_key or (
-              public.normalize_inventory_text(project) = public.normalize_inventory_text(v_project)
-              and public.normalize_inventory_text(item_name) = public.normalize_inventory_text(v_item_name)
-            )
-          )
-          order by case when item_key = v_item_key then 0 else 1 end, created_at
-          limit 1;
-        else
-          select id, item_key into v_id, v_existing_key
-          from public.paints
-          where is_archived is not true and (
-            item_key = v_item_key or (
-              public.normalize_inventory_text(project) = public.normalize_inventory_text(v_project)
-              and public.normalize_inventory_text(item_name) = public.normalize_inventory_text(v_item_name)
-            )
-          )
-          order by case when item_key = v_item_key then 0 else 1 end, created_at
-          limit 1;
-        end if;
-
         if v_id is null then
           if v_table = 'consumables' then
             insert into public.consumables(
@@ -125,6 +134,7 @@ begin
             ) returning id into v_id;
           end if;
           v_inserted := v_inserted + 1;
+          v_action := 'inserted';
         else
           if v_existing_key is distinct from v_item_key then
             execute format('select not exists(select 1 from public.%I where item_key=$1 and id<>$2)', v_table)
@@ -149,14 +159,10 @@ begin
             where id=v_id;
           end if;
           v_updated := v_updated + 1;
+          v_action := 'updated';
         end if;
 
       elsif v_table in ('screws','stock_screws') then
-        execute format(
-          'select id,item_key from public.%I where is_archived is not true and (item_key=$1 or (public.normalize_inventory_text(project)=public.normalize_inventory_text($2) and public.normalize_inventory_text(item_name)=public.normalize_inventory_text($3) and public.normalize_inventory_text(din)=public.normalize_inventory_text($4) and public.normalize_inventory_text(code_number)=public.normalize_inventory_text($5))) order by case when item_key=$1 then 0 else 1 end,created_at limit 1',
-          v_table
-        ) into v_id,v_existing_key using v_item_key,v_project,v_item_name,v_din,v_code_number;
-
         if v_id is null then
           execute format(
             'insert into public.%I(project,item_name,din,code_number,opening_balance,total_added,total_issued,stock_balance,min_quantity,transaction_date,source_file,source_sheet,item_key,notes) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning id',
@@ -167,12 +173,13 @@ begin
             coalesce(public.safe_to_numeric(r->>'min_quantity'),0),coalesce(nullif(r->>'transaction_date','')::date,date '2026-07-31'),
             v_source_file,v_source_sheet,v_item_key,coalesce(r->>'notes',f->>'notes');
           v_inserted := v_inserted + 1;
+          v_action := 'inserted';
         else
           execute format('select not exists(select 1 from public.%I where item_key=$1 and id<>$2)',v_table)
             into v_key_available using v_item_key,v_id;
           if v_key_available then v_existing_key := v_item_key; end if;
           execute format(
-            'update public.%I set project=$1,item_name=$2,din=$3,code_number=$4,opening_balance=$5,total_added=$6,total_issued=$7,stock_balance=$8,min_quantity=$9,transaction_date=$10,source_file=$11,source_sheet=$12,item_key=coalesce($13,item_key),notes=coalesce($14,notes),updated_at=now() where id=$15',
+            'update public.%I set project=$1,item_name=$2,din=coalesce($3,din),code_number=coalesce($4,code_number),opening_balance=$5,total_added=$6,total_issued=$7,stock_balance=$8,min_quantity=$9,transaction_date=$10,source_file=$11,source_sheet=$12,item_key=coalesce($13,item_key),notes=coalesce($14,notes),updated_at=now() where id=$15',
             v_table
           ) using v_project,v_item_name,v_din,v_code_number,
             coalesce(public.safe_to_numeric(r->>'opening_balance'),0),coalesce(public.safe_to_numeric(r->>'total_added'),0),
@@ -180,24 +187,10 @@ begin
             coalesce(public.safe_to_numeric(r->>'min_quantity'),0),coalesce(nullif(r->>'transaction_date','')::date,date '2026-07-31'),
             v_source_file,v_source_sheet,v_existing_key,coalesce(r->>'notes',f->>'notes'),v_id;
           v_updated := v_updated + 1;
+          v_action := 'updated';
         end if;
 
       elsif v_table = 'raw_materials' then
-        select id,item_key into v_id,v_existing_key
-        from public.raw_materials
-        where is_archived is not true and (
-          item_key=v_item_key or (
-            public.normalize_inventory_text(project)=public.normalize_inventory_text(v_project)
-            and public.normalize_inventory_text(item_name)=public.normalize_inventory_text(v_item_name)
-            and public.normalize_inventory_text(material_source)=public.normalize_inventory_text(v_material_source)
-            and public.normalize_inventory_text(code_number)=public.normalize_inventory_text(v_code_number)
-            and public.normalize_inventory_text(din)=public.normalize_inventory_text(v_din)
-            and length is not distinct from v_length and width is not distinct from v_width
-            and th is not distinct from v_th and weight is not distinct from v_weight
-            and public.normalize_inventory_text(dimension_text)=public.normalize_inventory_text(v_dimension_text)
-          )
-        ) order by case when item_key=v_item_key then 0 else 1 end,created_at limit 1;
-
         if v_id is null then
           insert into public.raw_materials(
             project,item_name,material_source,length,width,th,weight,dimension_text,code_number,din,
@@ -210,30 +203,23 @@ begin
             v_source_file,v_source_sheet,v_item_key,coalesce(r->>'notes',f->>'notes')
           ) returning id into v_id;
           v_inserted := v_inserted + 1;
+          v_action := 'inserted';
         else
           select not exists(select 1 from public.raw_materials where item_key=v_item_key and id<>v_id) into v_key_available;
           if v_key_available then v_existing_key := v_item_key; end if;
           update public.raw_materials set
-            project=v_project,item_name=v_item_name,material_source=v_material_source,length=v_length,width=v_width,th=v_th,weight=v_weight,
-            dimension_text=v_dimension_text,code_number=v_code_number,din=v_din,
+            project=v_project,item_name=v_item_name,material_source=coalesce(v_material_source,material_source),length=coalesce(v_length,length),width=coalesce(v_width,width),th=coalesce(v_th,th),weight=coalesce(v_weight,weight),
+            dimension_text=coalesce(v_dimension_text,dimension_text),code_number=coalesce(v_code_number,code_number),din=coalesce(v_din,din),
             opening_balance=coalesce(public.safe_to_numeric(r->>'opening_balance'),0),total_added=coalesce(public.safe_to_numeric(r->>'total_added'),0),
             total_issued=coalesce(public.safe_to_numeric(r->>'total_issued'),0),stock_balance=coalesce(public.safe_to_numeric(r->>'stock_balance'),0),
             min_quantity=coalesce(public.safe_to_numeric(r->>'min_quantity'),min_quantity),transaction_date=coalesce(nullif(r->>'transaction_date','')::date,date '2026-07-31'),
             source_file=v_source_file,source_sheet=v_source_sheet,item_key=coalesce(v_existing_key,item_key),notes=coalesce(r->>'notes',f->>'notes',notes),updated_at=now()
           where id=v_id;
           v_updated := v_updated + 1;
+          v_action := 'updated';
         end if;
 
       else
-        select id,item_key into v_id,v_existing_key
-        from public.cylinders
-        where is_archived is not true and (
-          item_key=v_item_key or (
-            public.normalize_inventory_text(project)=public.normalize_inventory_text(v_project)
-            and public.normalize_inventory_text(type_name)=public.normalize_inventory_text(v_type_name)
-          )
-        ) order by case when item_key=v_item_key then 0 else 1 end,created_at limit 1;
-
         if v_id is null then
           insert into public.cylinders(
             project,type_name,gas_balance,stock_balance,empty_count,full_count,min_quantity,
@@ -244,6 +230,7 @@ begin
             coalesce(nullif(r->>'transaction_date','')::date,date '2026-07-31'),v_source_file,v_source_sheet,v_item_key,coalesce(r->>'notes',f->>'notes')
           ) returning id into v_id;
           v_inserted := v_inserted + 1;
+          v_action := 'inserted';
         else
           select not exists(select 1 from public.cylinders where item_key=v_item_key and id<>v_id) into v_key_available;
           if v_key_available then v_existing_key := v_item_key; end if;
@@ -255,11 +242,15 @@ begin
             item_key=coalesce(v_existing_key,item_key),notes=coalesce(r->>'notes',f->>'notes',notes),updated_at=now()
           where id=v_id;
           v_updated := v_updated + 1;
+          v_action := 'updated';
         end if;
       end if;
 
+      v_item_results := v_item_results || jsonb_build_array(jsonb_build_object(
+        'client_key',v_client_key,'table_name',v_table,'item_key',v_item_key,'item_id',v_id,'action',v_action
+      ));
       execute format('select internal_code from public.%I where id=$1',v_table) into v_internal_code using v_id;
-      if v_internal_code is null then
+      if v_action = 'inserted' and v_internal_code is null then
         v_items_needing_codes := v_items_needing_codes || jsonb_build_array(
           jsonb_build_object('table_name',v_table,'item_id',v_id)
         );
@@ -274,10 +265,36 @@ begin
 
   return jsonb_build_object(
     'inserted',v_inserted,'updated',v_updated,'skipped',v_skipped,
-    'errors',v_errors,'items_needing_codes',v_items_needing_codes
+    'errors',v_errors,'items_needing_codes',v_items_needing_codes,'item_results',v_item_results
   );
 end;
 $$;
+
+create or replace function public.match_inventory_movement_keys_chunk_rpc(p_import_keys jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_existing_keys jsonb;
+begin
+  if p_import_keys is null or jsonb_typeof(p_import_keys) <> 'array' then
+    raise exception 'p_import_keys must be a JSON array';
+  end if;
+
+  select coalesce(jsonb_agg(op.import_key order by op.import_key), '[]'::jsonb)
+    into v_existing_keys
+  from public.inventory_operations op
+  where op.import_key is not null
+    and op.import_key in (select value from jsonb_array_elements_text(p_import_keys));
+
+  return jsonb_build_object('existing_keys', v_existing_keys);
+end;
+$$;
+
+revoke execute on function public.match_inventory_movement_keys_chunk_rpc(jsonb) from public;
+grant execute on function public.match_inventory_movement_keys_chunk_rpc(jsonb) to anon, authenticated;
 
 create or replace function public.import_normalized_movements_chunk_rpc(p_movements jsonb)
 returns jsonb
@@ -289,6 +306,7 @@ declare
   r jsonb;
   v_table text;
   v_item_id uuid;
+  v_resolved_id uuid;
   v_affected integer;
   v_inserted integer := 0;
   v_skipped integer := 0;
@@ -308,9 +326,16 @@ begin
       if nullif(r->>'import_key','') is null then raise exception 'import_key is required'; end if;
       if r->>'operation_type' not in ('add','issue','adjust') then raise exception 'Invalid operation_type'; end if;
 
-      execute format('select id from public.%I where item_key=$1 and is_archived is not true limit 1',v_table)
-        into v_item_id using r->>'item_key';
-      if v_item_id is null then raise exception 'Item not found by canonical item_key'; end if;
+      v_resolved_id := nullif(r->>'resolved_item_id','')::uuid;
+      if v_resolved_id is not null then
+        execute format('select id from public.%I where id=$1 and is_archived is not true',v_table)
+          into v_item_id using v_resolved_id;
+        if v_item_id is null then raise exception 'resolved_item_id does not identify an active item'; end if;
+      else
+        execute format('select id from public.%I where item_key=$1 and is_archived is not true limit 1',v_table)
+          into v_item_id using r->>'item_key';
+        if v_item_id is null then raise exception 'Item not found by canonical item_key'; end if;
+      end if;
 
       insert into public.inventory_operations(
         import_key,table_name,item_id,operation_type,quantity,project,project_name,

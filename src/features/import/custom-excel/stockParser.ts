@@ -443,6 +443,7 @@ export function parseNormalStockSheet(
     }
 
     const item: CustomInventoryItem = {
+      client_key: '',
       table_name: tableName,
       item_key: itemKey,
       project_name: projectName,

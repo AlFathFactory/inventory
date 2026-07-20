@@ -58,6 +58,12 @@ export function buildImportKey(input: Omit<CustomInventoryMovement, 'import_key'
   ].map(optionalKeyPart).join('|')
 }
 
+export function buildClientKey(item: Pick<CustomInventoryItem, 'item_key' | 'source'>): string {
+  return [item.source.file_name, item.source.sheet, item.source.row, item.item_key]
+    .map(optionalKeyPart)
+    .join('|')
+}
+
 function itemState(item: CustomInventoryItem): string {
   return JSON.stringify({
     project_name: item.project_name,
@@ -74,11 +80,13 @@ export function deduplicateItems(items: readonly CustomInventoryItem[]): {
   items: CustomInventoryItem[]
   warnings: string[]
   errors: string[]
+  duplicateCount: number
 } {
   const result: CustomInventoryItem[] = []
   const byKey = new Map<string, CustomInventoryItem>()
   const warnings: string[] = []
   const errors: string[] = []
+  let duplicateCount = 0
 
   for (const item of items) {
     const existing = byKey.get(item.item_key)
@@ -87,6 +95,8 @@ export function deduplicateItems(items: readonly CustomInventoryItem[]): {
       result.push(item)
       continue
     }
+
+    duplicateCount += 1
 
     if (itemState(existing) === itemState(item)) {
       warnings.push(
@@ -114,24 +124,27 @@ export function deduplicateItems(items: readonly CustomInventoryItem[]): {
       )
     }
   }
-  return { items: result, warnings, errors }
+  return { items: result, warnings, errors, duplicateCount }
 }
 
 export function deduplicateMovements(movements: readonly CustomInventoryMovement[]): {
   movements: CustomInventoryMovement[]
   warnings: string[]
+  duplicateCount: number
 } {
   const seen = new Set<string>()
   const result: CustomInventoryMovement[] = []
   const warnings: string[] = []
+  let duplicateCount = 0
 
   for (const movement of movements) {
     if (seen.has(movement.import_key)) {
+      duplicateCount += 1
       warnings.push(`تم تجاهل حركة مكررة بالمفتاح "${movement.import_key}".`)
       continue
     }
     seen.add(movement.import_key)
     result.push(movement)
   }
-  return { movements: result, warnings }
+  return { movements: result, warnings, duplicateCount }
 }

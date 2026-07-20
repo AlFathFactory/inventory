@@ -16,7 +16,11 @@ import {
 } from '../utils/excelParser'
 import { parseNormalizedInventoryJson, type NormalizedInventoryImport } from '../utils/jsonImportParser'
 import { parseCustomInventoryExcel, type CustomExcelPreview } from '../utils/customExcelParser'
-import { importCustomInventoryExcel, type CustomImportProgress } from '../services/customExcelImportService'
+import {
+  importCustomInventoryExcel,
+  prepareCustomInventoryPreview,
+  type CustomImportProgress,
+} from '../services/customExcelImportService'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 
 type ImportStatus = {
@@ -224,7 +228,7 @@ export function ImportExcelPage() {
         setJsonDocument(await parseNormalizedInventoryJson(file))
       } else {
         const custom = await parseCustomInventoryExcel(file)
-        if (custom) setCustomPreview(custom)
+        if (custom) setCustomPreview(await prepareCustomInventoryPreview(custom, setImportProgress))
         else setPreview(await parseInventoryExcel(file))
       }
     } catch (error) {
@@ -385,8 +389,12 @@ export function ImportExcelPage() {
           <h3 className="text-lg font-bold text-[var(--app-primary)]">ملف Excel المخصص جاهز للاستيراد</h3>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[
-              ['الأصناف', customPreview.items.length],
-              ['الحركات', customPreview.movements.length],
+              ['أصناف موجودة سيتم تحديثها', customPreview.matching?.matched.length ?? 0],
+              ['أصناف جديدة سيتم إضافتها', customPreview.matching?.newItems.length ?? 0],
+              ['أصناف غير واضحة تحتاج مراجعة', customPreview.matching?.ambiguous.length ?? 0],
+              ['صفوف مكررة داخل Excel', customPreview.duplicateItemsCount],
+              ['حركات جديدة', customPreview.matching?.newMovementsCount ?? customPreview.movements.length],
+              ['حركات مكررة سيتم تخطيها', customPreview.matching?.duplicateMovementsCount ?? 0],
               ['صواريخ القطع', customPreview.cuttingDiscs.length],
               ['جوانتي اللحام الطويل', customPreview.longWeldingGloves.length],
               ['التحذيرات', customPreview.warnings.length],
@@ -401,6 +409,18 @@ export function ImportExcelPage() {
           {customPreview.errors.map((message, index) => (
             <div key={`${message}-${index}`} className="rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{message}</div>
           ))}
+          {customPreview.matching?.ambiguous.length ? (
+            <div className="space-y-3 rounded-[14px] border border-red-200 bg-red-50 p-4">
+              <h4 className="font-bold text-red-800">أصناف تحتاج مراجعة يدوية قبل الاستيراد</h4>
+              {customPreview.matching.ambiguous.map(({ sourceItem, candidateIds }) => (
+                <div key={sourceItem.client_key} className="rounded-[10px] border border-red-200 bg-white p-3 text-sm text-red-800">
+                  <p className="font-semibold">{sourceItem.project_name} — {sourceItem.item_name}</p>
+                  <p>الشيت: {sourceItem.source.sheet}، الصف: {sourceItem.source.row}، الجدول: {sourceItem.table_name}</p>
+                  <p>المعرفات المرشحة: {candidateIds.join(', ') || 'غير متاحة'}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {customPreview.warnings.length > 0 ? (
             <div className="space-y-2">
               {customPreview.warnings.map((message, index) => (

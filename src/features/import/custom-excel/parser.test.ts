@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx'
 import { describe, expect, it } from 'vitest'
 import { parseCustomInventoryWorkbook } from './parser'
-import { normalizeArabicDigits, parseExcelNumber } from './normalization'
+import { normalizeArabicDigits, normalizeExcelText, parseExcelNumber } from './normalization'
 
 type MonthlyRow = {
   meta: unknown[]
@@ -79,6 +79,7 @@ describe('monthly warehouse parser', () => {
       operation_type: 'issue', operation_date: '2026-07-31', previous_balance: 7, new_balance: 0,
     })
     expect(preview.movements.some((movement) => movement.operation_date === '2026-06-30')).toBe(false)
+    expect(preview.items[0].client_key).toBe(`مخزن 07-2026.xlsx|مستهلكات|3|${preview.items[0].item_key}`)
   })
 
   it('creates a non-blocking adjustment and preserves a negative final balance', () => {
@@ -213,5 +214,9 @@ describe('normalization', () => {
     expect(normalizeArabicDigits('١٢۳')).toBe('123')
     expect(parseExcelNumber('(١٬٢٥٠)')).toBe(-1250)
     expect(parseExcelNumber('')).toBeNull()
+  })
+
+  it('normalizes Arabic spacing and alef variants', () => {
+    expect(normalizeExcelText('  إختبار   أصناف  ')).toBe(normalizeExcelText('اختبار اصناف'))
   })
 })

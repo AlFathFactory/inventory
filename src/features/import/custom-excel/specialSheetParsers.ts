@@ -111,6 +111,7 @@ export function parseBearingCountSheet(
       itemName: entry.itemName,
     })
     result.items.push({
+      client_key: '',
       table_name: 'consumables',
       item_key: itemKey,
       project_name: 'جرد البلى',
@@ -334,6 +335,7 @@ export function parseCylinderSheet(
     const projectName = config.defaultProject ?? 'اسطوانات غازات'
     const itemKey = buildItemKey({ tableName: 'cylinders', projectName, itemName: typeName, typeName })
     const item: CustomInventoryItem = {
+      client_key: '',
       table_name: 'cylinders',
       item_key: itemKey,
       project_name: projectName,

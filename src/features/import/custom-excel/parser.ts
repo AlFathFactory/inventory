@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { buildImportKey } from './identity'
+import { buildClientKey, buildImportKey } from './identity'
 import { deduplicateItems, deduplicateMovements } from './identity'
 import { displayExcelText, parseExcelNumber } from './normalization'
 import { getCustomSheetConfig } from './sheetConfig'
@@ -61,6 +61,7 @@ function parseLegacyTemplate(workbook: XLSX.WorkBook, fileName: string): CustomE
       return []
     }
     return [{
+      client_key: '',
       table_name: tableName,
       item_key: itemKey,
       project_name: legacyText(row, 'project_name') || legacyText(row, 'project'),
@@ -145,13 +146,15 @@ function parseLegacyTemplate(workbook: XLSX.WorkBook, fileName: string): CustomE
   return {
     kind: 'custom-excel',
     fileName,
-    items,
+    items: items.map((item) => ({ ...item, client_key: buildClientKey(item) })),
     movements,
     cuttingDiscs,
     longWeldingGloves,
     errors,
     warnings,
     ignoredSheets: workbook.SheetNames.filter((name) => !['Items', 'Movements', 'Cutting_Discs', 'Long_Welding_Gloves'].includes(name)),
+    duplicateItemsCount: 0,
+    duplicateMovementsCount: 0,
   }
 }
 
@@ -187,6 +190,8 @@ export function parseCustomInventoryWorkbook(
     errors: [],
     warnings: [],
     ignoredSheets: [],
+    duplicateItemsCount: 0,
+    duplicateMovementsCount: 0,
     sheetDiagnoses: [],
   }
 
@@ -233,11 +238,14 @@ export function parseCustomInventoryWorkbook(
 
   const itemDeduplication = deduplicateItems(preview.items)
   preview.items = itemDeduplication.items
+  preview.duplicateItemsCount = itemDeduplication.duplicateCount
   preview.warnings.push(...itemDeduplication.warnings)
   preview.errors.push(...itemDeduplication.errors)
   const movementDeduplication = deduplicateMovements(preview.movements)
   preview.movements = movementDeduplication.movements
+  preview.duplicateMovementsCount = movementDeduplication.duplicateCount
   preview.warnings.push(...movementDeduplication.warnings)
+  preview.items = preview.items.map((item) => ({ ...item, client_key: buildClientKey(item) }))
 
   if (
     preview.items.length === 0 &&
@@ -269,6 +277,8 @@ export async function parseCustomInventoryExcel(file: File): Promise<CustomExcel
       errors: [`تعذر فتح ملف Excel: ${message}`],
       warnings: [],
       ignoredSheets: [],
+      duplicateItemsCount: 0,
+      duplicateMovementsCount: 0,
     }
   }
 }
