@@ -5,6 +5,7 @@ import {
 } from '../lib/supabaseClient'
 import { saveOfflineOperation } from './offlineQueueService'
 import { isStockInventoryTable } from './inventoryTablePolicy'
+import { getCategorySummaryItems } from './itemsService'
 
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
@@ -46,6 +47,8 @@ export type RecentInventoryOperation = {
 export type InventoryReportFilters = {
   fromDate?: string
   toDate?: string
+  categoryName?: string
+  projectName?: string
 }
 
 export type InventoryReportRow = {
@@ -56,6 +59,11 @@ export type InventoryReportRow = {
   operationType: 'add' | 'issue'
   quantity: number
   operationDate: string
+  codeNumber: string | null
+  weight: number | string | null
+  length: number | string | null
+  width: number | string | null
+  th: number | string | null
 }
 
 export type InventoryReport = {
@@ -349,7 +357,7 @@ export async function getInventoryReport(
   for (let from = 0; ; from += pageSize) {
     let query = client
       .from('inventory_operations')
-      .select('id,item_name,item_label,category_name,category_label,project_name,project,operation_type,quantity,operation_date')
+      .select('id,table_name,item_id,item_name,item_label,category_name,category_label,project_name,project,operation_type,quantity,operation_date,item_code')
       .in('operation_type', ['add', 'issue'])
       .order('operation_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -360,6 +368,12 @@ export async function getInventoryReport(
     }
     if (filters.toDate) {
       query = query.lte('operation_date', filters.toDate)
+    }
+    if (filters.categoryName) {
+      query = query.eq('category_name', filters.categoryName)
+    }
+    if (filters.projectName) {
+      query = query.eq('project_name', filters.projectName)
     }
 
     const { data, error } = await query
@@ -372,16 +386,40 @@ export async function getInventoryReport(
     if (page.length < pageSize) break
   }
 
-  const rows: InventoryReportRow[] = records.map((record) => ({
-    id: toText(record.id),
-    itemName: toText(record.item_name) || toText(record.item_label) || '—',
-    categoryName:
-      toText(record.category_name) || toText(record.category_label) || '—',
-    projectName: toText(record.project_name) || toText(record.project) || '—',
-    operationType: record.operation_type === 'issue' ? 'issue' : 'add',
-    quantity: toNumber(record.quantity),
-    operationDate: toText(record.operation_date),
-  }))
+  const hasRawMaterialRows = records.some(
+    (record) => toText(record.table_name) === 'raw_materials',
+  )
+  const rawMaterialsById = new Map<string, Record<string, unknown>>()
+
+  if (hasRawMaterialRows) {
+    const result = await getCategorySummaryItems('raw_materials')
+    if (result.data === null) {
+      throw new Error(result.error)
+    }
+    for (const item of result.data) {
+      rawMaterialsById.set(String(item.item_id), item)
+    }
+  }
+
+  const rows: InventoryReportRow[] = records.map((record) => {
+    const rawMaterial = rawMaterialsById.get(toText(record.item_id))
+    return {
+      id: toText(record.id),
+      itemName: toText(record.item_name) || toText(record.item_label) || '—',
+      categoryName:
+        toText(record.category_name) || toText(record.category_label) || '—',
+      projectName: toText(record.project_name) || toText(record.project) || '—',
+      operationType: record.operation_type === 'issue' ? 'issue' : 'add',
+      quantity: toNumber(record.quantity),
+      operationDate: toText(record.operation_date),
+      codeNumber:
+        toText(rawMaterial?.code_number) || toText(record.item_code) || null,
+      weight: rawMaterial?.weight as number | string | null | undefined ?? null,
+      length: rawMaterial?.length as number | string | null | undefined ?? null,
+      width: rawMaterial?.width as number | string | null | undefined ?? null,
+      th: rawMaterial?.th as number | string | null | undefined ?? null,
+    }
+  })
 
   return {
     rows,

@@ -7,7 +7,14 @@ import {
 export const reportKeys = {
   all: ['reports'] as const,
   inventoryOperations: (filters: InventoryReportFilters) =>
-    ['reports', 'inventory-operations', filters.fromDate ?? '', filters.toDate ?? ''] as const,
+    [
+      'reports',
+      'inventory-operations',
+      filters.fromDate ?? '',
+      filters.toDate ?? '',
+      filters.categoryName ?? '',
+      filters.projectName ?? '',
+    ] as const,
 }
 
 export function inventoryReportQueryOptions(filters: InventoryReportFilters) {
