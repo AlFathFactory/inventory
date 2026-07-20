@@ -52,7 +52,7 @@ const columns: DataTableColumn<DashboardInventoryRow>[] = [
   },
   {
     id: 'projectName',
-    header: 'المشروع',
+    header: 'السجل',
     renderCell: (row) => row.projectName ?? '—',
   },
   {

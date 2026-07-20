@@ -23,7 +23,7 @@ export type ProjectInput = {
   notes?: string | null
 }
 
-export const usedProjectRenameMessage = 'لا يمكن تعديل اسم هذا المشروع لأنه مرتبط بأصناف أو حركات مخزون. يمكنك إنشاء مشروع جديد بالاسم الصحيح وإيقاف المشروع القديم.'
+export const usedProjectRenameMessage = 'لا يمكن تعديل اسم هذا السجل لأنه مرتبط بأصناف أو حركات مخزون. يمكنك إنشاء سجل جديد بالاسم الصحيح وإيقاف السجل القديم.'
 
 type Result<T> = Promise<{ data: T; error: null } | { data: null; error: string }>
 
@@ -47,7 +47,7 @@ function normalizeName(value: string) {
 function projectError(error: { code?: string; message: string }) {
   if (error.code === 'P0001') return usedProjectRenameMessage
   return error.code === '23505'
-    ? 'اسم المشروع أو كود المشروع مسجل بالفعل'
+    ? 'اسم السجل أو كود السجل مسجل بالفعل'
     : error.message
 }
 
@@ -106,11 +106,11 @@ async function hasDuplicateProjectName(name: string, excludedId?: string | numbe
 export async function createProject(values: ProjectInput): Result<Project> {
   if (!isSupabaseConfigured || !supabaseClient) return unavailable()
   const name = values.name.trim().replace(/\s+/g, ' ')
-  if (!name) return { data: null, error: 'اسم المشروع مطلوب' }
+  if (!name) return { data: null, error: 'اسم السجل مطلوب' }
 
   const duplicate = await hasDuplicateProjectName(name)
   if (duplicate.error) return { data: null, error: duplicate.error }
-  if (duplicate.duplicate) return { data: null, error: 'اسم المشروع مسجل بالفعل' }
+  if (duplicate.duplicate) return { data: null, error: 'اسم السجل مسجل بالفعل' }
 
   const { data, error } = await supabaseClient
     .from('projects')
@@ -133,11 +133,11 @@ export async function updateProject(
 ): Result<Project> {
   if (!isSupabaseConfigured || !supabaseClient) return unavailable()
   const name = values.name.trim().replace(/\s+/g, ' ')
-  if (!name) return { data: null, error: 'اسم المشروع مطلوب' }
+  if (!name) return { data: null, error: 'اسم السجل مطلوب' }
 
   const duplicate = await hasDuplicateProjectName(name, id)
   if (duplicate.error) return { data: null, error: duplicate.error }
-  if (duplicate.duplicate) return { data: null, error: 'اسم المشروع مسجل بالفعل' }
+  if (duplicate.duplicate) return { data: null, error: 'اسم السجل مسجل بالفعل' }
 
   const { data, error } = await supabaseClient
     .from('projects')
@@ -216,7 +216,7 @@ export async function getUnregisteredItemProjectNames(): Result<string[]> {
   } catch (error) {
     return {
       data: null,
-      error: error instanceof Error ? error.message : 'تعذر تحميل مشاريع الأصناف الحالية',
+      error: error instanceof Error ? error.message : 'تعذر تحميل سجلات الأصناف الحالية',
     }
   }
 }

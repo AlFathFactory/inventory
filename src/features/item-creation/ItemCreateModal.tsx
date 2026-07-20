@@ -85,7 +85,7 @@ export function ItemCreateModal({
               return (
                 <label key={fieldKey} className="space-y-2 text-right">
                   <span className="block text-sm font-semibold text-slate-700">
-                    اسم المشروع{field.required ? ' *' : ''}
+                    اسم السجل{field.required ? ' *' : ''}
                   </span>
                   <select
                     name={fieldKey}
@@ -96,8 +96,8 @@ export function ItemCreateModal({
                   >
                     <option value="">
                       {activeProjects.length === 0
-                        ? 'لا توجد مشاريع مسجلة، أضف مشروع أولًا'
-                        : 'اختر المشروع'}
+                        ? 'لا توجد سجلات مسجلة، أضف سجلًا أولًا'
+                        : 'اختر السجل'}
                     </option>
                     {activeProjects.map((project) => (
                       <option key={project.id} value={project.name}>{project.name}</option>
@@ -108,7 +108,7 @@ export function ItemCreateModal({
                   ) : null}
                   {hasError ? <p className="text-xs text-red-600">{formErrors[fieldKey]}</p> : null}
                   <Link to="/projects" className="inline-flex text-xs font-bold text-[var(--app-primary)] hover:underline">
-                    + إضافة مشروع جديد
+                    + إضافة سجل جديد
                   </Link>
                 </label>
               )

@@ -33,19 +33,19 @@ export function DashboardInventoryFilters({
           type="search"
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="ابحث في القسم أو الصنف أو المشروع أو أي بيانات مرتبطة"
+          placeholder="ابحث في القسم أو الصنف أو السجل أو أي بيانات مرتبطة"
           className={inputClassName()}
         />
       </label>
 
       <label className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">المشروع</span>
+        <span className="block text-sm font-medium text-slate-700">السجل</span>
         <select
           value={projectValue}
           onChange={(event) => onProjectChange(event.target.value)}
           className={inputClassName()}
         >
-          <option value="all">كل المشاريع</option>
+          <option value="all">كل السجلات</option>
           {projectOptions.map((projectName) => (
             <option key={projectName} value={projectName}>{projectName}</option>
           ))}

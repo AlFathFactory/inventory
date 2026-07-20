@@ -81,7 +81,7 @@ export function ItemSelectionModal({
               type="text"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="ابحث عن الصنف أو المشروع"
+              placeholder="ابحث عن الصنف أو السجل"
               className="h-[46px] min-w-[220px] flex-1 rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-[var(--app-primary)]"
             />
 
@@ -117,7 +117,7 @@ export function ItemSelectionModal({
                       {getDisplayValue(item.internal_code)}
                     </div>
                     <div className="text-sm text-slate-500">
-                      المشروع: {getDisplayValue(item.project_name)}
+                      السجل: {getDisplayValue(item.project_name)}
                     </div>
                     <div className="text-sm text-slate-500">
                       الرصيد: {getDisplayValue(item.stock_balance)}

@@ -203,7 +203,7 @@ function buildCategoryTableColumns({
     },
     {
       id: 'project_name',
-      header: category.table === 'cylinders' ? 'المشروع' : 'مشروع',
+      header: 'السجل',
       cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
       renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name ?? row.project),
     },

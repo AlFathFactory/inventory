@@ -35,7 +35,7 @@ const baseColumns: DataTableColumn<InventoryReportRow>[] = [
     renderCell: (row) => <span className="font-semibold text-slate-900">{row.itemName}</span>,
   },
   { id: 'category', header: 'القسم', renderCell: (row) => row.categoryName },
-  { id: 'project', header: 'المشروع', renderCell: (row) => row.projectName },
+  { id: 'project', header: 'السجل', renderCell: (row) => row.projectName },
 ]
 
 const rawMaterialColumns: DataTableColumn<InventoryReportRow>[] = [
@@ -121,9 +121,9 @@ export function ReportsPage() {
             </select>
           </label>
           <label className="space-y-2">
-            <span className="block text-sm font-semibold text-slate-700">المشروع</span>
+            <span className="block text-sm font-semibold text-slate-700">السجل</span>
             <select value={projectName} onChange={(event) => setProjectName(event.target.value)} disabled={projectsQuery.isPending} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)] disabled:bg-slate-50 disabled:text-slate-500">
-              <option value="">{projectsQuery.isPending ? 'جاري تحميل المشاريع...' : 'جميع المشاريع'}</option>
+              <option value="">{projectsQuery.isPending ? 'جاري تحميل السجلات...' : 'جميع السجلات'}</option>
               {(projectsQuery.data ?? []).map((project) => <option key={project.id} value={project.name}>{project.name}</option>)}
             </select>
           </label>

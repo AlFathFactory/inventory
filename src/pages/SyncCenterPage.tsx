@@ -86,7 +86,7 @@ export function SyncCenterPage() {
           <div>
             <div className="flex items-center gap-3"><h3 className="font-bold">بيانات العمل بدون إنترنت</h3><span className={`rounded-full px-3 py-1 text-xs font-bold ${cacheStatus.className}`}>{cacheStatus.label}</span></div>
             <p className="mt-3 text-sm text-slate-600">آخر تحديث للبيانات المحلية: {cache.metadata?.updatedAt ? new Date(cache.metadata.updatedAt).toLocaleString('ar-EG') : 'لم يتم التجهيز بعد'}</p>
-            <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-600"><span>الأصناف المحفوظة محليًا: <strong>{cache.itemCount}</strong></span><span>المشاريع المحفوظة محليًا: <strong>{cache.projectCount}</strong></span></div>
+            <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-600"><span>الأصناف المحفوظة محليًا: <strong>{cache.itemCount}</strong></span><span>السجلات المحفوظة محليًا: <strong>{cache.projectCount}</strong></span></div>
             {cache.metadata?.errorMessage ? <p className="mt-3 text-sm text-red-600">{cache.metadata.errorMessage}</p> : null}
           </div>
           <button type="button" disabled={!isOnline || cache.metadata?.status === 'preparing'} onClick={() => void prepare()} className="rounded-2xl border border-[var(--app-primary)] px-5 py-3 text-sm font-bold text-[var(--app-primary)] disabled:opacity-50">{cache.metadata?.status === 'preparing' ? 'جاري التجهيز...' : 'تجهيز البيانات للعمل بدون إنترنت'}</button>

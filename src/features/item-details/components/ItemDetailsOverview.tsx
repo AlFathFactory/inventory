@@ -49,7 +49,7 @@ export function ItemDetailsOverview({
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <Info label="اسم القسم" value={details.category_name || category.label} />
-            <Info label="اسم المشروع" value={getDisplayText(details.project_name)} />
+            <Info label="اسم السجل" value={getDisplayText(details.project_name)} />
             <Info label="اسم المورد" value={getDisplayText(details.supplier_name)} />
           </div>
         </div>

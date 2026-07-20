@@ -246,7 +246,7 @@ const managementItems = [
 const inventoryItems = [
   { label: 'جميع الأقسام', to: '/' },
   { label: 'التنبيهات', to: '/low-stock' },
-  { label: 'إدارة المشاريع', to: '/projects' },
+  { label: 'إدارة السجلات', to: '/projects' },
   ...categoryOptions.map((category) => ({
     label: category.label,
     to: category.route,
