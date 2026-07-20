@@ -175,6 +175,15 @@ function GuideIcon({ className = '' }: IconProps) {
   )
 }
 
+function ReportIcon({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M5 20V10M12 20V4M19 20v-7" />
+      <path d="M3 20h18" />
+    </svg>
+  )
+}
+
 function ChevronDownIcon({ className = '' }: IconProps) {
   return (
     <svg
@@ -195,6 +204,8 @@ function getSidebarIcon(path: string) {
   switch (path) {
     case '/':
       return <DashboardIcon className={iconClassName} />
+    case '/reports':
+      return <ReportIcon className={iconClassName} />
     case '/import':
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
@@ -228,6 +239,7 @@ function getSidebarIcon(path: string) {
 
 const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
+  { label: 'تقارير', to: '/reports' },
   { label: 'التنبيهات', to: '/low-stock' },
 ]
 

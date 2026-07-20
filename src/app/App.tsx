@@ -8,6 +8,7 @@ import { ItemCodeGuidePage } from '../pages/ItemCodeGuidePage'
 import { LowStockPage } from '../pages/LowStockPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProjectsPage } from '../pages/ProjectsPage'
+import { ReportsPage } from '../pages/ReportsPage'
 import { SyncCenterPage } from '../pages/SyncCenterPage'
 import { AccessGate } from '../features/access/AccessGate'
 import { AccessProvider } from '../features/access/AccessContext'
@@ -23,6 +24,10 @@ const router = createHashRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      {
+        path: 'reports',
+        element: <ReportsPage />,
       },
       {
         path: 'import',

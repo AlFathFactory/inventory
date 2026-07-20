@@ -87,7 +87,7 @@ export function DashboardPage() {
                 ابحث داخل جميع أصناف المخزن من مكان واحد
               </p>
               <p className="text-sm text-[var(--app-text-muted)]">
-                يمكنك التصفية بالقسم أو التاريخ والبحث النصي في كل الصفوف.
+                يمكنك التصفية بالقسم أو المشروع والبحث النصي في كل الصفوف.
               </p>
             </div>
             <p className="text-sm text-slate-500">
@@ -100,13 +100,9 @@ export function DashboardPage() {
             categoryValue={inventoryTable.filters.categoryKey}
             projectValue={inventoryTable.filters.projectName}
             projectOptions={(projectsQuery.data ?? []).map((project) => project.name)}
-            fromDate={inventoryTable.filters.fromDate}
-            toDate={inventoryTable.filters.toDate}
             onSearchChange={inventoryTable.setSearchTerm}
             onCategoryChange={inventoryTable.setCategoryKey}
             onProjectChange={inventoryTable.setProjectName}
-            onFromDateChange={inventoryTable.setFromDate}
-            onToDateChange={inventoryTable.setToDate}
             onClear={inventoryTable.clearFilters}
           />
 

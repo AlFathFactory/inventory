@@ -5,13 +5,9 @@ type DashboardInventoryFiltersProps = {
   categoryValue: string
   projectValue: string
   projectOptions: string[]
-  fromDate: string
-  toDate: string
   onSearchChange: (value: string) => void
   onCategoryChange: (value: string) => void
   onProjectChange: (value: string) => void
-  onFromDateChange: (value: string) => void
-  onToDateChange: (value: string) => void
   onClear: () => void
 }
 
@@ -24,17 +20,13 @@ export function DashboardInventoryFilters({
   categoryValue,
   projectValue,
   projectOptions,
-  fromDate,
-  toDate,
   onSearchChange,
   onCategoryChange,
   onProjectChange,
-  onFromDateChange,
-  onToDateChange,
   onClear,
 }: DashboardInventoryFiltersProps) {
   return (
-    <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.65fr)_minmax(180px,0.65fr)_minmax(150px,0.5fr)_minmax(150px,0.5fr)_auto]">
+    <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.65fr)_minmax(180px,0.65fr)_auto]">
       <label className="space-y-2">
         <span className="block text-sm font-medium text-slate-700">بحث</span>
         <input
@@ -74,26 +66,6 @@ export function DashboardInventoryFilters({
             </option>
           ))}
         </select>
-      </label>
-
-      <label className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">من تاريخ</span>
-        <input
-          type="date"
-          value={fromDate}
-          onChange={(event) => onFromDateChange(event.target.value)}
-          className={inputClassName()}
-        />
-      </label>
-
-      <label className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">إلى تاريخ</span>
-        <input
-          type="date"
-          value={toDate}
-          onChange={(event) => onToDateChange(event.target.value)}
-          className={inputClassName()}
-        />
       </label>
 
       <div className="flex items-end">

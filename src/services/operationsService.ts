@@ -43,6 +43,31 @@ export type RecentInventoryOperation = {
   notes: string
 }
 
+export type InventoryReportFilters = {
+  fromDate?: string
+  toDate?: string
+}
+
+export type InventoryReportRow = {
+  id: string
+  itemName: string
+  categoryName: string
+  projectName: string
+  operationType: 'add' | 'issue'
+  quantity: number
+  operationDate: string
+}
+
+export type InventoryReport = {
+  rows: InventoryReportRow[]
+  summary: {
+    additionOperationsCount: number
+    totalAddedQuantity: number
+    issueOperationsCount: number
+    totalIssuedQuantity: number
+  }
+}
+
 type OperationRecord = Record<string, unknown>
 
 function getClientOrThrow() {
@@ -312,4 +337,71 @@ export async function getRecentInventoryOperations(limit = 20) {
   ]
     .sort(sortOperationsByDateDesc)
     .slice(0, limit)
+}
+
+export async function getInventoryReport(
+  filters: InventoryReportFilters = {},
+): Promise<InventoryReport> {
+  const client = getClientOrThrow()
+  const pageSize = 1000
+  const records: OperationRecord[] = []
+
+  for (let from = 0; ; from += pageSize) {
+    let query = client
+      .from('inventory_operations')
+      .select('id,item_name,item_label,category_name,category_label,project_name,project,operation_type,quantity,operation_date')
+      .in('operation_type', ['add', 'issue'])
+      .order('operation_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1)
+
+    if (filters.fromDate) {
+      query = query.gte('operation_date', filters.fromDate)
+    }
+    if (filters.toDate) {
+      query = query.lte('operation_date', filters.toDate)
+    }
+
+    const { data, error } = await query
+    if (error) {
+      throw new Error(error.message || 'تعذر تحميل بيانات التقارير')
+    }
+
+    const page = (data ?? []) as OperationRecord[]
+    records.push(...page)
+    if (page.length < pageSize) break
+  }
+
+  const rows: InventoryReportRow[] = records.map((record) => ({
+    id: toText(record.id),
+    itemName: toText(record.item_name) || toText(record.item_label) || '—',
+    categoryName:
+      toText(record.category_name) || toText(record.category_label) || '—',
+    projectName: toText(record.project_name) || toText(record.project) || '—',
+    operationType: record.operation_type === 'issue' ? 'issue' : 'add',
+    quantity: toNumber(record.quantity),
+    operationDate: toText(record.operation_date),
+  }))
+
+  return {
+    rows,
+    summary: rows.reduce<InventoryReport['summary']>(
+      (summary, row) => {
+        if (row.operationType === 'add') {
+          summary.additionOperationsCount += 1
+          summary.totalAddedQuantity += row.quantity
+        } else {
+          summary.issueOperationsCount += 1
+          summary.totalIssuedQuantity += row.quantity
+        }
+        return summary
+      },
+      {
+        additionOperationsCount: 0,
+        totalAddedQuantity: 0,
+        issueOperationsCount: 0,
+        totalIssuedQuantity: 0,
+      },
+    ),
+  }
 }
