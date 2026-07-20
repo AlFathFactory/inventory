@@ -19,7 +19,7 @@ export const accessUsers: AccessUser[] = [
 
 const sharedPaths = ['/item-code-guide']
 const managementPaths = ['/', '/low-stock']
-const inventoryPaths = ['/', '/low-stock', '/projects', '/sync-center']
+const inventoryPaths = ['/', '/import', '/low-stock', '/projects', '/sync-center']
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
 
 export function canAccessPath(areas: AccessArea[], pathname: string) {
