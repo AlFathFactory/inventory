@@ -383,12 +383,14 @@ export function ImportExcelPage() {
       {customPreview ? (
         <div className="space-y-5 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-[var(--app-shadow)]">
           <h3 className="text-lg font-bold text-[var(--app-primary)]">ملف Excel المخصص جاهز للاستيراد</h3>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[
               ['الأصناف', customPreview.items.length],
               ['الحركات', customPreview.movements.length],
               ['صواريخ القطع', customPreview.cuttingDiscs.length],
               ['جوانتي اللحام الطويل', customPreview.longWeldingGloves.length],
+              ['التحذيرات', customPreview.warnings.length],
+              ['الشيتات المتجاهلة', customPreview.ignoredSheets.length],
             ].map(([label, value]) => (
               <div key={String(label)} className="rounded-[14px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4">
                 <p className="text-sm text-[var(--app-text-muted)]">{label}</p>
@@ -399,6 +401,13 @@ export function ImportExcelPage() {
           {customPreview.errors.map((message, index) => (
             <div key={`${message}-${index}`} className="rounded-[14px] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{message}</div>
           ))}
+          {customPreview.warnings.length > 0 ? (
+            <div className="space-y-2">
+              {customPreview.warnings.map((message, index) => (
+                <div key={`${message}-${index}`} className="rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{message}</div>
+              ))}
+            </div>
+          ) : null}
           {isImporting && importProgress ? (
             <div className="space-y-2 rounded-[14px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
               <div className="flex items-center justify-between gap-4">
