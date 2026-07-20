@@ -69,7 +69,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     topbarCopyByPath[location.pathname] ??
     getCategoryTopbarCopy(location.pathname) ?? {
       title: 'نظام المخزون',
-      subtitle: 'واجهة عربية تدعم RTL لإدارة المخزون داخل المصنع',
+      // subtitle: 'واجهة عربية تدعم RTL لإدارة المخزون داخل المصنع',
     }
 
   return (

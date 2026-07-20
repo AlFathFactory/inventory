@@ -37,21 +37,7 @@ export function DashboardInventoryFilters({
           className={inputClassName()}
         />
       </label>
-
-      <label className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">السجل</span>
-        <select
-          value={projectValue}
-          onChange={(event) => onProjectChange(event.target.value)}
-          className={inputClassName()}
-        >
-          <option value="all">كل السجلات</option>
-          {projectOptions.map((projectName) => (
-            <option key={projectName} value={projectName}>{projectName}</option>
-          ))}
-        </select>
-      </label>
-
+      
       <label className="space-y-2">
         <span className="block text-sm font-medium text-slate-700">القسم</span>
         <select
@@ -64,6 +50,20 @@ export function DashboardInventoryFilters({
             <option key={category.key} value={category.key}>
               {category.label}
             </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="space-y-2">
+        <span className="block text-sm font-medium text-slate-700">السجل</span>
+        <select
+          value={projectValue}
+          onChange={(event) => onProjectChange(event.target.value)}
+          className={inputClassName()}
+        >
+          <option value="all">كل السجلات</option>
+          {projectOptions.map((projectName) => (
+            <option key={projectName} value={projectName}>{projectName}</option>
           ))}
         </select>
       </label>

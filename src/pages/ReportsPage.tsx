@@ -5,6 +5,7 @@ import { TablePagination } from '../components/TablePagination'
 import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
 import { projectsQueryOptions } from '../features/projects/projectQueries'
 import { useInventoryReport } from '../features/reports/reportQueries'
+import { generateInventoryReportPdf } from '../features/reports/generateInventoryReportPdf'
 import { usePagination } from '../hooks/usePagination'
 import type { InventoryReportRow } from '../services/operationsService'
 import { operationCategoryOptions } from '../config/categoryConfig'
@@ -151,12 +152,17 @@ export function ReportsPage() {
       </div>
 
       <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-white shadow-[var(--app-shadow)]">
-        <div className="flex flex-col gap-1 border-b border-[var(--app-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex flex-col gap-4 border-b border-[var(--app-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900">تفاصيل العمليات</h2>
             <p className="mt-1 text-sm text-[var(--app-text-muted)]">تظهر عمليات الإضافة والصرف فقط.</p>
           </div>
-          {report ? <span className="text-sm text-slate-500">النتائج: {numberFormatter.format(report.rows.length)}</span> : null}
+          <div className="flex flex-wrap items-center gap-3">
+            {report ? <span className="text-sm text-slate-500">النتائج: {numberFormatter.format(report.rows.length)}</span> : null}
+            <button type="button" disabled={!report || report.rows.length === 0 || reportQuery.isFetching} onClick={() => { if (report) generateInventoryReportPdf(report, filters) }} className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50">
+              إنشاء PDF
+            </button>
+          </div>
         </div>
 
         {reportQuery.isPending ? (
