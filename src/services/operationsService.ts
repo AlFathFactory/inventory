@@ -10,6 +10,7 @@ import { getCategorySummaryItems } from './itemsService'
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
 export type ApplyInventoryOperationParams = {
+  requestId?: string
   tableName: string
   categoryName: string
   itemId: string | number
@@ -205,6 +206,7 @@ export async function applyInventoryOperation(
   params: ApplyInventoryOperationParams,
 ) {
   const quantity = Number(params.quantity)
+  const requestId = params.requestId ?? crypto.randomUUID()
 
   if (!params.tableName || params.itemId === null || params.itemId === undefined || String(params.itemId).trim() === '') {
     throw new Error('بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى')
@@ -269,6 +271,7 @@ export async function applyInventoryOperation(
       p_item_code: params.itemCode || null,
       p_notes: params.notes || null,
       p_created_by: params.createdBy || 'user',
+      p_request_id: requestId,
     },
   )
 
@@ -276,7 +279,7 @@ export async function applyInventoryOperation(
     throw new Error(getOperationErrorMessage(error.message))
   }
 
-  if (!data || typeof data !== 'object' || !('ok' in data) || !data.ok) {
+  if (!data || typeof data !== 'object' || !('status' in data) || !['success', 'already_processed'].includes(String(data.status))) {
     throw new Error('فشل تنفيذ حركة المخزون')
   }
 

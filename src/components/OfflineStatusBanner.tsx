@@ -1,14 +1,13 @@
 import { useEffect } from 'react'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
-import { syncOfflineData } from '../services/syncService'
-import { prepareOfflineData } from '../services/offlineBootstrapService'
+import { runOfflineSyncOnce } from '../services/offlineSyncCoordinator'
 
 export function OfflineStatusBanner() {
   const { isOnline } = useNetworkStatus()
 
   useEffect(() => {
     if (isOnline) {
-      void syncOfflineData().then(prepareOfflineData).catch(() => {
+      void runOfflineSyncOnce().catch(() => {
         // The Sync Center exposes preparation failures and manual retry.
       })
     }

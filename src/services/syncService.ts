@@ -2,11 +2,11 @@ import { offlineDb, type OfflineOperation } from '../lib/offlineDb'
 import { queryClient } from '../lib/queryClient'
 import { supabaseClient } from '../lib/supabaseClient'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
-import { getPendingItems, getPendingOperations, recoverInterruptedSyncs } from './offlineQueueService'
+import { claimPendingOperation, getPendingItems, getPendingOperations, recoverInterruptedSyncs } from './offlineQueueService'
 import { isInventoryTable, isStockInventoryTable } from './inventoryTablePolicy'
 import { getLocalDateString } from '../utils/dateUtils'
 
-let activeSync: Promise<void> | null = null
+let activeSyncPromise: Promise<void> | null = null
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
@@ -19,9 +19,9 @@ function requireClient() {
 
 export function syncOfflineData() {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return Promise.resolve()
-  if (activeSync) return activeSync
-  activeSync = performSync().finally(() => { activeSync = null })
-  return activeSync
+  if (activeSyncPromise) return activeSyncPromise
+  activeSyncPromise = performSync().finally(() => { activeSyncPromise = null })
+  return activeSyncPromise
 }
 
 async function performSync() {
@@ -78,30 +78,31 @@ async function syncPendingItems() {
 
 async function syncPendingOperations() {
   for (const operation of await getPendingOperations()) {
+    const claimedOperation = await claimPendingOperation(operation.id)
+    if (!claimedOperation) continue
     try {
-      if (!isInventoryTable(operation.tableName)) {
-        throw new Error(`Unsupported inventory table: ${operation.tableName}`)
+      if (!isInventoryTable(claimedOperation.tableName)) {
+        throw new Error(`Unsupported inventory table: ${claimedOperation.tableName}`)
       }
-      if (operation.operationType !== 'edit_item' && !isStockInventoryTable(operation.tableName)) {
-        throw new Error(`Unsupported stock operation table: ${operation.tableName}`)
+      if (claimedOperation.operationType !== 'edit_item' && !isStockInventoryTable(claimedOperation.tableName)) {
+        throw new Error(`Unsupported stock operation table: ${claimedOperation.tableName}`)
       }
-      await offlineDb.offline_operations.update(operation.id, { status: 'syncing', errorMessage: null })
-      let itemId = operation.itemId
-      if (!itemId && operation.localItemId) {
-        const localItem = await offlineDb.offline_items.get(operation.localItemId)
+      let itemId = claimedOperation.itemId
+      if (!itemId && claimedOperation.localItemId) {
+        const localItem = await offlineDb.offline_items.get(claimedOperation.localItemId)
         if (!localItem?.serverId) throw new Error('يجب رفع الصنف المحلي أولًا')
         itemId = localItem.serverId
       }
       if (!itemId) throw new Error('لا يوجد معرّف صالح للصنف')
-      if (operation.operationType === 'edit_item') {
-        const hasConflict = await syncEdit(operation, itemId)
+      if (claimedOperation.operationType === 'edit_item') {
+        const hasConflict = await syncEdit(claimedOperation, itemId)
         if (hasConflict) continue
-      } else await syncStockOperation(operation, itemId)
-      await offlineDb.offline_operations.update(operation.id, {
+      } else await syncStockOperation(claimedOperation, itemId)
+      await offlineDb.offline_operations.update(claimedOperation.id, {
         status: 'synced', syncedAt: new Date().toISOString(), errorMessage: null,
       })
     } catch (error) {
-      await offlineDb.offline_operations.update(operation.id, {
+      await offlineDb.offline_operations.update(claimedOperation.id, {
         status: 'failed', errorMessage: errorMessage(error, 'فشلت مزامنة العملية'),
       })
     }
@@ -120,9 +121,12 @@ async function syncStockOperation(operation: OfflineOperation, itemId: string) {
     p_issued_to: p.issuedTo ?? null, p_received_by: p.receivedBy ?? p.issuedTo ?? null,
     p_purchase_order_number: p.purchaseOrderNumber ?? null, p_item_code: p.itemCode ?? null,
     p_notes: p.notes ?? null, p_created_by: p.createdBy ?? 'offline-user',
+    p_request_id: operation.requestId,
   })
   if (error) throw new Error(error.message)
-  if (!data || typeof data !== 'object' || !('ok' in data) || !data.ok) throw new Error('رفض الخادم العملية')
+  if (!data || typeof data !== 'object' || !('status' in data) || !['success', 'already_processed'].includes(String(data.status))) {
+    throw new Error('رفض الخادم العملية')
+  }
 }
 
 async function syncEdit(operation: OfflineOperation, itemId: string) {

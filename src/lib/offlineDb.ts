@@ -5,6 +5,7 @@ export type OfflineOperationType = 'add' | 'issue' | 'adjust' | 'edit_item'
 
 export interface OfflineOperation {
   id: string
+  requestId: string
   tableName: string
   itemId: string | null
   localItemId: string | null
@@ -93,6 +94,17 @@ class OfflineInventoryDatabase extends Dexie {
       cached_inventory_items: 'id, [tableName+itemId], tableName, itemId, internalCode, projectName, cachedAt',
       cached_projects: 'id, name, code, status, cachedAt',
       offline_cache_metadata: 'key, status, updatedAt',
+    })
+    this.version(4).stores({
+      offline_items: 'localId, serverId, tableName, internalCode, status, createdAt',
+      offline_operations: 'id, &requestId, tableName, itemId, localItemId, operationType, status, createdAt',
+      cached_inventory_items: 'id, [tableName+itemId], tableName, itemId, internalCode, projectName, cachedAt',
+      cached_projects: 'id, name, code, status, cachedAt',
+      offline_cache_metadata: 'key, status, updatedAt',
+    }).upgrade(async (transaction) => {
+      await transaction.table<OfflineOperation, string>('offline_operations').toCollection().modify((operation) => {
+        operation.requestId ||= crypto.randomUUID()
+      })
     })
   }
 }
