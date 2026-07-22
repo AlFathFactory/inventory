@@ -14,6 +14,8 @@ type ItemDetailsOverviewProps = {
   onOperation: (type: InventoryOperationType) => void
   isReadOnly?: boolean
   backTo?: string
+  onBack?: () => void
+  backLabel?: string
 }
 
 export function ItemDetailsOverview({
@@ -25,6 +27,8 @@ export function ItemDetailsOverview({
   onOperation,
   isReadOnly = false,
   backTo,
+  onBack,
+  backLabel,
 }: ItemDetailsOverviewProps) {
   return (
     <div className="rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] px-6 py-6 shadow-[var(--app-shadow)] lg:px-8">
@@ -53,9 +57,15 @@ export function ItemDetailsOverview({
             <Info label="اسم المورد" value={getDisplayText(details.supplier_name)} />
           </div>
         </div>
-        <Link to={backTo ?? category.route} className="inline-flex h-[44px] items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-          {backTo ? 'رجوع للوحة التحكم' : 'رجوع للقسم'}
-        </Link>
+        {onBack ? (
+          <button type="button" onClick={onBack} className="inline-flex h-[44px] items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            {backLabel ?? 'رجوع'}
+          </button>
+        ) : (
+          <Link to={backTo ?? category.route} className="inline-flex h-[44px] items-center justify-center rounded-2xl border border-[var(--app-border)] bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            {backLabel ?? (backTo ? 'رجوع للوحة التحكم' : 'رجوع للقسم')}
+          </Link>
+        )}
       </div>
 
       <div className="mt-5 grid overflow-hidden rounded-2xl border border-[var(--app-border)] bg-slate-50 sm:grid-cols-3 sm:divide-x sm:divide-x-reverse sm:divide-[var(--app-border)]">

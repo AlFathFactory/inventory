@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { DataTableColumn } from '../components/DataTable'
 import { DataTable } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
@@ -53,14 +53,15 @@ const operationColumns: DataTableColumn<InventoryReportRow>[] = [
 
 export function ReportsPage() {
   const navigate = useNavigate()
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [categoryName, setCategoryName] = useState('')
-  const [projectName, setProjectName] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [urlSearchParams, setUrlSearchParams] = useSearchParams()
+  const [fromDate, setFromDate] = useState(() => urlSearchParams.get('from') ?? '')
+  const [toDate, setToDate] = useState(() => urlSearchParams.get('to') ?? '')
+  const [categoryName, setCategoryName] = useState(() => urlSearchParams.get('category') ?? '')
+  const [projectName, setProjectName] = useState(() => urlSearchParams.get('project') ?? '')
+  const [searchInput, setSearchInput] = useState(() => urlSearchParams.get('search') ?? '')
+  const [searchTerm, setSearchTerm] = useState(() => urlSearchParams.get('search') ?? '')
+  const [currentPage, setCurrentPage] = useState(() => Math.max(1, Number(urlSearchParams.get('page')) || 1))
+  const [pageSize, setPageSize] = useState(() => Math.max(1, Number(urlSearchParams.get('pageSize')) || 10))
   const projectsQuery = useQuery(projectsQueryOptions)
   const hasInvalidRange = Boolean(fromDate && toDate && fromDate > toDate)
   const filters = useMemo(
@@ -90,6 +91,21 @@ export function ReportsPage() {
     const timeoutId = window.setTimeout(() => setSearchTerm(searchInput), 300)
     return () => window.clearTimeout(timeoutId)
   }, [searchInput])
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams()
+    if (fromDate) nextParams.set('from', fromDate)
+    if (toDate) nextParams.set('to', toDate)
+    if (categoryName) nextParams.set('category', categoryName)
+    if (projectName) nextParams.set('project', projectName)
+    if (searchInput) nextParams.set('search', searchInput)
+    if (currentPage > 1) nextParams.set('page', String(currentPage))
+    if (pageSize !== 10) nextParams.set('pageSize', String(pageSize))
+
+    if (nextParams.toString() !== urlSearchParams.toString()) {
+      setUrlSearchParams(nextParams, { replace: true })
+    }
+  }, [categoryName, currentPage, fromDate, pageSize, projectName, searchInput, setUrlSearchParams, toDate, urlSearchParams])
   const errorMessage = reportQuery.error instanceof Error
     ? reportQuery.error.message
     : reportQuery.error
@@ -186,7 +202,11 @@ export function ReportsPage() {
           <>
             <DataTable columns={columns} rows={report.rows} getRowKey={(row) => `${row.tableName}:${row.itemId}`} rowClassName="transition hover:bg-slate-50" onRowClick={(row) => {
               const category = operationCategoryOptions.find((option) => option.table === row.tableName)
-              if (category) navigate(getItemDetailsRoute(category.key, row.itemId))
+              if (category) {
+                navigate(getItemDetailsRoute(category.key, row.itemId, 'reports'), {
+                  state: { fromReports: true },
+                })
+              }
             }} />
             <TablePagination currentPage={currentPage} pageSize={pageSize} totalItems={totalItems} totalPages={totalPages} pageStart={pageStart} pageEnd={pageEnd} onPageChange={setCurrentPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setCurrentPage(1) }} />
           </>

@@ -1,6 +1,6 @@
 import type { CategoryKey } from '../../config/categoryConfig'
 
-export type ItemDetailsSource = 'category' | 'dashboard'
+export type ItemDetailsSource = 'category' | 'dashboard' | 'reports'
 
 export function getItemDetailsRoute(
   categoryKey: CategoryKey,
@@ -8,5 +8,5 @@ export function getItemDetailsRoute(
   source: ItemDetailsSource = 'category',
 ) {
   const route = `/category/${categoryKey}/item/${encodeURIComponent(itemId)}`
-  return source === 'dashboard' ? `${route}?source=dashboard` : route
+  return source === 'category' ? route : `${route}?source=${source}`
 }

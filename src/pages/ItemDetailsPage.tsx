@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { categoryConfig, type CategoryDefinition } from '../config/categoryConfig'
 import { ItemDetailsOverview } from '../features/item-details/components/ItemDetailsOverview'
 import { ItemMovementsSection } from '../features/item-details/components/ItemMovementsSection'
@@ -53,9 +53,19 @@ function CustodyDetailsView({
 }
 
 export function ItemDetailsPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const { categoryKey, itemId } = useParams()
   const [searchParams] = useSearchParams()
   const isDashboardView = searchParams.get('source') === 'dashboard'
+  const hasReportsHistoryState = Boolean(
+    location.state &&
+      typeof location.state === 'object' &&
+      'fromReports' in location.state &&
+      location.state.fromReports === true,
+  )
+  const isReportsView = searchParams.get('source') === 'reports' || hasReportsHistoryState
+  const isReadOnlyView = isDashboardView || isReportsView
   const category: CategoryDefinition | null =
     categoryKey && isCategoryKey(categoryKey)
       ? (categoryConfig[categoryKey] as CategoryDefinition)
@@ -100,8 +110,10 @@ export function ItemDetailsPage() {
             monthlySummaries={page.monthlyMovementSummaries}
             onEdit={page.openEditModal}
             onOperation={page.openOperationModal}
-            isReadOnly={isDashboardView}
-            backTo={isDashboardView ? '/' : undefined}
+            isReadOnly={isReadOnlyView}
+            backTo={isDashboardView ? '/' : isReportsView ? '/reports' : undefined}
+            onBack={hasReportsHistoryState ? () => navigate(-1) : undefined}
+            backLabel={isReportsView ? 'رجوع للتقارير' : undefined}
           />
           <ItemMovementsSection
             category={category}
@@ -116,7 +128,7 @@ export function ItemDetailsPage() {
         </>
       ) : null}
 
-      {!isDashboardView && page.operationType && page.details ? (
+      {!isReadOnlyView && page.operationType && page.details ? (
         <InventoryOperationModal
           category={category}
           itemId={itemId}
@@ -131,7 +143,7 @@ export function ItemDetailsPage() {
         />
       ) : null}
 
-      {!isDashboardView && page.isEditOpen && page.details ? (
+      {!isReadOnlyView && page.isEditOpen && page.details ? (
         <EditItemModal
           category={category}
           itemId={itemId}
