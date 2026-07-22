@@ -5,7 +5,6 @@ import {
 } from '../lib/supabaseClient'
 import { saveOfflineOperation } from './offlineQueueService'
 import { isStockInventoryTable } from './inventoryTablePolicy'
-import { getCategorySummaryItems } from './itemsService'
 
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
@@ -50,16 +49,19 @@ export type InventoryReportFilters = {
   toDate?: string
   categoryName?: string
   projectName?: string
+  searchTerm?: string
+  page: number
+  pageSize: number
 }
 
 export type InventoryReportRow = {
-  id: string
+  tableName: string
+  itemId: string
   itemName: string
   categoryName: string
   projectName: string
-  operationType: 'add' | 'issue'
-  quantity: number
-  operationDate: string
+  totalAddedQuantity: number
+  totalIssuedQuantity: number
   codeNumber: string | null
   weight: number | string | null
   length: number | string | null
@@ -69,6 +71,7 @@ export type InventoryReportRow = {
 
 export type InventoryReport = {
   rows: InventoryReportRow[]
+  totalItems: number
   summary: {
     additionOperationsCount: number
     totalAddedQuantity: number
@@ -351,98 +354,60 @@ export async function getRecentInventoryOperations(limit = 20) {
 }
 
 export async function getInventoryReport(
-  filters: InventoryReportFilters = {},
+  filters: InventoryReportFilters,
 ): Promise<InventoryReport> {
   const client = getClientOrThrow()
-  const pageSize = 1000
-  const records: OperationRecord[] = []
-
-  for (let from = 0; ; from += pageSize) {
-    let query = client
-      .from('inventory_operations')
-      .select('id,table_name,item_id,item_name,item_label,category_name,category_label,project_name,project,operation_type,quantity,operation_date,item_code')
-      .in('operation_type', ['add', 'issue'])
-      .order('operation_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .range(from, from + pageSize - 1)
-
-    if (filters.fromDate) {
-      query = query.gte('operation_date', filters.fromDate)
-    }
-    if (filters.toDate) {
-      query = query.lte('operation_date', filters.toDate)
-    }
-    if (filters.categoryName) {
-      query = query.eq('category_name', filters.categoryName)
-    }
-    if (filters.projectName) {
-      query = query.eq('project_name', filters.projectName)
-    }
-
-    const { data, error } = await query
-    if (error) {
-      throw new Error(error.message || 'تعذر تحميل بيانات التقارير')
-    }
-
-    const page = (data ?? []) as OperationRecord[]
-    records.push(...page)
-    if (page.length < pageSize) break
-  }
-
-  const hasRawMaterialRows = records.some(
-    (record) => toText(record.table_name) === 'raw_materials',
+  const { data, error } = await client.rpc(
+    'get_aggregated_inventory_report_rpc',
+    {
+      p_from_date: filters.fromDate || null,
+      p_to_date: filters.toDate || null,
+      p_category_name: filters.categoryName || null,
+      p_project_name: filters.projectName || null,
+      p_search: filters.searchTerm?.trim() || null,
+      p_page: filters.page,
+      p_page_size: filters.pageSize,
+    },
   )
-  const rawMaterialsById = new Map<string, Record<string, unknown>>()
 
-  if (hasRawMaterialRows) {
-    const result = await getCategorySummaryItems('raw_materials')
-    if (result.data === null) {
-      throw new Error(result.error)
-    }
-    for (const item of result.data) {
-      rawMaterialsById.set(String(item.item_id), item)
-    }
+  if (error) {
+    throw new Error(error.message || 'تعذر تحميل بيانات التقارير')
   }
 
-  const rows: InventoryReportRow[] = records.map((record) => {
-    const rawMaterial = rawMaterialsById.get(toText(record.item_id))
-    return {
-      id: toText(record.id),
-      itemName: toText(record.item_name) || toText(record.item_label) || '—',
-      categoryName:
-        toText(record.category_name) || toText(record.category_label) || '—',
-      projectName: toText(record.project_name) || toText(record.project) || '—',
-      operationType: record.operation_type === 'issue' ? 'issue' : 'add',
-      quantity: toNumber(record.quantity),
-      operationDate: toText(record.operation_date),
-      codeNumber:
-        toText(rawMaterial?.code_number) || toText(record.item_code) || null,
-      weight: rawMaterial?.weight as number | string | null | undefined ?? null,
-      length: rawMaterial?.length as number | string | null | undefined ?? null,
-      width: rawMaterial?.width as number | string | null | undefined ?? null,
-      th: rawMaterial?.th as number | string | null | undefined ?? null,
-    }
-  })
+  const payload = data && typeof data === 'object'
+    ? data as Record<string, unknown>
+    : {}
+  const summaryRecord = payload.summary && typeof payload.summary === 'object'
+    ? payload.summary as OperationRecord
+    : {}
+  const rows = Array.isArray(payload.rows)
+    ? payload.rows.map((value): InventoryReportRow => {
+        const row = value as OperationRecord
+        return {
+          tableName: toText(row.table_name),
+          itemId: toText(row.item_id),
+          itemName: toText(row.item_name) || '—',
+          categoryName: toText(row.category_name) || '—',
+          projectName: toText(row.project_name) || '—',
+          totalAddedQuantity: toNumber(row.total_added_quantity),
+          totalIssuedQuantity: toNumber(row.total_issued_quantity),
+          codeNumber: toText(row.code_number) || null,
+          weight: row.weight as number | string | null | undefined ?? null,
+          length: row.length as number | string | null | undefined ?? null,
+          width: row.width as number | string | null | undefined ?? null,
+          th: row.th as number | string | null | undefined ?? null,
+        }
+      })
+    : []
 
   return {
     rows,
-    summary: rows.reduce<InventoryReport['summary']>(
-      (summary, row) => {
-        if (row.operationType === 'add') {
-          summary.additionOperationsCount += 1
-          summary.totalAddedQuantity += row.quantity
-        } else {
-          summary.issueOperationsCount += 1
-          summary.totalIssuedQuantity += row.quantity
-        }
-        return summary
-      },
-      {
-        additionOperationsCount: 0,
-        totalAddedQuantity: 0,
-        issueOperationsCount: 0,
-        totalIssuedQuantity: 0,
-      },
-    ),
+    totalItems: toNumber(payload.total_items),
+    summary: {
+      additionOperationsCount: toNumber(summaryRecord.addition_operations_count),
+      totalAddedQuantity: toNumber(summaryRecord.total_added_quantity),
+      issueOperationsCount: toNumber(summaryRecord.issue_operations_count),
+      totalIssuedQuantity: toNumber(summaryRecord.total_issued_quantity),
+    },
   }
 }

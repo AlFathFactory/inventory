@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { DataTableColumn } from '../components/DataTable'
 import { DataTable } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
@@ -6,24 +7,12 @@ import { DashboardStatCard } from '../features/dashboard/components/DashboardSta
 import { projectsQueryOptions } from '../features/projects/projectQueries'
 import { useInventoryReport } from '../features/reports/reportQueries'
 import { generateInventoryReportPdf } from '../features/reports/generateInventoryReportPdf'
-import { usePagination } from '../hooks/usePagination'
 import type { InventoryReportRow } from '../services/operationsService'
 import { operationCategoryOptions } from '../config/categoryConfig'
 import { useQuery } from '@tanstack/react-query'
+import { getItemDetailsRoute } from '../features/items/itemRoutes'
 
 const numberFormatter = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 })
-const dateFormatter = new Intl.DateTimeFormat('ar-EG', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-})
-
-function formatDate(value: string) {
-  if (!value) return '—'
-  const date = new Date(`${value}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date)
-}
-
 function displayValue(value: number | string | null) {
   if (value === null || value === '') return '—'
   return typeof value === 'number' ? numberFormatter.format(value) : value
@@ -49,38 +38,34 @@ const rawMaterialColumns: DataTableColumn<InventoryReportRow>[] = [
 
 const operationColumns: DataTableColumn<InventoryReportRow>[] = [
   {
-    id: 'type',
-    header: 'نوع العملية',
-    renderCell: (row) => (
-      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.operationType === 'add' ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
-        {row.operationType === 'add' ? 'إضافة' : 'صرف'}
-      </span>
-    ),
+    id: 'totalAdded',
+    header: 'إجمالي الكمية المضافة',
+    renderCell: (row) => numberFormatter.format(row.totalAddedQuantity),
+    cellClassName: 'font-bold tabular-nums text-emerald-700',
   },
   {
-    id: 'quantity',
-    header: 'الكمية',
-    renderCell: (row) => numberFormatter.format(row.quantity),
-    cellClassName: 'font-semibold tabular-nums',
-  },
-  {
-    id: 'date',
-    header: 'التاريخ',
-    renderCell: (row) => formatDate(row.operationDate),
-    cellClassName: 'whitespace-nowrap',
+    id: 'totalIssued',
+    header: 'إجمالي الكمية المصروفة',
+    renderCell: (row) => numberFormatter.format(row.totalIssuedQuantity),
+    cellClassName: 'font-bold tabular-nums text-orange-700',
   },
 ]
 
 export function ReportsPage() {
+  const navigate = useNavigate()
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [categoryName, setCategoryName] = useState('')
   const [projectName, setProjectName] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const projectsQuery = useQuery(projectsQueryOptions)
   const hasInvalidRange = Boolean(fromDate && toDate && fromDate > toDate)
   const filters = useMemo(
-    () => ({ fromDate, toDate, categoryName, projectName }),
-    [categoryName, fromDate, projectName, toDate],
+    () => ({ fromDate, toDate, categoryName, projectName, searchTerm, page: currentPage, pageSize }),
+    [categoryName, currentPage, fromDate, pageSize, projectName, searchTerm, toDate],
   )
   const reportQuery = useInventoryReport(filters, !hasInvalidRange)
   const report = reportQuery.data
@@ -90,7 +75,21 @@ export function ReportsPage() {
       : [...baseColumns, ...operationColumns],
     [categoryName],
   )
-  const pagination = usePagination(report?.rows ?? [], { initialPageSize: 10 })
+  const totalItems = report?.totalItems ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const pageStart = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const pageEnd = totalItems === 0
+    ? 0
+    : Math.min(pageStart + (report?.rows.length ?? 0) - 1, totalItems)
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages)
+  }, [currentPage, totalPages])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setSearchTerm(searchInput), 300)
+    return () => window.clearTimeout(timeoutId)
+  }, [searchInput])
   const errorMessage = reportQuery.error instanceof Error
     ? reportQuery.error.message
     : reportQuery.error
@@ -106,31 +105,35 @@ export function ReportsPage() {
         </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-2 sm:col-span-2 xl:col-span-4">
+            <span className="block text-sm font-semibold text-slate-700">بحث</span>
+            <input type="search" value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setCurrentPage(1) }} placeholder="ابحث باسم الصنف أو القسم أو السجل أو رقم الكود" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
+          </label>
           <label className="space-y-2">
             <span className="block text-sm font-semibold text-slate-700">من تاريخ</span>
-            <input type="date" value={fromDate} max={toDate || undefined} onChange={(event) => setFromDate(event.target.value)} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
+            <input type="date" value={fromDate} max={toDate || undefined} onChange={(event) => { setFromDate(event.target.value); setCurrentPage(1) }} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
           </label>
           <label className="space-y-2">
             <span className="block text-sm font-semibold text-slate-700">إلى تاريخ</span>
-            <input type="date" value={toDate} min={fromDate || undefined} onChange={(event) => setToDate(event.target.value)} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
+            <input type="date" value={toDate} min={fromDate || undefined} onChange={(event) => { setToDate(event.target.value); setCurrentPage(1) }} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
           </label>
           <label className="space-y-2">
             <span className="block text-sm font-semibold text-slate-700">القسم</span>
-            <select value={categoryName} onChange={(event) => setCategoryName(event.target.value)} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]">
+            <select value={categoryName} onChange={(event) => { setCategoryName(event.target.value); setCurrentPage(1) }} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]">
               <option value="">جميع الأقسام</option>
               {operationCategoryOptions.map((category) => <option key={category.key} value={category.label}>{category.label}</option>)}
             </select>
           </label>
           <label className="space-y-2">
             <span className="block text-sm font-semibold text-slate-700">السجل</span>
-            <select value={projectName} onChange={(event) => setProjectName(event.target.value)} disabled={projectsQuery.isPending} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)] disabled:bg-slate-50 disabled:text-slate-500">
+            <select value={projectName} onChange={(event) => { setProjectName(event.target.value); setCurrentPage(1) }} disabled={projectsQuery.isPending} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)] disabled:bg-slate-50 disabled:text-slate-500">
               <option value="">{projectsQuery.isPending ? 'جاري تحميل السجلات...' : 'جميع السجلات'}</option>
               {(projectsQuery.data ?? []).map((project) => <option key={project.id} value={project.name}>{project.name}</option>)}
             </select>
           </label>
         </div>
-        {(fromDate || toDate || categoryName || projectName) ? (
-          <button type="button" onClick={() => { setFromDate(''); setToDate(''); setCategoryName(''); setProjectName('') }} className="mt-4 text-sm font-bold text-[var(--app-primary)] hover:underline">
+        {(fromDate || toDate || categoryName || projectName || searchInput) ? (
+          <button type="button" onClick={() => { setFromDate(''); setToDate(''); setCategoryName(''); setProjectName(''); setSearchInput(''); setSearchTerm(''); setCurrentPage(1) }} className="mt-4 text-sm font-bold text-[var(--app-primary)] hover:underline">
             مسح جميع الفلاتر
           </button>
         ) : null}
@@ -154,11 +157,11 @@ export function ReportsPage() {
       <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-white shadow-[var(--app-shadow)]">
         <div className="flex flex-col gap-4 border-b border-[var(--app-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">تفاصيل العمليات</h2>
-            <p className="mt-1 text-sm text-[var(--app-text-muted)]">تظهر عمليات الإضافة والصرف فقط.</p>
+            <h2 className="text-lg font-bold text-slate-900">ملخص الأصناف</h2>
+            <p className="mt-1 text-sm text-[var(--app-text-muted)]">كل صف يمثل صنفًا واحدًا بإجمالي الإضافة والصرف ضمن الفترة المحددة.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {report ? <span className="text-sm text-slate-500">النتائج: {numberFormatter.format(report.rows.length)}</span> : null}
+            {report ? <span className="text-sm text-slate-500">النتائج: {numberFormatter.format(report.totalItems)}</span> : null}
             <button type="button" disabled={!report || report.rows.length === 0 || reportQuery.isFetching} onClick={() => { if (report) generateInventoryReportPdf(report, filters) }} className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50">
               إنشاء PDF
             </button>
@@ -181,8 +184,11 @@ export function ReportsPage() {
 
         {!reportQuery.isPending && report && report.rows.length > 0 ? (
           <>
-            <DataTable columns={columns} rows={pagination.paginatedItems} getRowKey={(row) => row.id} rowClassName="transition hover:bg-slate-50" />
-            <TablePagination currentPage={pagination.currentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} pageStart={pagination.pageStart} pageEnd={pagination.pageEnd} onPageChange={pagination.setCurrentPage} onPageSizeChange={pagination.setPageSize} />
+            <DataTable columns={columns} rows={report.rows} getRowKey={(row) => `${row.tableName}:${row.itemId}`} rowClassName="transition hover:bg-slate-50" onRowClick={(row) => {
+              const category = operationCategoryOptions.find((option) => option.table === row.tableName)
+              if (category) navigate(getItemDetailsRoute(category.key, row.itemId))
+            }} />
+            <TablePagination currentPage={currentPage} pageSize={pageSize} totalItems={totalItems} totalPages={totalPages} pageStart={pageStart} pageEnd={pageEnd} onPageChange={setCurrentPage} onPageSizeChange={(nextPageSize) => { setPageSize(nextPageSize); setCurrentPage(1) }} />
           </>
         ) : null}
       </div>

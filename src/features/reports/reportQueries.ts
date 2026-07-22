@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query'
 import {
   getInventoryReport,
   type InventoryReportFilters,
@@ -14,6 +14,9 @@ export const reportKeys = {
       filters.toDate ?? '',
       filters.categoryName ?? '',
       filters.projectName ?? '',
+      filters.searchTerm?.trim() ?? '',
+      filters.page,
+      filters.pageSize,
     ] as const,
 }
 
@@ -21,6 +24,7 @@ export function inventoryReportQueryOptions(filters: InventoryReportFilters) {
   return queryOptions({
     queryKey: reportKeys.inventoryOperations(filters),
     queryFn: () => getInventoryReport(filters),
+    placeholderData: keepPreviousData,
   })
 }
 

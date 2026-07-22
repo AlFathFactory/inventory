@@ -41,6 +41,7 @@ function getFilterLabels(filters: InventoryReportFilters) {
     filters.toDate ? `إلى: ${formatDate(filters.toDate)}` : null,
     filters.categoryName ? `القسم: ${filters.categoryName}` : 'القسم: جميع الأقسام',
     filters.projectName ? `المشروع: ${filters.projectName}` : 'المشروع: جميع المشاريع',
+    filters.searchTerm ? `البحث: ${filters.searchTerm}` : null,
   ].filter(Boolean) as string[]
 }
 
@@ -52,9 +53,8 @@ function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean
     ...(showRawMaterialFields
       ? ['رقم الكود', 'وزن', 'LENGTH', 'WIDTH', 'TH']
       : []),
-    'نوع العملية',
-    'الكمية',
-    'التاريخ',
+    'إجمالي الكمية المضافة',
+    'إجمالي الكمية المصروفة',
   ]
 
   const values = rows.map((row) => [
@@ -70,9 +70,8 @@ function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean
           displayValue(row.th),
         ]
       : []),
-    row.operationType === 'add' ? 'إضافة' : 'صرف',
-    numberFormatter.format(row.quantity),
-    formatDate(row.operationDate),
+    numberFormatter.format(row.totalAddedQuantity),
+    numberFormatter.format(row.totalIssuedQuantity),
   ])
 
   return { headers, values }
@@ -137,7 +136,7 @@ export function generateInventoryReportPdf(
 <body>
   <header>
     <h1>تقرير حركة المخزون</h1>
-    <div class="meta"><span>عدد النتائج: ${numberFormatter.format(report.rows.length)}</span><span>تاريخ الإنشاء: ${escapeHtml(generatedAt)}</span></div>
+    <div class="meta"><span>عدد الأصناف: ${numberFormatter.format(report.totalItems)}</span><span>الصفحة: ${numberFormatter.format(filters.page)}</span><span>تاريخ الإنشاء: ${escapeHtml(generatedAt)}</span></div>
   </header>
   <div class="filters">${getFilterLabels(filters).map((label) => `<span class="filter">${escapeHtml(label)}</span>`).join('')}</div>
   <section class="summary">${summary.map(([label, value]) => `<div class="card"><div class="card-label">${escapeHtml(label)}</div><div class="card-value">${numberFormatter.format(Number(value))}</div></div>`).join('')}</section>
