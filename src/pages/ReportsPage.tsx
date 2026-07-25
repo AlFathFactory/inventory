@@ -12,7 +12,7 @@ import { operationCategoryOptions } from '../config/categoryConfig'
 import { useQuery } from '@tanstack/react-query'
 import { getItemDetailsRoute } from '../features/items/itemRoutes'
 
-const numberFormatter = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 2 })
+const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 function displayValue(value: number | string | null) {
   if (value === null || value === '') return '—'
   return typeof value === 'number' ? numberFormatter.format(value) : value

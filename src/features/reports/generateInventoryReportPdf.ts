@@ -4,7 +4,7 @@ import type {
   InventoryReportRow,
 } from '../../services/operationsService'
 
-const numberFormatter = new Intl.NumberFormat('ar-EG', {
+const numberFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 })
 
@@ -32,7 +32,7 @@ function formatDate(value: string) {
   const date = new Date(`${value}T00:00:00`)
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium' }).format(date)
+    : new Intl.DateTimeFormat('ar-EG-u-nu-latn', { dateStyle: 'medium' }).format(date)
 }
 
 function getFilterLabels(filters: InventoryReportFilters) {
@@ -95,7 +95,7 @@ export function generateInventoryReportPdf(
     report.rows,
     showRawMaterialFields,
   )
-  const generatedAt = new Intl.DateTimeFormat('ar-EG', {
+  const generatedAt = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date())
