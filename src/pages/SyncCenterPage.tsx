@@ -22,7 +22,7 @@ function friendlyError(message: string | null) {
   const value = message.toLowerCase()
   if (value.includes('insufficient')) return 'الكمية المطلوبة أكبر من الرصيد المتاح.'
   if (value.includes('not found')) return 'لم يعد الصنف موجودًا أو لا يمكن الوصول إليه.'
-  if (value.includes('network') || value.includes('fetch')) return 'انقطع الاتصال قبل استلام الرد. إعادة المحاولة آمنة ولن تكرر الحركة.'
+  if (value.includes('network') || value.includes('fetch')) return 'انقطع الاتصال قبل حفظ البيانات. أعد المحاولةمرة ثانية.'
   return message
 }
 
