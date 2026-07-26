@@ -1,19 +1,30 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { usePagination } from '../../../hooks/usePagination'
 import type { DashboardInventoryRow } from '../types'
 
-type DashboardInventoryFilters = {
-  searchTerm: string
-  categoryKey: string
-  projectName: string
-}
-
 export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
-  const [filters, setFilters] = useState<DashboardInventoryFilters>({
-    searchTerm: '',
-    categoryKey: 'all',
-    projectName: 'all',
-  })
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filters = {
+    searchTerm: searchParams.get('search') ?? '',
+    categoryKey: searchParams.get('category') ?? 'all',
+    projectName: searchParams.get('project') ?? 'all',
+  }
+
+  function updateFilter(name: 'search' | 'category' | 'project', value: string) {
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams)
+      const isDefaultValue = value === '' || value === 'all'
+
+      if (isDefaultValue) {
+        nextParams.delete(name)
+      } else {
+        nextParams.set(name, value)
+      }
+
+      return nextParams
+    }, { replace: true })
+  }
 
   const deferredSearchTerm = useDeferredValue(filters.searchTerm)
   const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase()
@@ -48,17 +59,9 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
     filters,
     filteredRows,
     pagination,
-    setSearchTerm: (searchTerm: string) =>
-      setFilters((currentValue) => ({ ...currentValue, searchTerm })),
-    setCategoryKey: (categoryKey: string) =>
-      setFilters((currentValue) => ({ ...currentValue, categoryKey })),
-    setProjectName: (projectName: string) =>
-      setFilters((currentValue) => ({ ...currentValue, projectName })),
-    clearFilters: () =>
-      setFilters({
-        searchTerm: '',
-        categoryKey: 'all',
-        projectName: 'all',
-      }),
+    setSearchTerm: (searchTerm: string) => updateFilter('search', searchTerm),
+    setCategoryKey: (categoryKey: string) => updateFilter('category', categoryKey),
+    setProjectName: (projectName: string) => updateFilter('project', projectName),
+    clearFilters: () => setSearchParams({}, { replace: true }),
   }
 }

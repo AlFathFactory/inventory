@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { CategoryHeader } from '../features/category/components/CategoryHeader'
 import { CategoryModals } from '../features/category/components/CategoryModals'
@@ -11,6 +11,7 @@ import { getItemDetailsRoute } from '../features/items/itemRoutes'
 
 export function CategoryPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const model = useCategoryPage()
   const { category, categoryKey } = model
@@ -22,6 +23,7 @@ export function CategoryPage() {
       state: {
         tableName: row.table_name,
         categoryName: row.category_name,
+        categoryReturnTo: `${location.pathname}${location.search}`,
       },
     })
   }

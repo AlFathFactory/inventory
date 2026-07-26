@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type { DataTableColumn } from '../components/DataTable'
 import { DataTable } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
@@ -53,6 +53,7 @@ const operationColumns: DataTableColumn<InventoryReportRow>[] = [
 
 export function ReportsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [urlSearchParams, setUrlSearchParams] = useSearchParams()
   const [fromDate, setFromDate] = useState(() => urlSearchParams.get('from') ?? '')
   const [toDate, setToDate] = useState(() => urlSearchParams.get('to') ?? '')
@@ -204,7 +205,10 @@ export function ReportsPage() {
               const category = operationCategoryOptions.find((option) => option.table === row.tableName)
               if (category) {
                 navigate(getItemDetailsRoute(category.key, row.itemId, 'reports'), {
-                  state: { fromReports: true },
+                  state: {
+                    fromReports: true,
+                    reportsReturnTo: `${location.pathname}${location.search}`,
+                  },
                 })
               }
             }} />

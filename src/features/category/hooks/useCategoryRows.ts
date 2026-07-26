@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { liveQuery } from 'dexie'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
@@ -15,8 +16,9 @@ const emptyCategoryRows: CategorySummaryItem[] = []
 
 export function useCategoryRows(category: CategoryDefinition | null) {
   const { isOnline } = useNetworkStatus()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedProjectName, setSelectedProjectName] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchTerm = searchParams.get('search') ?? ''
+  const selectedProjectName = searchParams.get('project') ?? ''
   const [offlineItems, setOfflineItems] = useState<OfflineItem[]>([])
   const [offlineOperations, setOfflineOperations] = useState<OfflineOperation[]>([])
   const query = useQuery({
@@ -50,10 +52,6 @@ export function useCategoryRows(category: CategoryDefinition | null) {
   )
   const deferredSearchTerm = useDeferredValue(searchTerm)
 
-  useEffect(() => {
-    setSelectedProjectName('')
-  }, [category?.table])
-
   const projectOptions = useMemo(
     () => (projectsQuery.data ?? []).map((project) => project.name),
     [projectsQuery.data],
@@ -71,9 +69,23 @@ export function useCategoryRows(category: CategoryDefinition | null) {
     isLoading: query.isPending && isOnline,
     error: isOnline && query.error instanceof Error ? query.error.message : null,
     searchTerm,
-    setSearchTerm,
+    setSearchTerm: (value: string) => {
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams)
+        if (value) nextParams.set('search', value)
+        else nextParams.delete('search')
+        return nextParams
+      }, { replace: true })
+    },
     projectOptions,
     selectedProjectName,
-    setSelectedProjectName,
+    setSelectedProjectName: (value: string) => {
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams)
+        if (value) nextParams.set('project', value)
+        else nextParams.delete('project')
+        return nextParams
+      }, { replace: true })
+    },
   }
 }

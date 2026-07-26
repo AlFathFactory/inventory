@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { DashboardInventoryFilters } from '../features/dashboard/components/DashboardInventoryFilters'
 import { DashboardInventoryTable } from '../features/dashboard/components/DashboardInventoryTable'
@@ -17,6 +17,7 @@ import { useActiveProjects } from '../features/projects/projectQueries'
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { data, isLoading, error } = useDashboardData()
   const projectsQuery = useActiveProjects()
@@ -117,7 +118,14 @@ export function DashboardPage() {
               onPageChange={inventoryTable.pagination.setCurrentPage}
               onPageSizeChange={inventoryTable.pagination.setPageSize}
               onItemClick={(row) =>
-                navigate(getItemDetailsRoute(row.categoryKey, row.itemId, 'dashboard'))
+                navigate(
+                  getItemDetailsRoute(row.categoryKey, row.itemId, 'dashboard'),
+                  {
+                    state: {
+                      dashboardReturnTo: `${location.pathname}${location.search}`,
+                    },
+                  },
+                )
               }
               onItemPrefetch={(row) => {
                 void prefetchInventoryItem(

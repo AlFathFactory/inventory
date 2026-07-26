@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { categoryConfig, type CategoryDefinition } from '../config/categoryConfig'
 import { ItemDetailsOverview } from '../features/item-details/components/ItemDetailsOverview'
 import { ItemMovementsSection } from '../features/item-details/components/ItemMovementsSection'
@@ -54,10 +54,33 @@ function CustodyDetailsView({
 
 export function ItemDetailsPage() {
   const location = useLocation()
-  const navigate = useNavigate()
   const { categoryKey, itemId } = useParams()
   const [searchParams] = useSearchParams()
   const isDashboardView = searchParams.get('source') === 'dashboard'
+  const dashboardReturnTo =
+    location.state &&
+    typeof location.state === 'object' &&
+    'dashboardReturnTo' in location.state &&
+    typeof location.state.dashboardReturnTo === 'string' &&
+    location.state.dashboardReturnTo.startsWith('/')
+      ? location.state.dashboardReturnTo
+      : '/'
+  const categoryReturnTo =
+    location.state &&
+    typeof location.state === 'object' &&
+    'categoryReturnTo' in location.state &&
+    typeof location.state.categoryReturnTo === 'string' &&
+    location.state.categoryReturnTo.startsWith('/')
+      ? location.state.categoryReturnTo
+      : undefined
+  const reportsReturnTo =
+    location.state &&
+    typeof location.state === 'object' &&
+    'reportsReturnTo' in location.state &&
+    typeof location.state.reportsReturnTo === 'string' &&
+    location.state.reportsReturnTo.startsWith('/')
+      ? location.state.reportsReturnTo
+      : '/reports'
   const hasReportsHistoryState = Boolean(
     location.state &&
       typeof location.state === 'object' &&
@@ -74,7 +97,7 @@ export function ItemDetailsPage() {
   const page = useItemDetailsPage(stockCategory, itemId)
 
   if (category && itemId && isCustodyTable(category.table)) {
-    return <CustodyDetailsView tableName={category.table} itemId={itemId} backTo={isDashboardView ? '/' : undefined} />
+    return <CustodyDetailsView tableName={category.table} itemId={itemId} backTo={isDashboardView ? dashboardReturnTo : undefined} />
   }
 
   if (!category || !itemId) {
@@ -111,8 +134,7 @@ export function ItemDetailsPage() {
             onEdit={page.openEditModal}
             onOperation={page.openOperationModal}
             isReadOnly={isReadOnlyView}
-            backTo={isDashboardView ? '/' : isReportsView ? '/reports' : undefined}
-            onBack={hasReportsHistoryState ? () => navigate(-1) : undefined}
+            backTo={isDashboardView ? dashboardReturnTo : isReportsView ? reportsReturnTo : categoryReturnTo}
             backLabel={isReportsView ? 'رجوع للتقارير' : undefined}
           />
           <ItemMovementsSection
