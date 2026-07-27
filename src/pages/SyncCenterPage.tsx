@@ -35,7 +35,19 @@ export function SyncCenterPage() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [items, setItems] = useState<OfflineItem[]>([])
   const [operations, setOperations] = useState<OfflineOperation[]>([])
-  const operationsPagination = usePagination(operations, { initialPageSize: 10 })
+  const [operationStatusFilter, setOperationStatusFilter] = useState<OfflineStatus | 'all'>('all')
+  const filteredOperations = useMemo(
+    () => operationStatusFilter === 'all'
+      ? operations
+      : operations.filter((operation) => operation.status === operationStatusFilter),
+    [operationStatusFilter, operations],
+  )
+  const operationsPagination = usePagination(filteredOperations, { initialPageSize: 10 })
+
+  function updateOperationStatusFilter(status: OfflineStatus | 'all') {
+    setOperationStatusFilter(status)
+    operationsPagination.setCurrentPage(1)
+  }
 
   useEffect(() => {
     const subscription = liveQuery(async () => Promise.all([
@@ -97,12 +109,24 @@ export function SyncCenterPage() {
       </div>
 
       <div className="rounded-3xl border border-[var(--app-border)] bg-white p-5 sm:p-6"><h3 className="font-bold">العمليات المحلية</h3><p className="mt-1 text-sm text-slate-500">آخر مزامنة: {lastSync ? new Date(lastSync).toLocaleString('ar-EG') : 'لم تتم مزامنة بعد'}</p>
-        <div className="mt-4 space-y-3">{operations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات محلية.</p> : operationsPagination.paginatedItems.map((operation) => {
+        <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="تصفية العمليات حسب الحالة">
+          <button type="button" onClick={() => updateOperationStatusFilter('all')} aria-pressed={operationStatusFilter === 'all'} className={`rounded-full border px-4 py-2 text-xs font-bold transition ${operationStatusFilter === 'all' ? 'border-[var(--app-primary)] bg-[var(--app-primary)] text-white' : 'border-[var(--app-border)] bg-white text-slate-600 hover:bg-slate-50'}`}>
+            الكل ({operations.length})
+          </button>
+          {(Object.keys(statusUi) as OfflineStatus[]).map((status) => {
+            const statusCount = operations.filter((operation) => operation.status === status).length
+            const isActive = operationStatusFilter === status
+            return <button key={status} type="button" onClick={() => updateOperationStatusFilter(status)} aria-pressed={isActive} className={`rounded-full border px-4 py-2 text-xs font-bold transition ${isActive ? 'border-[var(--app-primary)] bg-[var(--app-primary)] text-white' : 'border-[var(--app-border)] bg-white text-slate-600 hover:bg-slate-50'}`}>
+              {statusUi[status].label} ({statusCount})
+            </button>
+          })}
+        </div>
+        <div className="mt-4 space-y-3">{operations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات محلية.</p> : filteredOperations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات بهذه الحالة.</p> : operationsPagination.paginatedItems.map((operation) => {
           const itemName = String(operation.payload.itemName ?? operation.itemId ?? operation.localItemId ?? 'غير محدد')
           const date = String(operation.payload.operationDate ?? operation.createdAt)
           return <article key={operation.id} className="rounded-2xl border border-[var(--app-border)] p-4"><div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center"><div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4"><div><span className="block text-xs text-slate-500">النوع</span><strong>{operationLabels[operation.operationType]}</strong></div><div><span className="block text-xs text-slate-500">الصنف</span><strong>{itemName}</strong></div><div><span className="block text-xs text-slate-500">الكمية</span><strong>{operation.quantity ?? '—'}</strong></div><div><span className="block text-xs text-slate-500">التاريخ</span><strong>{new Date(date).toLocaleDateString('ar-EG')}</strong></div></div><div className="flex flex-wrap items-center gap-2 sm:justify-end"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusUi[operation.status].className}`}>{statusUi[operation.status].label}</span>{operation.status === 'failed' || operation.status === 'conflict' ? <button type="button" disabled={isSyncing} onClick={() => void retryOperation(operation)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">إعادة المحاولة</button> : null}{operation.status === 'conflict' ? <button type="button" onClick={() => void dismissConflictingOperation(operation.id)} className="rounded-xl border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800">تجاهل التعديل</button> : null}</div></div>{operation.errorMessage ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{friendlyError(operation.errorMessage)}</p> : null}{operation.syncedAt ? <p className="mt-2 text-xs text-slate-400">تمت في {new Date(operation.syncedAt).toLocaleString('ar-EG')}</p> : null}</article>
         })}</div>
-        {operations.length > 0 ? <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--app-border)]">
+        {filteredOperations.length > 0 ? <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--app-border)]">
           <TablePagination
             currentPage={operationsPagination.currentPage}
             pageSize={operationsPagination.pageSize}
