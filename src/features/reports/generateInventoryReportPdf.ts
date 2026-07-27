@@ -103,17 +103,6 @@ export function generateInventoryReportPdf(
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date())
-  const summary = [
-    ...(filters.operationType !== 'issue' ? [
-      ['عدد عمليات الإضافة', report.summary.additionOperationsCount] as const,
-      ['إجمالي الكمية المضافة', report.summary.totalAddedQuantity] as const,
-    ] : []),
-    ...(filters.operationType !== 'add' ? [
-      ['عدد عمليات الصرف', report.summary.issueOperationsCount] as const,
-      ['إجمالي الكمية المصروفة', report.summary.totalIssuedQuantity] as const,
-    ] : []),
-  ]
-
   reportWindow.document.open()
   reportWindow.document.write(`<!doctype html>
 <html lang="ar" dir="rtl">
@@ -129,10 +118,6 @@ export function generateInventoryReportPdf(
     .meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 7px; color: #475467; }
     .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
     .filter { border: 1px solid #d0d5dd; border-radius: 10px; padding: 5px 9px; background: #f9fafb; }
-    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 16px; }
-    .card { border: 1px solid #dbe3f0; border-radius: 10px; padding: 9px; background: #f8faff; }
-    .card-label { color: #667085; }
-    .card-value { margin-top: 4px; font-size: 17px; font-weight: 700; color: #155eef; }
     table { width: 100%; border-collapse: collapse; table-layout: auto; }
     thead { display: table-header-group; }
     tr { break-inside: avoid; page-break-inside: avoid; }
@@ -148,7 +133,6 @@ export function generateInventoryReportPdf(
     <div class="meta"><span>عدد الأصناف: ${numberFormatter.format(report.totalItems)}</span><span>جميع النتائج المفلترة</span><span>تاريخ الإنشاء: ${escapeHtml(generatedAt)}</span></div>
   </header>
   <div class="filters">${getFilterLabels(filters).map((label) => `<span class="filter">${escapeHtml(label)}</span>`).join('')}</div>
-  <section class="summary">${summary.map(([label, value]) => `<div class="card"><div class="card-label">${escapeHtml(label)}</div><div class="card-value">${numberFormatter.format(Number(value))}</div></div>`).join('')}</section>
   <table>
     <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
     <tbody>${values.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')}</tbody>

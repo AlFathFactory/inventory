@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type { DataTableColumn } from '../components/DataTable'
 import { DataTable } from '../components/DataTable'
 import { TablePagination } from '../components/TablePagination'
-import { DashboardStatCard } from '../features/dashboard/components/DashboardStatCard'
 import { projectsQueryOptions } from '../features/projects/projectQueries'
 import { useInventoryReport } from '../features/reports/reportQueries'
 import { generateInventoryReportPdf } from '../features/reports/generateInventoryReportPdf'
@@ -205,13 +204,6 @@ export function ReportsPage() {
           <button type="button" onClick={() => void reportQuery.refetch()} className="self-start rounded-xl bg-white px-4 py-2 font-bold shadow-sm sm:self-auto">إعادة المحاولة</button>
         </div>
       ) : null}
-
-      <div className={`grid gap-5 sm:grid-cols-2 ${operationType === 'both' ? 'xl:grid-cols-4' : 'xl:grid-cols-2'}`}>
-        {operationType !== 'issue' ? <DashboardStatCard caption="عدد عمليات الإضافة" value={numberFormatter.format(report?.summary.additionOperationsCount ?? 0)} helper="عمليات الإضافة المحددة" accentClassName="text-emerald-600" /> : null}
-        {operationType !== 'issue' ? <DashboardStatCard caption="إجمالي الكمية المضافة" value={numberFormatter.format(report?.summary.totalAddedQuantity ?? 0)} helper="مجموع الكميات المضافة" accentClassName="text-emerald-600" /> : null}
-        {operationType !== 'add' ? <DashboardStatCard caption="عدد عمليات الصرف" value={numberFormatter.format(report?.summary.issueOperationsCount ?? 0)} helper="عمليات الصرف المحددة" accentClassName="text-orange-500" /> : null}
-        {operationType !== 'add' ? <DashboardStatCard caption="إجمالي الكمية المصروفة" value={numberFormatter.format(report?.summary.totalIssuedQuantity ?? 0)} helper="مجموع الكميات المصروفة" accentClassName="text-orange-500" /> : null}
-      </div>
 
       <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-white shadow-[var(--app-shadow)]">
         <div className="flex flex-col gap-4 border-b border-[var(--app-border)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
