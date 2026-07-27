@@ -6,6 +6,8 @@ import { dismissConflictingOperation, retryFailedItem, retryFailedOperation } fr
 import { runOfflineSyncOnce } from '../services/offlineSyncCoordinator'
 import { prepareOfflineData } from '../services/offlineBootstrapService'
 import { useOfflineCacheStatus } from '../hooks/useOfflineCacheStatus'
+import { TablePagination } from '../components/TablePagination'
+import { usePagination } from '../hooks/usePagination'
 
 const statusUi: Record<OfflineStatus, { label: string; className: string }> = {
   pending: { label: 'قيد الانتظار', className: 'bg-slate-100 text-slate-700' },
@@ -33,6 +35,7 @@ export function SyncCenterPage() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [items, setItems] = useState<OfflineItem[]>([])
   const [operations, setOperations] = useState<OfflineOperation[]>([])
+  const operationsPagination = usePagination(operations, { initialPageSize: 10 })
 
   useEffect(() => {
     const subscription = liveQuery(async () => Promise.all([
@@ -94,11 +97,23 @@ export function SyncCenterPage() {
       </div>
 
       <div className="rounded-3xl border border-[var(--app-border)] bg-white p-5 sm:p-6"><h3 className="font-bold">العمليات المحلية</h3><p className="mt-1 text-sm text-slate-500">آخر مزامنة: {lastSync ? new Date(lastSync).toLocaleString('ar-EG') : 'لم تتم مزامنة بعد'}</p>
-        <div className="mt-4 space-y-3">{operations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات محلية.</p> : operations.map((operation) => {
+        <div className="mt-4 space-y-3">{operations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات محلية.</p> : operationsPagination.paginatedItems.map((operation) => {
           const itemName = String(operation.payload.itemName ?? operation.itemId ?? operation.localItemId ?? 'غير محدد')
           const date = String(operation.payload.operationDate ?? operation.createdAt)
           return <article key={operation.id} className="rounded-2xl border border-[var(--app-border)] p-4"><div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center"><div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4"><div><span className="block text-xs text-slate-500">النوع</span><strong>{operationLabels[operation.operationType]}</strong></div><div><span className="block text-xs text-slate-500">الصنف</span><strong>{itemName}</strong></div><div><span className="block text-xs text-slate-500">الكمية</span><strong>{operation.quantity ?? '—'}</strong></div><div><span className="block text-xs text-slate-500">التاريخ</span><strong>{new Date(date).toLocaleDateString('ar-EG')}</strong></div></div><div className="flex flex-wrap items-center gap-2 sm:justify-end"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusUi[operation.status].className}`}>{statusUi[operation.status].label}</span>{operation.status === 'failed' || operation.status === 'conflict' ? <button type="button" disabled={isSyncing} onClick={() => void retryOperation(operation)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">إعادة المحاولة</button> : null}{operation.status === 'conflict' ? <button type="button" onClick={() => void dismissConflictingOperation(operation.id)} className="rounded-xl border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800">تجاهل التعديل</button> : null}</div></div>{operation.errorMessage ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{friendlyError(operation.errorMessage)}</p> : null}{operation.syncedAt ? <p className="mt-2 text-xs text-slate-400">تمت في {new Date(operation.syncedAt).toLocaleString('ar-EG')}</p> : null}</article>
         })}</div>
+        {operations.length > 0 ? <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--app-border)]">
+          <TablePagination
+            currentPage={operationsPagination.currentPage}
+            pageSize={operationsPagination.pageSize}
+            totalItems={operationsPagination.totalItems}
+            totalPages={operationsPagination.totalPages}
+            pageStart={operationsPagination.pageStart}
+            pageEnd={operationsPagination.pageEnd}
+            onPageChange={operationsPagination.setCurrentPage}
+            onPageSizeChange={operationsPagination.setPageSize}
+          />
+        </div> : null}
       </div>
 
       {items.some((item) => item.status === 'failed') ? <div className="rounded-3xl border border-red-100 bg-white p-5"><h3 className="font-bold text-red-700">أصناف تعذر رفعها</h3>{items.filter((item) => item.status === 'failed').map((item) => <div key={item.localId} className="mt-3 flex flex-col gap-3 rounded-2xl bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong>{item.itemName}</strong><p className="text-xs text-red-700">{friendlyError(item.errorMessage)}</p></div><button type="button" onClick={() => void retryFailedItem(item.localId).then(() => isOnline ? sync() : undefined)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-red-700">إعادة المحاولة</button></div>)}</div> : null}
