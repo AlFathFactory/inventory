@@ -60,8 +60,13 @@ function buildSearchText(
     row.project_name ?? row.project,
     row.material_source,
     row.supplier_name,
+    row.code,
     row.code_number,
     row.din,
+    row.type_name,
+    row.received_by,
+    row.received_date,
+    row.scrapped_date,
   ]
   const searchableValues = category.searchableFields
     .map((field) => row[field])
@@ -98,6 +103,10 @@ export function buildDashboardInventoryRows(
           'عنصر غير مسمى'
 
         const dateValue = extractStringValue(row[category.dateField])
+        const updatedAt =
+          extractStringValue(row.updated_at) ??
+          extractStringValue(row.created_at) ??
+          dateValue
         const stockBalance = category.stockField
           ? extractNumberValue(row[category.stockField])
           : null
@@ -119,6 +128,7 @@ export function buildDashboardInventoryRows(
           categoryLabel: category.label,
           itemName,
           projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by),
+          updatedAt,
           dateValue,
           dateLabel: formatInventoryDate(row[category.dateField]),
           addedQuantity: extractNumberValue(row.added),
@@ -134,8 +144,8 @@ export function buildDashboardInventoryRows(
       }),
     )
     .sort((first, second) => {
-      const firstTimestamp = first.dateValue ? new Date(first.dateValue).getTime() : 0
-      const secondTimestamp = second.dateValue ? new Date(second.dateValue).getTime() : 0
+      const firstTimestamp = getInventoryRowDateTimestamp(first.updatedAt)
+      const secondTimestamp = getInventoryRowDateTimestamp(second.updatedAt)
 
       return secondTimestamp - firstTimestamp
     })

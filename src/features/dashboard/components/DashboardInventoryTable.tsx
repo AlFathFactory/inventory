@@ -135,6 +135,42 @@ const cuttingDiscsColumns: DataTableColumn<DashboardInventoryRow>[] = [
   },
 ]
 
+const weldingGlovesColumns: DataTableColumn<DashboardInventoryRow>[] = [
+  {
+    id: 'internalCode',
+    header: 'كود الصنف',
+    renderCell: (row) => (
+      <span
+        dir="ltr"
+        onClick={(event) => event.stopPropagation()}
+        className="inline-block select-all font-mono font-semibold text-slate-700"
+      >
+        {displayValue(row.internalCode)}
+      </span>
+    ),
+  },
+  {
+    id: 'typeName',
+    header: 'النوع',
+    renderCell: (row) => displayValue(row.typeName),
+  },
+  {
+    id: 'supplierName',
+    header: 'اسم المورد',
+    renderCell: (row) => displayValue(row.supplierName),
+  },
+  {
+    id: 'receivedBy',
+    header: 'المستلم',
+    renderCell: (row) => displayValue(row.receivedBy),
+  },
+  {
+    id: 'receivedDate',
+    header: 'تاريخ الاستلام',
+    renderCell: (row) => displayValue(row.receivedDate),
+  },
+]
+
 export function DashboardInventoryTable({
   rows,
   selectedCategoryKey,
@@ -152,12 +188,22 @@ export function DashboardInventoryTable({
   const columns =
     selectedCategoryKey === 'cutting_discs'
       ? cuttingDiscsColumns
+      : selectedCategoryKey === 'long_welding_gloves'
+        ? weldingGlovesColumns
       : defaultColumns
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] px-4 py-10 text-center text-sm text-slate-500 shadow-[var(--app-shadow)]">
-        لا توجد نتائج مطابقة للفلاتر الحالية.
+      <div className="rounded-[28px] border border-dashed border-slate-300 bg-gradient-to-br from-white to-slate-50 px-6 py-12 text-center shadow-sm">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-2xl text-blue-600">
+          ∅
+        </div>
+        <p className="mt-4 text-base font-bold text-slate-800">
+          لا توجد نتائج مطابقة
+        </p>
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
+          جرّب تغيير كلمة البحث أو اختيار مخزن أو قسم آخر.
+        </p>
       </div>
     )
   }

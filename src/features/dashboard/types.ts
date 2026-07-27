@@ -31,6 +31,7 @@ export type DashboardInventoryRow = {
   categoryLabel: string
   itemName: string
   projectName: string | null
+  updatedAt: string | null
   dateValue: string | null
   dateLabel: string
   addedQuantity: number | null
