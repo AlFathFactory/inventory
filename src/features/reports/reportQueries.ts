@@ -15,6 +15,7 @@ export const reportKeys = {
       filters.categoryName ?? '',
       filters.projectName ?? '',
       filters.searchTerm?.trim() ?? '',
+      filters.operationType,
       filters.page,
       filters.pageSize,
     ] as const,

@@ -50,6 +50,7 @@ export type InventoryReportFilters = {
   categoryName?: string
   projectName?: string
   searchTerm?: string
+  operationType: 'add' | 'issue' | 'both'
   page: number
   pageSize: number
 }
@@ -365,6 +366,7 @@ export async function getInventoryReport(
       p_category_name: filters.categoryName || null,
       p_project_name: filters.projectName || null,
       p_search: filters.searchTerm?.trim() || null,
+      p_operation_type: filters.operationType === 'both' ? null : filters.operationType,
       p_page: filters.page,
       p_page_size: filters.pageSize,
     },
@@ -409,5 +411,39 @@ export async function getInventoryReport(
       issueOperationsCount: toNumber(summaryRecord.issue_operations_count),
       totalIssuedQuantity: toNumber(summaryRecord.total_issued_quantity),
     },
+  }
+}
+
+export async function getCompleteInventoryReport(
+  filters: InventoryReportFilters,
+): Promise<InventoryReport> {
+  const pageSize = 100
+  const firstPage = await getInventoryReport({
+    ...filters,
+    page: 1,
+    pageSize,
+  })
+  const totalPages = Math.ceil(firstPage.totalItems / pageSize)
+
+  if (totalPages <= 1) {
+    return firstPage
+  }
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      getInventoryReport({
+        ...filters,
+        page: index + 2,
+        pageSize,
+      }),
+    ),
+  )
+
+  return {
+    ...firstPage,
+    rows: [
+      ...firstPage.rows,
+      ...remainingPages.flatMap((page) => page.rows),
+    ],
   }
 }

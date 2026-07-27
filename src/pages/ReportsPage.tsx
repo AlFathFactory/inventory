@@ -7,7 +7,7 @@ import { DashboardStatCard } from '../features/dashboard/components/DashboardSta
 import { projectsQueryOptions } from '../features/projects/projectQueries'
 import { useInventoryReport } from '../features/reports/reportQueries'
 import { generateInventoryReportPdf } from '../features/reports/generateInventoryReportPdf'
-import type { InventoryReportRow } from '../services/operationsService'
+import { getCompleteInventoryReport, type InventoryReportRow } from '../services/operationsService'
 import { operationCategoryOptions } from '../config/categoryConfig'
 import { useQuery } from '@tanstack/react-query'
 import { getItemDetailsRoute } from '../features/items/itemRoutes'
@@ -59,23 +59,33 @@ export function ReportsPage() {
   const [toDate, setToDate] = useState(() => urlSearchParams.get('to') ?? '')
   const [categoryName, setCategoryName] = useState(() => urlSearchParams.get('category') ?? '')
   const [projectName, setProjectName] = useState(() => urlSearchParams.get('project') ?? '')
+  const [operationType, setOperationType] = useState<'add' | 'issue' | 'both'>(() => {
+    const value = urlSearchParams.get('operationType')
+    return value === 'add' || value === 'issue' ? value : 'both'
+  })
   const [searchInput, setSearchInput] = useState(() => urlSearchParams.get('search') ?? '')
   const [searchTerm, setSearchTerm] = useState(() => urlSearchParams.get('search') ?? '')
   const [currentPage, setCurrentPage] = useState(() => Math.max(1, Number(urlSearchParams.get('page')) || 1))
   const [pageSize, setPageSize] = useState(() => Math.max(1, Number(urlSearchParams.get('pageSize')) || 10))
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const projectsQuery = useQuery(projectsQueryOptions)
   const hasInvalidRange = Boolean(fromDate && toDate && fromDate > toDate)
   const filters = useMemo(
-    () => ({ fromDate, toDate, categoryName, projectName, searchTerm, page: currentPage, pageSize }),
-    [categoryName, currentPage, fromDate, pageSize, projectName, searchTerm, toDate],
+    () => ({ fromDate, toDate, categoryName, projectName, searchTerm, operationType, page: currentPage, pageSize }),
+    [categoryName, currentPage, fromDate, operationType, pageSize, projectName, searchTerm, toDate],
   )
   const reportQuery = useInventoryReport(filters, !hasInvalidRange)
   const report = reportQuery.data
   const columns = useMemo(
-    () => categoryName === 'خامات'
-      ? [...baseColumns, ...rawMaterialColumns, ...operationColumns]
-      : [...baseColumns, ...operationColumns],
-    [categoryName],
+    () => {
+      const selectedOperationColumns = operationType === 'both'
+        ? operationColumns
+        : operationColumns.filter((column) => column.id === (operationType === 'add' ? 'totalAdded' : 'totalIssued'))
+      return categoryName === 'خامات'
+        ? [...baseColumns, ...rawMaterialColumns, ...selectedOperationColumns]
+        : [...baseColumns, ...selectedOperationColumns]
+    },
+    [categoryName, operationType],
   )
   const totalItems = report?.totalItems ?? 0
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
@@ -99,6 +109,7 @@ export function ReportsPage() {
     if (toDate) nextParams.set('to', toDate)
     if (categoryName) nextParams.set('category', categoryName)
     if (projectName) nextParams.set('project', projectName)
+    if (operationType !== 'both') nextParams.set('operationType', operationType)
     if (searchInput) nextParams.set('search', searchInput)
     if (currentPage > 1) nextParams.set('page', String(currentPage))
     if (pageSize !== 10) nextParams.set('pageSize', String(pageSize))
@@ -106,12 +117,35 @@ export function ReportsPage() {
     if (nextParams.toString() !== urlSearchParams.toString()) {
       setUrlSearchParams(nextParams, { replace: true })
     }
-  }, [categoryName, currentPage, fromDate, pageSize, projectName, searchInput, setUrlSearchParams, toDate, urlSearchParams])
+  }, [categoryName, currentPage, fromDate, operationType, pageSize, projectName, searchInput, setUrlSearchParams, toDate, urlSearchParams])
   const errorMessage = reportQuery.error instanceof Error
     ? reportQuery.error.message
     : reportQuery.error
       ? 'تعذر تحميل بيانات التقارير'
       : null
+
+  const handleGeneratePdf = async () => {
+    const reportWindow = window.open('', '_blank')
+    if (!reportWindow) {
+      window.alert('تعذر فتح معاينة PDF. يرجى السماح بالنوافذ المنبثقة ثم المحاولة مرة أخرى.')
+      return
+    }
+
+    reportWindow.opener = null
+    reportWindow.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><body style="font-family:Arial,Tahoma,sans-serif;padding:32px">جاري تحميل جميع نتائج التقرير...</body></html>')
+    reportWindow.document.close()
+    setIsGeneratingPdf(true)
+
+    try {
+      const completeReport = await getCompleteInventoryReport(filters)
+      generateInventoryReportPdf(completeReport, filters, reportWindow)
+    } catch (error) {
+      reportWindow.close()
+      window.alert(error instanceof Error ? error.message : 'تعذر إنشاء ملف PDF')
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
 
   return (
     <section dir="rtl" className="space-y-6" aria-busy={reportQuery.isPending || reportQuery.isFetching}>
@@ -121,8 +155,8 @@ export function ReportsPage() {
           ملخص تفصيلي لعمليات الإضافة والصرف خلال الفترة المحددة.
         </p>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-2 sm:col-span-2 xl:col-span-4">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <label className="space-y-2 sm:col-span-2 xl:col-span-5">
             <span className="block text-sm font-semibold text-slate-700">بحث</span>
             <input type="search" value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setCurrentPage(1) }} placeholder="ابحث باسم الصنف أو القسم أو السجل أو رقم الكود" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
           </label>
@@ -148,9 +182,17 @@ export function ReportsPage() {
               {(projectsQuery.data ?? []).map((project) => <option key={project.id} value={project.name}>{project.name}</option>)}
             </select>
           </label>
+          <label className="space-y-2">
+            <span className="block text-sm font-semibold text-slate-700">نوع العملية</span>
+            <select value={operationType} onChange={(event) => { setOperationType(event.target.value as 'add' | 'issue' | 'both'); setCurrentPage(1) }} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]">
+              <option value="both">الإضافة والصرف</option>
+              <option value="add">إضافة</option>
+              <option value="issue">صرف</option>
+            </select>
+          </label>
         </div>
-        {(fromDate || toDate || categoryName || projectName || searchInput) ? (
-          <button type="button" onClick={() => { setFromDate(''); setToDate(''); setCategoryName(''); setProjectName(''); setSearchInput(''); setSearchTerm(''); setCurrentPage(1) }} className="mt-4 text-sm font-bold text-[var(--app-primary)] hover:underline">
+        {(fromDate || toDate || categoryName || projectName || searchInput || operationType !== 'both') ? (
+          <button type="button" onClick={() => { setFromDate(''); setToDate(''); setCategoryName(''); setProjectName(''); setOperationType('both'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1) }} className="mt-4 text-sm font-bold text-[var(--app-primary)] hover:underline">
             مسح جميع الفلاتر
           </button>
         ) : null}
@@ -164,11 +206,11 @@ export function ReportsPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardStatCard caption="عدد عمليات الإضافة" value={numberFormatter.format(report?.summary.additionOperationsCount ?? 0)} helper="عمليات الإضافة المحددة" accentClassName="text-emerald-600" />
-        <DashboardStatCard caption="إجمالي الكمية المضافة" value={numberFormatter.format(report?.summary.totalAddedQuantity ?? 0)} helper="مجموع الكميات المضافة" accentClassName="text-emerald-600" />
-        <DashboardStatCard caption="عدد عمليات الصرف" value={numberFormatter.format(report?.summary.issueOperationsCount ?? 0)} helper="عمليات الصرف المحددة" accentClassName="text-orange-500" />
-        <DashboardStatCard caption="إجمالي الكمية المصروفة" value={numberFormatter.format(report?.summary.totalIssuedQuantity ?? 0)} helper="مجموع الكميات المصروفة" accentClassName="text-orange-500" />
+      <div className={`grid gap-5 sm:grid-cols-2 ${operationType === 'both' ? 'xl:grid-cols-4' : 'xl:grid-cols-2'}`}>
+        {operationType !== 'issue' ? <DashboardStatCard caption="عدد عمليات الإضافة" value={numberFormatter.format(report?.summary.additionOperationsCount ?? 0)} helper="عمليات الإضافة المحددة" accentClassName="text-emerald-600" /> : null}
+        {operationType !== 'issue' ? <DashboardStatCard caption="إجمالي الكمية المضافة" value={numberFormatter.format(report?.summary.totalAddedQuantity ?? 0)} helper="مجموع الكميات المضافة" accentClassName="text-emerald-600" /> : null}
+        {operationType !== 'add' ? <DashboardStatCard caption="عدد عمليات الصرف" value={numberFormatter.format(report?.summary.issueOperationsCount ?? 0)} helper="عمليات الصرف المحددة" accentClassName="text-orange-500" /> : null}
+        {operationType !== 'add' ? <DashboardStatCard caption="إجمالي الكمية المصروفة" value={numberFormatter.format(report?.summary.totalIssuedQuantity ?? 0)} helper="مجموع الكميات المصروفة" accentClassName="text-orange-500" /> : null}
       </div>
 
       <div className="overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-white shadow-[var(--app-shadow)]">
@@ -179,8 +221,8 @@ export function ReportsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {report ? <span className="text-sm text-slate-500">النتائج: {numberFormatter.format(report.totalItems)}</span> : null}
-            <button type="button" disabled={!report || report.rows.length === 0 || reportQuery.isFetching} onClick={() => { if (report) generateInventoryReportPdf(report, filters) }} className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50">
-              إنشاء PDF
+            <button type="button" disabled={!report || report.rows.length === 0 || reportQuery.isFetching || isGeneratingPdf} onClick={() => void handleGeneratePdf()} className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50">
+              {isGeneratingPdf ? 'جاري إنشاء PDF...' : 'إنشاء PDF'}
             </button>
           </div>
         </div>

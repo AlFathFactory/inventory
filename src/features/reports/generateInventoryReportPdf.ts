@@ -41,23 +41,26 @@ function getFilterLabels(filters: InventoryReportFilters) {
     filters.toDate ? `إلى: ${formatDate(filters.toDate)}` : null,
     filters.categoryName ? `القسم: ${filters.categoryName}` : 'القسم: جميع الأقسام',
     filters.projectName ? `المشروع: ${filters.projectName}` : 'المشروع: جميع المشاريع',
+    `نوع العملية: ${filters.operationType === 'add' ? 'إضافة' : filters.operationType === 'issue' ? 'صرف' : 'الإضافة والصرف'}`,
     filters.searchTerm ? `البحث: ${filters.searchTerm}` : null,
   ].filter(Boolean) as string[]
 }
 
-function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean) {
+function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean, operationType: InventoryReportFilters['operationType']) {
   const headers = [
+    'م',
     'اسم الصنف',
     'القسم',
     'المشروع',
     ...(showRawMaterialFields
       ? ['رقم الكود', 'وزن', 'LENGTH', 'WIDTH', 'TH']
       : []),
-    'إجمالي الكمية المضافة',
-    'إجمالي الكمية المصروفة',
+    ...(operationType !== 'issue' ? ['إجمالي الكمية المضافة'] : []),
+    ...(operationType !== 'add' ? ['إجمالي الكمية المصروفة'] : []),
   ]
 
-  const values = rows.map((row) => [
+  const values = rows.map((row, index) => [
+    numberFormatter.format(index + 1),
     row.itemName,
     row.categoryName,
     row.projectName,
@@ -70,8 +73,8 @@ function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean
           displayValue(row.th),
         ]
       : []),
-    numberFormatter.format(row.totalAddedQuantity),
-    numberFormatter.format(row.totalIssuedQuantity),
+    ...(operationType !== 'issue' ? [numberFormatter.format(row.totalAddedQuantity)] : []),
+    ...(operationType !== 'add' ? [numberFormatter.format(row.totalIssuedQuantity)] : []),
   ])
 
   return { headers, values }
@@ -80,8 +83,8 @@ function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean
 export function generateInventoryReportPdf(
   report: InventoryReport,
   filters: InventoryReportFilters,
+  reportWindow = window.open('', '_blank'),
 ) {
-  const reportWindow = window.open('', '_blank')
   if (!reportWindow) {
     window.alert(
       'تعذر فتح معاينة PDF. يرجى السماح بالنوافذ المنبثقة ثم المحاولة مرة أخرى.',
@@ -94,18 +97,24 @@ export function generateInventoryReportPdf(
   const { headers, values } = getTableData(
     report.rows,
     showRawMaterialFields,
+    filters.operationType,
   )
   const generatedAt = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date())
   const summary = [
-    ['عدد عمليات الإضافة', report.summary.additionOperationsCount],
-    ['إجمالي الكمية المضافة', report.summary.totalAddedQuantity],
-    ['عدد عمليات الصرف', report.summary.issueOperationsCount],
-    ['إجمالي الكمية المصروفة', report.summary.totalIssuedQuantity],
+    ...(filters.operationType !== 'issue' ? [
+      ['عدد عمليات الإضافة', report.summary.additionOperationsCount] as const,
+      ['إجمالي الكمية المضافة', report.summary.totalAddedQuantity] as const,
+    ] : []),
+    ...(filters.operationType !== 'add' ? [
+      ['عدد عمليات الصرف', report.summary.issueOperationsCount] as const,
+      ['إجمالي الكمية المصروفة', report.summary.totalIssuedQuantity] as const,
+    ] : []),
   ]
 
+  reportWindow.document.open()
   reportWindow.document.write(`<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -136,7 +145,7 @@ export function generateInventoryReportPdf(
 <body>
   <header>
     <h1>تقرير حركة المخزون</h1>
-    <div class="meta"><span>عدد الأصناف: ${numberFormatter.format(report.totalItems)}</span><span>الصفحة: ${numberFormatter.format(filters.page)}</span><span>تاريخ الإنشاء: ${escapeHtml(generatedAt)}</span></div>
+    <div class="meta"><span>عدد الأصناف: ${numberFormatter.format(report.totalItems)}</span><span>جميع النتائج المفلترة</span><span>تاريخ الإنشاء: ${escapeHtml(generatedAt)}</span></div>
   </header>
   <div class="filters">${getFilterLabels(filters).map((label) => `<span class="filter">${escapeHtml(label)}</span>`).join('')}</div>
   <section class="summary">${summary.map(([label, value]) => `<div class="card"><div class="card-label">${escapeHtml(label)}</div><div class="card-value">${numberFormatter.format(Number(value))}</div></div>`).join('')}</section>
