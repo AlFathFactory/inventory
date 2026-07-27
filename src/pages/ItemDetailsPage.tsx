@@ -15,6 +15,7 @@ import {
 import { custodyItemQueryOptions } from '../features/inventory/inventoryQueries'
 import { ToastOnChange } from '../components/ToastProvider'
 import { DeleteMovementDialog } from '../features/item-details/components/DeleteMovementDialog'
+import { ReturnMovementDialog } from '../features/item-details/components/ReturnMovementDialog'
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? '—' : String(value)
@@ -150,8 +151,21 @@ export function ItemDetailsPage() {
             latestMovementId={page.latestMovementId}
             deletingMovementId={page.deletingMovementId}
             onDeleteMovement={isReadOnlyView ? undefined : page.openDeleteMovementDialog}
+            returningMovementId={page.returningMovementId}
+            onReturnMovement={isReadOnlyView ? undefined : page.openReturnMovementDialog}
           />
         </>
+      ) : null}
+
+      {!isReadOnlyView && page.movementToReturn ? (
+        <ReturnMovementDialog
+          movement={page.movementToReturn}
+          internalCode={page.details?.internal_code}
+          categoryLabel={category.label}
+          isSubmitting={page.returningMovementId !== null}
+          onCancel={page.closeReturnMovementDialog}
+          onSubmit={(form) => void page.submitReturnMovement(form)}
+        />
       ) : null}
 
       {!isReadOnlyView && page.movementToDelete ? (

@@ -79,6 +79,7 @@ export function buildMonthlyMovementSummaries(
 export function getCounterpartyLabel(row: ItemMovement) {
   if (row.operation_type === 'add') return row.supplier_name
   if (row.operation_type === 'issue') return row.issued_to || row.received_by
+  if (row.operation_type === 'return') return row.received_by
   return row.received_by || row.issued_to || row.supplier_name
 }
 

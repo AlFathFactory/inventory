@@ -256,6 +256,65 @@ export async function deleteInventoryOperation(
   return data
 }
 
+export type ReturnInventoryOperationParams = {
+  issueOperationId: string | number
+  quantity: number
+  operationDate: string
+  receivedBy?: string
+  notes?: string
+  createdBy?: string
+  requestId?: string
+}
+
+export async function returnInventoryItem(
+  params: ReturnInventoryOperationParams,
+) {
+  if (!navigator.onLine) {
+    throw new Error('يجب الاتصال بالإنترنت لتسجيل المرتجع.')
+  }
+
+  const quantity = Number(params.quantity)
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error('الكمية المرتجعة يجب أن تكون أكبر من صفر.')
+  }
+
+  const client = getClientOrThrow()
+  const { data, error } = await client.rpc(
+    'return_inventory_item_rpc',
+    {
+      p_issue_operation_id: params.issueOperationId,
+      p_quantity: quantity,
+      p_operation_date: params.operationDate,
+      p_received_by: params.receivedBy?.trim() || null,
+      p_notes: params.notes?.trim() || null,
+      p_created_by: params.createdBy?.trim() || 'user',
+      p_request_id: params.requestId ?? crypto.randomUUID(),
+    },
+  )
+
+  if (error) {
+    const normalizedMessage = error.message.toLowerCase()
+    if (
+      normalizedMessage.includes('exceeds the remaining quantity') ||
+      normalizedMessage.includes('remaining quantity for this issue')
+    ) {
+      throw new Error('الكمية المرتجعة أكبر من الكمية المتبقية لهذه الحركة.')
+    }
+    throw new Error(error.message || 'تعذر تسجيل المرتجع')
+  }
+
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    !('status' in data) ||
+    !['success', 'already_processed'].includes(String(data.status))
+  ) {
+    throw new Error('تعذر تسجيل المرتجع')
+  }
+
+  return data
+}
+
 export async function applyInventoryOperation(
   params: ApplyInventoryOperationParams,
 ) {

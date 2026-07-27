@@ -79,6 +79,9 @@ export type ItemMovement = {
   operation_date: string | null
   issued_quantity: number | string | null
   added_quantity: number | string | null
+  returned_quantity: number | string | null
+  quantity_already_returned: number | string | null
+  remaining_returnable_quantity: number | string | null
   previous_balance: number | string | null
   new_balance: number | string | null
   total_added_until_operation: number | string | null
@@ -94,6 +97,14 @@ export type ItemMovement = {
   notes: string | null
   created_by: string | null
   created_at: string | null
+  related_operation_id: string | null
+  original_issued_to: string | null
+  original_issue_date: string | null
+  original_issue_code: string | null
+  returnedQuantity: number
+  returnStatus: 'not_returned' | 'partially_returned' | 'fully_returned'
+  relatedOperationId: string | null
+  remainingReturnableQuantity: number
 }
 
 type ServiceSuccess<TData> = {
@@ -407,7 +418,37 @@ export async function getItemMovements(
       return createFailure(error.message)
     }
 
-    return createSuccess((data ?? []) as ItemMovement[])
+    return createSuccess(
+      ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+        const quantity = Number(row.quantity ?? 0)
+        const returnedQuantity = Number(row.returned_quantity ?? 0)
+        const normalizedQuantity = Number.isFinite(quantity) ? quantity : 0
+        const normalizedReturnedQuantity = Number.isFinite(returnedQuantity)
+          ? returnedQuantity
+          : 0
+        const remainingReturnableQuantity = Math.max(
+          normalizedQuantity - normalizedReturnedQuantity,
+          0,
+        )
+        const rawReturnStatus = row.return_status
+        const returnStatus =
+          rawReturnStatus === 'partially_returned' ||
+          rawReturnStatus === 'fully_returned'
+            ? rawReturnStatus
+            : 'not_returned'
+
+        return {
+          ...row,
+          returnedQuantity: normalizedReturnedQuantity,
+          returnStatus,
+          relatedOperationId:
+            typeof row.related_operation_id === 'string'
+              ? row.related_operation_id
+              : null,
+          remainingReturnableQuantity,
+        } as ItemMovement
+      }),
+    )
   } catch (error) {
     return createFailure(normalizeError(error, 'تعذر تحميل سجل الحركات'))
   }

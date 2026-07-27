@@ -26,7 +26,9 @@ import {
 import type { ItemDetailsMessage, ItemMovementsDateFilterValue } from '../types'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
 import { deleteInventoryOperation } from '../../../services/operationsService'
+import { returnInventoryItem } from '../../../services/operationsService'
 import { useAccess } from '../../access/AccessContext'
+import type { ReturnMovementForm } from '../components/ReturnMovementDialog'
 
 const emptyMovements: ItemMovement[] = []
 
@@ -59,6 +61,9 @@ export function useItemDetailsPage(
   const [movementToDelete, setMovementToDelete] = useState<ItemMovement | null>(null)
   const [deletingMovementId, setDeletingMovementId] = useState<string | null>(null)
   const deleteRequestInFlight = useRef(false)
+  const [movementToReturn, setMovementToReturn] = useState<ItemMovement | null>(null)
+  const [returningMovementId, setReturningMovementId] = useState<string | null>(null)
+  const returnRequestInFlight = useRef(false)
 
   const loadItemData = useCallback(async () => {
     if (!category || !itemId) return
@@ -260,6 +265,47 @@ export function useItemDetailsPage(
     }
   }
 
+  async function submitReturnMovement(returnForm: ReturnMovementForm) {
+    if (
+      !category ||
+      !itemId ||
+      !movementToReturn ||
+      movementToReturn.operation_type !== 'issue' ||
+      returningMovementId !== null ||
+      returnRequestInFlight.current
+    ) return
+
+    const operationId = String(movementToReturn.id)
+    returnRequestInFlight.current = true
+    setReturningMovementId(operationId)
+    setMessage(null)
+    try {
+      await returnInventoryItem({
+        issueOperationId: operationId,
+        quantity: Number(returnForm.quantity),
+        operationDate: returnForm.operationDate,
+        receivedBy: returnForm.receivedBy,
+        notes: returnForm.notes,
+        createdBy: user?.name || 'user',
+        requestId: crypto.randomUUID(),
+      })
+      setMovementToReturn(null)
+      await invalidateItemData(queryClient, category.table, itemId)
+      setMessage({
+        type: 'success',
+        text: 'تم إرجاع الكمية إلى المخزون بنجاح',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'تعذر تسجيل المرتجع',
+      })
+    } finally {
+      returnRequestInFlight.current = false
+      setReturningMovementId(null)
+    }
+  }
+
   const queryMessage: ItemDetailsMessage =
     itemQuery.error instanceof Error
       ? { type: 'error', text: itemQuery.error.message }
@@ -279,6 +325,8 @@ export function useItemDetailsPage(
     deletingMovementId,
     latestMovementId: movements[0] ? String(movements[0].id) : undefined,
     movementToDelete,
+    movementToReturn,
+    returningMovementId,
     loadItemData,
     message: message ?? queryMessage,
     monthlyMovementSummaries,
@@ -303,6 +351,19 @@ export function useItemDetailsPage(
       if (deletingMovementId === null) setMovementToDelete(null)
     },
     confirmDeleteMovement,
+    openReturnMovementDialog: (movement: ItemMovement) => {
+      if (
+        movement.operation_type !== 'issue' ||
+        movement.remainingReturnableQuantity <= 0 ||
+        returningMovementId !== null
+      ) return
+      setMovementToReturn(movement)
+      setMessage(null)
+    },
+    closeReturnMovementDialog: () => {
+      if (returningMovementId === null) setMovementToReturn(null)
+    },
+    submitReturnMovement,
     updateFormField,
   }
 }
