@@ -54,6 +54,10 @@ export function validateOperationQuantity(
     return 'من فضلك أدخل رقم صحيح'
   }
 
+  if (!Number.isInteger(quantity)) {
+    return 'الكمية يجب أن تكون رقمًا صحيحًا بدون كسور'
+  }
+
   if (operationType === 'adjust') {
     return quantity < 0 ? 'رصيد الجرد لا يمكن أن يكون أقل من صفر' : null
   }

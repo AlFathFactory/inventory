@@ -14,8 +14,13 @@ describe('validateOperationQuantity', () => {
 
   it('allows a non-negative adjustment balance', () => {
     expect(validateOperationQuantity('0', 'adjust')).toBeNull()
-    expect(validateOperationQuantity('12.5', 'adjust')).toBeNull()
+    expect(validateOperationQuantity('12', 'adjust')).toBeNull()
     expect(validateOperationQuantity('-1', 'adjust')).not.toBeNull()
+  })
+
+  it.each(['add', 'issue', 'adjust'] as const)('%s rejects decimal quantities', (type) => {
+    expect(validateOperationQuantity('0.5', type)).not.toBeNull()
+    expect(validateOperationQuantity('12.5', type)).not.toBeNull()
   })
 
   it.each(['NaN', 'not-a-number', 'Infinity'])('rejects non-finite input %s', (value) => {

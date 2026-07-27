@@ -19,6 +19,14 @@ type EditItemFormState = Record<string, string> & {
   supplierName?: string
 }
 
+const integerQuantityFields = new Set([
+  'stock_balance',
+  'gas_balance',
+  'empty_count',
+  'full_count',
+  'min_quantity',
+])
+
 const supplierField: EditField = {
   key: 'supplier_name',
   formKey: 'supplierName',
@@ -176,6 +184,8 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
         const numericValue = Number(form[formKey])
         if (!Number.isFinite(numericValue) || numericValue < 0) {
           nextErrors[formKey] = 'يجب إدخال رقم صالح لا يقل عن صفر'
+        } else if (integerQuantityFields.has(field.key) && !Number.isInteger(numericValue)) {
+          nextErrors[formKey] = 'الكمية يجب أن تكون رقمًا صحيحًا بدون كسور'
         }
       }
       if (field.type === 'date' && form[formKey]) {
@@ -290,7 +300,12 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
               ) : field.type === 'textarea' ? (
                 <textarea value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} rows={3} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--app-primary)]" />
               ) : (
-                <input type={field.type ?? 'text'} name={field.formKey ?? field.key} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? 'any' : undefined} value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} placeholder={field.key === 'supplier_name' ? 'اكتب اسم المورد إن وجد' : undefined} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
+                <input type={field.type ?? 'text'} name={field.formKey ?? field.key} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' ? (integerQuantityFields.has(field.key) ? '1' : 'any') : undefined} inputMode={integerQuantityFields.has(field.key) ? 'numeric' : undefined} value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => {
+                  const value = e.target.value
+                  if (!integerQuantityFields.has(field.key) || /^\d*$/.test(value)) {
+                    updateField(field.formKey ?? field.key, value)
+                  }
+                }} placeholder={field.key === 'supplier_name' ? 'اكتب اسم المورد إن وجد' : undefined} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
               )}
               {errors[field.formKey ?? field.key] ? <span className="block text-xs text-red-600">{errors[field.formKey ?? field.key]}</span> : null}
             </label>

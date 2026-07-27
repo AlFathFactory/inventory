@@ -131,9 +131,13 @@ export function InventoryOperationModal({
             <input
               type="number"
               min="0"
-              step="any"
+              step="1"
+              inputMode="numeric"
               value={form.quantity}
-              onChange={(event) => onFieldChange('quantity', event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value
+                if (/^\d*$/.test(value)) onFieldChange('quantity', value)
+              }}
               className={fieldClassName(Boolean(formErrors.quantity))}
               placeholder={
                 operationType === 'adjust' ? 'أدخل الرصيد النهائي' : 'أدخل الكمية'
