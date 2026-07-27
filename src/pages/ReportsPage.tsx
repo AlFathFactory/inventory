@@ -6,6 +6,7 @@ import { TablePagination } from '../components/TablePagination'
 import { projectsQueryOptions } from '../features/projects/projectQueries'
 import { useInventoryReport } from '../features/reports/reportQueries'
 import { generateInventoryReportPdf } from '../features/reports/generateInventoryReportPdf'
+import { generateInventoryReportExcel } from '../features/reports/generateInventoryReportExcel'
 import { getCompleteInventoryReport, type InventoryReportRow } from '../services/operationsService'
 import { operationCategoryOptions } from '../config/categoryConfig'
 import { useQuery } from '@tanstack/react-query'
@@ -67,6 +68,7 @@ export function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(() => Math.max(1, Number(urlSearchParams.get('page')) || 1))
   const [pageSize, setPageSize] = useState(() => Math.max(1, Number(urlSearchParams.get('pageSize')) || 10))
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false)
   const projectsQuery = useQuery(projectsQueryOptions)
   const hasInvalidRange = Boolean(fromDate && toDate && fromDate > toDate)
   const filters = useMemo(
@@ -146,6 +148,18 @@ export function ReportsPage() {
     }
   }
 
+  const handleGenerateExcel = async () => {
+    setIsGeneratingExcel(true)
+    try {
+      const completeReport = await getCompleteInventoryReport(filters)
+      generateInventoryReportExcel(completeReport, filters)
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'تعذر إنشاء ملف Excel')
+    } finally {
+      setIsGeneratingExcel(false)
+    }
+  }
+
   return (
     <section dir="rtl" className="space-y-6" aria-busy={reportQuery.isPending || reportQuery.isFetching}>
       <header className="rounded-[28px] border border-[var(--app-border)] bg-white p-6 shadow-[var(--app-shadow)]">
@@ -215,6 +229,9 @@ export function ReportsPage() {
             {report ? <span className="text-sm text-slate-500">النتائج: {numberFormatter.format(report.totalItems)}</span> : null}
             <button type="button" disabled={!report || report.rows.length === 0 || reportQuery.isFetching || isGeneratingPdf} onClick={() => void handleGeneratePdf()} className="inline-flex h-10 items-center justify-center rounded-2xl bg-[var(--app-primary)] px-4 text-sm font-bold text-white transition hover:bg-[var(--app-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50">
               {isGeneratingPdf ? 'جاري إنشاء PDF...' : 'إنشاء PDF'}
+            </button>
+            <button type="button" disabled={!report || report.rows.length === 0 || reportQuery.isFetching || isGeneratingExcel} onClick={() => void handleGenerateExcel()} className="inline-flex h-10 items-center justify-center rounded-2xl border border-emerald-600 bg-white px-4 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50">
+              {isGeneratingExcel ? 'جاري إنشاء Excel...' : 'تصدير Excel'}
             </button>
           </div>
         </div>
