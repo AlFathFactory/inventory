@@ -19,9 +19,12 @@ type ItemMovementsSectionProps = {
   totals: { totalAdded: number; totalIssued: number }
   onFilterChange: (value: ItemMovementsDateFilterValue) => void
   onRefresh: () => void
+  latestMovementId?: string
+  deletingMovementId?: string | null
+  onDeleteMovement?: (movement: ItemMovement) => void
 }
 
-export function ItemMovementsSection({ category, internalCode, itemCode, filter, movements, totals, onFilterChange, onRefresh }: ItemMovementsSectionProps) {
+export function ItemMovementsSection({ category, internalCode, itemCode, filter, movements, totals, onFilterChange, onRefresh, latestMovementId, deletingMovementId, onDeleteMovement }: ItemMovementsSectionProps) {
   const hasFilter = Boolean(filter.fromDate || filter.toDate)
   const pagination = usePagination(movements, { initialPageSize: 10 })
   const { setCurrentPage } = pagination
@@ -55,7 +58,22 @@ export function ItemMovementsSection({ category, internalCode, itemCode, filter,
     }] : []),
     { id: 'operation_code', header: 'كود العملية', renderCell: (row) => getDisplayText(getOperationCode(row)) },
     { id: 'notes', header: 'ملاحظات', renderCell: (row) => <div className="max-w-[240px] whitespace-normal leading-6">{getDisplayText(row.notes)}</div> },
-  ], [category.table, internalCode, itemCode])
+    ...(onDeleteMovement ? [{
+      id: 'delete',
+      header: 'إجراء',
+      renderCell: (row: ItemMovement) => String(row.id) === latestMovementId ? (
+        <button
+          type="button"
+          onClick={() => onDeleteMovement(row)}
+          disabled={deletingMovementId !== null}
+          className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span aria-hidden="true" className="inline-flex size-5 items-center justify-center rounded-full border border-current font-bold">!</span>
+          {deletingMovementId === String(row.id) ? 'جارٍ الحذف...' : 'حذف'}
+        </button>
+      ) : null,
+    }] : []),
+  ], [category.table, deletingMovementId, internalCode, itemCode, latestMovementId, onDeleteMovement])
 
   return <div className="min-w-0 space-y-3">
     <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -400,6 +400,8 @@ export async function getItemMovements(
       .eq('table_name', tableName)
       .eq('item_id', itemId)
       .order('operation_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
       return createFailure(error.message)

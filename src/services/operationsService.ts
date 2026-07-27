@@ -8,6 +8,9 @@ import { isStockInventoryTable } from './inventoryTablePolicy'
 
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
+export const latestMovementOnlyMessage =
+  'Only the latest movement for this item can be deleted.'
+
 export type ApplyInventoryOperationParams = {
   requestId?: string
   tableName: string
@@ -204,6 +207,53 @@ function getOperationErrorMessage(message: string) {
   }
 
   return message || 'فشل تنفيذ حركة المخزون'
+}
+
+function getDeleteOperationErrorMessage(message: string) {
+  const normalizedMessage = message.toLowerCase()
+
+  if (
+    normalizedMessage.includes('only the latest movement') ||
+    normalizedMessage.includes('latest movement only') ||
+    normalizedMessage.includes('operation is not the latest')
+  ) {
+    return latestMovementOnlyMessage
+  }
+
+  return message || 'تعذر حذف حركة المخزون'
+}
+
+export async function deleteInventoryOperation(
+  operationId: string | number,
+  deletedBy: string,
+) {
+  if (!navigator.onLine) {
+    throw new Error('يجب الاتصال بالإنترنت لحذف حركة المخزون.')
+  }
+
+  const client = getClientOrThrow()
+  const { data, error } = await client.rpc(
+    'delete_inventory_operation_rpc',
+    {
+      p_operation_id: operationId,
+      p_deleted_by: deletedBy || 'user',
+    },
+  )
+
+  if (error) {
+    throw new Error(getDeleteOperationErrorMessage(error.message))
+  }
+
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    !('status' in data) ||
+    data.status !== 'success'
+  ) {
+    throw new Error('تعذر حذف حركة المخزون')
+  }
+
+  return data
 }
 
 export async function applyInventoryOperation(

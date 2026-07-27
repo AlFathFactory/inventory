@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
@@ -25,6 +25,8 @@ import {
 } from '../itemDetailsUtils'
 import type { ItemDetailsMessage, ItemMovementsDateFilterValue } from '../types'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
+import { deleteInventoryOperation } from '../../../services/operationsService'
+import { useAccess } from '../../access/AccessContext'
 
 const emptyMovements: ItemMovement[] = []
 
@@ -33,6 +35,7 @@ export function useItemDetailsPage(
   itemId: string | undefined,
 ) {
   const queryClient = useQueryClient()
+  const { user } = useAccess()
   const tableName = category?.table ?? ''
   const normalizedItemId = itemId ?? ''
   const itemQuery = useQuery({
@@ -53,6 +56,9 @@ export function useItemDetailsPage(
   const [movementDateFilter, setMovementDateFilter] =
     useState<ItemMovementsDateFilterValue>({ fromDate: '', toDate: '' })
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [movementToDelete, setMovementToDelete] = useState<ItemMovement | null>(null)
+  const [deletingMovementId, setDeletingMovementId] = useState<string | null>(null)
+  const deleteRequestInFlight = useRef(false)
 
   const loadItemData = useCallback(async () => {
     if (!category || !itemId) return
@@ -225,6 +231,35 @@ export function useItemDetailsPage(
     })
   }
 
+  async function confirmDeleteMovement() {
+    if (
+      !category ||
+      !itemId ||
+      !movementToDelete ||
+      deletingMovementId !== null ||
+      deleteRequestInFlight.current
+    ) return
+
+    const operationId = String(movementToDelete.id)
+    deleteRequestInFlight.current = true
+    setDeletingMovementId(operationId)
+    setMessage(null)
+    try {
+      await deleteInventoryOperation(operationId, user?.name || 'user')
+      setMovementToDelete(null)
+      await invalidateItemData(queryClient, category.table, itemId)
+      setMessage({ type: 'success', text: 'تم حذف حركة المخزون واسترجاع الرصيد السابق بنجاح.' })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'تعذر حذف حركة المخزون',
+      })
+    } finally {
+      deleteRequestInFlight.current = false
+      setDeletingMovementId(null)
+    }
+  }
+
   const queryMessage: ItemDetailsMessage =
     itemQuery.error instanceof Error
       ? { type: 'error', text: itemQuery.error.message }
@@ -241,6 +276,9 @@ export function useItemDetailsPage(
     isEditOpen,
     isLoading: itemQuery.isPending || movementsQuery.isPending,
     isSubmitting,
+    deletingMovementId,
+    latestMovementId: movements[0] ? String(movements[0].id) : undefined,
+    movementToDelete,
     loadItemData,
     message: message ?? queryMessage,
     monthlyMovementSummaries,
@@ -256,6 +294,15 @@ export function useItemDetailsPage(
     setIsEditOpen,
     setMovementDateFilter,
     submitOperation,
+    openDeleteMovementDialog: (movement: ItemMovement) => {
+      if (deletingMovementId !== null) return
+      setMovementToDelete(movement)
+      setMessage(null)
+    },
+    closeDeleteMovementDialog: () => {
+      if (deletingMovementId === null) setMovementToDelete(null)
+    },
+    confirmDeleteMovement,
     updateFormField,
   }
 }
