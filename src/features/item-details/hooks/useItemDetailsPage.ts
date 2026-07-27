@@ -73,12 +73,16 @@ export function useItemDetailsPage(
       : null
 
     return movements.filter((movement) => {
-      if (from === null && to === null) return true
-      const timestamp = movement.operation_date
-        ? getDateTimestamp(movement.operation_date)
-        : null
-      if (timestamp === null) return false
-      return !(from !== null && timestamp < from) && !(to !== null && timestamp > to)
+      if (from !== null || to !== null) {
+        const timestamp = movement.operation_date
+          ? getDateTimestamp(movement.operation_date)
+          : null
+        if (timestamp === null) return false
+        if (from !== null && timestamp < from) return false
+        if (to !== null && timestamp > to) return false
+      }
+
+      return true
     })
   }, [movementDateFilter, movements])
 

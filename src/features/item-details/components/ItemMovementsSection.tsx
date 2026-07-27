@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { DataTable, type DataTableColumn } from '../../../components/DataTable'
+import { TablePagination } from '../../../components/TablePagination'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
+import { usePagination } from '../../../hooks/usePagination'
 import type { ItemMovement } from '../../../services/itemsService'
 import { getDisplayText, getOperationTypeLabel } from '../../inventory-operations/operationForm'
 import { formatMovementDate, getCounterpartyLabel, getOperationCode } from '../itemDetailsUtils'
@@ -21,6 +23,13 @@ type ItemMovementsSectionProps = {
 
 export function ItemMovementsSection({ category, internalCode, itemCode, filter, movements, totals, onFilterChange, onRefresh }: ItemMovementsSectionProps) {
   const hasFilter = Boolean(filter.fromDate || filter.toDate)
+  const pagination = usePagination(movements, { initialPageSize: 10 })
+  const { setCurrentPage } = pagination
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter.fromDate, filter.toDate, setCurrentPage])
+
   const columns = useMemo<DataTableColumn<ItemMovement>[]>(() => [
     {
       id: 'internal_code',
@@ -59,7 +68,10 @@ export function ItemMovementsSection({ category, internalCode, itemCode, filter,
       <ItemDetailsSummaryCard label={hasFilter ? 'إجمالي الصرف للفترة المحددة' : 'إجمالي الصرف لكل الحركات'} value={totals.totalIssued.toLocaleString()} toneClassName="bg-orange-50 text-slate-900" />
     </div>
     <div className="min-w-0 max-w-full overflow-hidden rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel)] shadow-[var(--app-shadow)]">
-      {movements.length === 0 ? <div className="px-5 py-12 text-center text-sm text-slate-500">{hasFilter ? 'لا توجد حركات ضمن الفترة المحددة' : 'لا توجد حركات مسجلة لهذا الصنف حتى الآن'}</div> : <DataTable columns={columns} rows={movements} getRowKey={(row) => String(row.id)} stickyHeader maxHeightClassName="max-h-[68vh] w-full max-w-full overflow-auto overscroll-contain [scrollbar-gutter:stable]" rowClassName="hover:bg-slate-50" />}
+      {movements.length === 0 ? <div className="px-5 py-12 text-center text-sm text-slate-500">{hasFilter ? 'لا توجد حركات ضمن الفترة المحددة' : 'لا توجد حركات مسجلة لهذا الصنف حتى الآن'}</div> : <>
+        <DataTable columns={columns} rows={pagination.paginatedItems} getRowKey={(row) => String(row.id)} stickyHeader maxHeightClassName="max-h-[68vh] w-full max-w-full overflow-auto overscroll-contain [scrollbar-gutter:stable]" rowClassName="hover:bg-slate-50" />
+        <TablePagination currentPage={pagination.currentPage} pageSize={pagination.pageSize} totalItems={pagination.totalItems} totalPages={pagination.totalPages} pageStart={pagination.pageStart} pageEnd={pagination.pageEnd} onPageChange={pagination.setCurrentPage} onPageSizeChange={pagination.setPageSize} />
+      </>}
     </div>
   </div>
 }
