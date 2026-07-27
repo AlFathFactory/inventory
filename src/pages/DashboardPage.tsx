@@ -109,6 +109,7 @@ export function DashboardPage() {
 
           <DashboardInventoryTable
               rows={inventoryTable.pagination.paginatedItems}
+              selectedCategoryKey={inventoryTable.filters.categoryKey}
               currentPage={inventoryTable.pagination.currentPage}
               pageSize={inventoryTable.pagination.pageSize}
               totalItems={inventoryTable.pagination.totalItems}

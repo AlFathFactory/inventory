@@ -21,6 +21,12 @@ export type DashboardInventoryRow = {
   id: string
   itemId: string
   internalCode: string | null
+  code: string | null
+  typeName: string | null
+  supplierName: string | null
+  receivedBy: string | null
+  receivedDate: string | null
+  scrappedDate: string | null
   categoryKey: CategoryKey
   categoryLabel: string
   itemName: string
