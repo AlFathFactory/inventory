@@ -248,7 +248,7 @@ export async function deleteInventoryOperation(
     !data ||
     typeof data !== 'object' ||
     !('status' in data) ||
-    data.status !== 'success'
+    !['success', 'deleted'].includes(String(data.status))
   ) {
     throw new Error('تعذر حذف حركة المخزون')
   }

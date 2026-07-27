@@ -44,10 +44,10 @@ export function DeleteMovementDialog({
           </span>
           <div>
             <h2 id="delete-movement-title" className="text-xl font-bold text-slate-900">
-              Delete this movement?
+              حذف هذه الحركة؟
             </h2>
             <p id="delete-movement-description" className="mt-2 text-sm leading-6 text-slate-600">
-              The movement will be deleted and the item balance will be restored to its previous value.
+              سيتم حذف الحركة واستعادة رصيد الصنف إلى قيمته السابقة.
             </p>
           </div>
         </div>
