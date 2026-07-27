@@ -39,8 +39,8 @@ function getFilterLabels(filters: InventoryReportFilters) {
   return [
     filters.fromDate ? `من: ${formatDate(filters.fromDate)}` : null,
     filters.toDate ? `إلى: ${formatDate(filters.toDate)}` : null,
-    filters.categoryName ? `القسم: ${filters.categoryName}` : 'القسم: جميع الأقسام',
-    filters.projectName ? `المشروع: ${filters.projectName}` : 'المشروع: جميع المشاريع',
+    filters.categoryName ? `المخزن: ${filters.categoryName}` : 'المخزن: كل المخازن',
+    filters.projectName ? `القسم: ${filters.projectName}` : 'القسم: كل الأقسام',
     `نوع العملية: ${filters.operationType === 'add' ? 'إضافة' : filters.operationType === 'issue' ? 'صرف' : 'الإضافة والصرف'}`,
     filters.searchTerm ? `البحث: ${filters.searchTerm}` : null,
   ].filter(Boolean) as string[]
@@ -50,8 +50,8 @@ function getTableData(rows: InventoryReportRow[], showRawMaterialFields: boolean
   const headers = [
     'م',
     'اسم الصنف',
+    'المخزن',
     'القسم',
-    'المشروع',
     ...(showRawMaterialFields
       ? ['رقم الكود', 'وزن', 'LENGTH', 'WIDTH', 'TH']
       : []),

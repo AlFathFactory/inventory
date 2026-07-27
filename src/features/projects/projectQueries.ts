@@ -10,7 +10,7 @@ export const projectKeys = {
 }
 
 function requireData<T>(result: { data: T | null; error: string | null }) {
-  if (result.error || result.data === null) throw new Error(result.error || 'تعذر تحميل السجلات')
+  if (result.error || result.data === null) throw new Error(result.error || 'تعذر تحميل الأقسام')
   return result.data
 }
 

@@ -24,8 +24,8 @@ const baseColumns: DataTableColumn<InventoryReportRow>[] = [
     header: 'اسم الصنف',
     renderCell: (row) => <span className="font-semibold text-slate-900">{row.itemName}</span>,
   },
-  { id: 'category', header: 'القسم', renderCell: (row) => row.categoryName },
-  { id: 'project', header: 'السجل', renderCell: (row) => row.projectName },
+  { id: 'category', header: 'المخزن', renderCell: (row) => row.categoryName },
+  { id: 'project', header: 'القسم', renderCell: (row) => row.projectName },
 ]
 
 const rawMaterialColumns: DataTableColumn<InventoryReportRow>[] = [
@@ -158,7 +158,7 @@ export function ReportsPage() {
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="space-y-2 sm:col-span-2 xl:col-span-5">
             <span className="block text-sm font-semibold text-slate-700">بحث</span>
-            <input type="search" value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setCurrentPage(1) }} placeholder="ابحث باسم الصنف أو القسم أو السجل أو رقم الكود" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
+            <input type="search" value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setCurrentPage(1) }} placeholder="ابحث باسم الصنف أو المخزن أو القسم أو رقم الكود" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
           </label>
           <label className="space-y-2">
             <span className="block text-sm font-semibold text-slate-700">من تاريخ</span>
@@ -169,16 +169,16 @@ export function ReportsPage() {
             <input type="date" value={toDate} min={fromDate || undefined} onChange={(event) => { setToDate(event.target.value); setCurrentPage(1) }} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
           </label>
           <label className="space-y-2">
-            <span className="block text-sm font-semibold text-slate-700">القسم</span>
+            <span className="block text-sm font-semibold text-slate-700">المخزن</span>
             <select value={categoryName} onChange={(event) => { setCategoryName(event.target.value); setCurrentPage(1) }} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]">
-              <option value="">جميع الأقسام</option>
+              <option value="">كل المخازن</option>
               {operationCategoryOptions.map((category) => <option key={category.key} value={category.label}>{category.label}</option>)}
             </select>
           </label>
           <label className="space-y-2">
-            <span className="block text-sm font-semibold text-slate-700">السجل</span>
+            <span className="block text-sm font-semibold text-slate-700">القسم</span>
             <select value={projectName} onChange={(event) => { setProjectName(event.target.value); setCurrentPage(1) }} disabled={projectsQuery.isPending} className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)] disabled:bg-slate-50 disabled:text-slate-500">
-              <option value="">{projectsQuery.isPending ? 'جاري تحميل السجلات...' : 'جميع السجلات'}</option>
+              <option value="">{projectsQuery.isPending ? 'جاري تحميل الأقسام...' : 'كل الأقسام'}</option>
               {(projectsQuery.data ?? []).map((project) => <option key={project.id} value={project.name}>{project.name}</option>)}
             </select>
           </label>

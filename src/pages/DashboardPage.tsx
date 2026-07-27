@@ -88,7 +88,7 @@ export function DashboardPage() {
                 ابحث داخل جميع أصناف المخزن من مكان واحد
               </p>
               <p className="text-sm text-[var(--app-text-muted)]">
-                يمكنك التصفية بالقسم أو السجل والبحث النصي في كل الصفوف.
+                يمكنك التصفية بالمخزن أو القسم والبحث النصي في كل الصفوف.
               </p>
             </div>
             <p className="text-sm text-slate-500">

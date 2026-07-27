@@ -7,9 +7,9 @@ import { formatNumber, getAlertStatusClass, getAlertStatusLabel } from '../utils
 type LowStockTableProps = { rows: LowStockRow[]; isLoading: boolean; pagination: { paginatedItems: LowStockRow[]; currentPage: number; pageSize: number; totalItems: number; totalPages: number; pageStart: number; pageEnd: number; setCurrentPage: (page: number) => void; setPageSize: (size: number) => void } }
 const columns: DataTableColumn<LowStockRow>[] = [
   { id: 'status', header: 'الحالة', renderCell: (row) => <span className={['inline-flex min-w-[78px] items-center justify-center rounded-full px-3 py-1 text-xs font-bold', getAlertStatusClass(row.status)].join(' ')}>{getAlertStatusLabel(row.status)}</span> },
-  { id: 'categoryLabel', header: 'القسم', renderCell: (row) => row.categoryLabel },
+  { id: 'categoryLabel', header: 'المخزن', renderCell: (row) => row.categoryLabel },
   { id: 'itemName', header: 'الصنف', renderCell: (row) => <p className="font-semibold text-slate-800">{row.itemName}</p> },
-  { id: 'projectName', header: 'السجل', renderCell: (row) => row.projectName ?? '—' },
+  { id: 'projectName', header: 'القسم', renderCell: (row) => row.projectName ?? '—' },
   { id: 'expiryDateLabel', header: 'تاريخ الانتهاء', renderCell: (row) => row.expiryDateLabel },
   { id: 'stockBalance', header: 'الرصيد الحالي', renderCell: (row) => formatNumber(row.stockBalance) },
   { id: 'minQuantity', header: 'الحد الأدنى', renderCell: (row) => formatNumber(row.minQuantity) },

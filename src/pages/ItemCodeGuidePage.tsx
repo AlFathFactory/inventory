@@ -163,7 +163,7 @@ export function ItemCodeGuidePage() {
             كود الصنف هو كود داخلي بسيط بيساعدك توصل لأي صنف بسرعة.
           </p>
           <p className="mt-2 font-semibold text-slate-800">الكود بيتكون من 3 أجزاء:</p>
-          <p className="mt-2 text-slate-600">القسم - السجل أو المصدر - رقم الصنف</p>
+          <p className="mt-2 text-slate-600">المخزن - القسم أو المصدر - رقم الصنف</p>
 
           <div className="mt-6 rounded-3xl border border-blue-100 bg-blue-50/50 p-5">
             <div dir="ltr" className="flex flex-wrap items-center justify-center gap-2">
@@ -210,7 +210,7 @@ export function ItemCodeGuidePage() {
       </GuideSection>
 
       <div>
-        <h3 className="mb-4 text-2xl font-bold text-slate-900">معاني كود المصدر أو السجل</h3>
+        <h3 className="mb-4 text-2xl font-bold text-slate-900">معاني كود المصدر أو القسم</h3>
         <div className="grid gap-5 lg:grid-cols-3">
           {filteredSourceGroups.map((group) => (
             <GuideSection key={group.title} title={group.title} compact>

@@ -118,7 +118,7 @@ export function InventoryOperationModal({
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <div className="space-y-2 text-right">
-            <span className="block text-sm font-semibold text-slate-700">اسم السجل</span>
+            <span className="block text-sm font-semibold text-slate-700">اسم القسم</span>
             <div className="flex h-[46px] w-full items-center rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 text-sm font-semibold text-slate-800">
               {projectName}
             </div>

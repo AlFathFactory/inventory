@@ -25,7 +25,7 @@ type CategoryConfigItem<TColumns extends ColumnMap> = {
 }
 
 const sharedInventoryColumns = {
-  project: 'السجل',
+  project: 'القسم',
   item_name: 'صنف',
   transaction_date: 'تاريخ الإضافة',
   issued: 'صرف',
@@ -43,7 +43,7 @@ const paintColumns = {
 } as const
 
 const screwColumns = {
-  project: 'السجل',
+  project: 'القسم',
   item_name: 'صنف',
   din: 'DIN',
   code_number: 'رقم الكود',
@@ -173,7 +173,7 @@ export const categoryConfig = {
       'amset3',
     ],
     columns: {
-      project: 'اسم السجل',
+      project: 'اسم القسم',
       item_name: 'اسم الصنف / نوع الخامة',
       code_number: 'رقم الكود',
       transaction_date: 'تاريخ الإضافة',
@@ -255,7 +255,7 @@ export const categoryConfig = {
     route: '/category/cylinders',
     aliases: ['اسطوانات', 'اسطوانات غازات', 'غازات'],
     columns: {
-      project: 'السجل',
+      project: 'القسم',
       type_name: 'نوع الاسطوانة',
       gas_balance: 'رصيد الغاز',
       stock_balance: 'الرصيد المخزني',

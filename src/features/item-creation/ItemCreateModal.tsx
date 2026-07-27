@@ -85,7 +85,7 @@ export function ItemCreateModal({
               return (
                 <label key={fieldKey} className="space-y-2 text-right">
                   <span className="block text-sm font-semibold text-slate-700">
-                    اسم السجل{field.required ? ' *' : ''}
+                    اسم القسم{field.required ? ' *' : ''}
                   </span>
                   <select
                     name={fieldKey}
@@ -97,7 +97,7 @@ export function ItemCreateModal({
                     <option value="">
                       {activeProjects.length === 0
                         ? 'لا توجد سجلات مسجلة، أضف سجلًا أولًا'
-                        : 'اختر السجل'}
+                        : 'اختر القسم'}
                     </option>
                     {activeProjects.map((project) => (
                       <option key={project.id} value={project.name}>{project.name}</option>

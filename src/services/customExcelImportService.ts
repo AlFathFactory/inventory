@@ -347,7 +347,7 @@ export function formatAmbiguousItemError(entry: InventoryMatchingSummary['ambigu
     `الشيت: ${item.source.sheet}`,
     `الصف: ${item.source.row}`,
     `الجدول: ${item.table_name}`,
-    `السجل: ${item.project_name}`,
+    `القسم: ${item.project_name}`,
     `الصنف: ${item.item_name}`,
     identity,
     `المرشحون: ${entry.candidateIds.join(', ') || 'غير متاح'}`,

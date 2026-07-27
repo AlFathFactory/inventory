@@ -33,19 +33,19 @@ export function DashboardInventoryFilters({
           type="search"
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="ابحث في القسم أو الصنف أو السجل أو أي بيانات مرتبطة"
+          placeholder="ابحث في المخزن أو الصنف أو القسم أو أي بيانات مرتبطة"
           className={inputClassName()}
         />
       </label>
       
       <label className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">القسم</span>
+        <span className="block text-sm font-medium text-slate-700">المخزن</span>
         <select
           value={categoryValue}
           onChange={(event) => onCategoryChange(event.target.value)}
           className={inputClassName()}
         >
-          <option value="all">كل الأقسام</option>
+          <option value="all">كل المخازن</option>
           {categoryOptions.map((category) => (
             <option key={category.key} value={category.key}>
               {category.label}
@@ -55,13 +55,13 @@ export function DashboardInventoryFilters({
       </label>
 
       <label className="space-y-2">
-        <span className="block text-sm font-medium text-slate-700">السجل</span>
+        <span className="block text-sm font-medium text-slate-700">القسم</span>
         <select
           value={projectValue}
           onChange={(event) => onProjectChange(event.target.value)}
           className={inputClassName()}
         >
-          <option value="all">كل السجلات</option>
+          <option value="all">كل الأقسام</option>
           {projectOptions.map((projectName) => (
             <option key={projectName} value={projectName}>{projectName}</option>
           ))}

@@ -27,7 +27,7 @@ const supplierField: EditField = {
 
 const fieldsByTable: Record<string, EditField[]> = {
   consumables: [
-    { key: 'project', label: 'اسم السجل', required: true },
+    { key: 'project', label: 'اسم القسم', required: true },
     { key: 'item_name', label: 'اسم الصنف', required: true },
     { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
     { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
@@ -35,7 +35,7 @@ const fieldsByTable: Record<string, EditField[]> = {
     { key: 'notes', label: 'ملاحظات', type: 'textarea' },
   ],
   paints: [
-    { key: 'project', label: 'اسم السجل', required: true },
+    { key: 'project', label: 'اسم القسم', required: true },
     { key: 'item_name', label: 'اسم الصنف', required: true },
     { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
     { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
@@ -46,7 +46,7 @@ const fieldsByTable: Record<string, EditField[]> = {
   stock_screws: [],
   raw_materials: [],
   cylinders: [
-    { key: 'project', label: 'السجل' },
+    { key: 'project', label: 'القسم' },
     { key: 'type_name', label: 'نوع الاسطوانة', required: true },
     { key: 'gas_balance', label: 'رصيد الغاز', type: 'number' },
     { key: 'stock_balance', label: 'الرصيد المخزني', type: 'number' },
@@ -73,7 +73,7 @@ const fieldsByTable: Record<string, EditField[]> = {
 }
 
 const screwFields: EditField[] = [
-  { key: 'project', label: 'اسم السجل', required: true },
+  { key: 'project', label: 'اسم القسم', required: true },
   { key: 'item_name', label: 'اسم الصنف', required: true },
   { key: 'din', label: 'DIN' },
   { key: 'code_number', formKey: 'codeNumber', label: 'رقم الكود / Code Number' },
@@ -85,7 +85,7 @@ const screwFields: EditField[] = [
 fieldsByTable.screws = screwFields
 fieldsByTable.stock_screws = screwFields
 fieldsByTable.raw_materials = [
-  { key: 'project', label: 'اسم السجل', required: true },
+  { key: 'project', label: 'اسم القسم', required: true },
   { key: 'item_name', label: 'اسم الصنف', required: true },
   { key: 'code_number', label: 'رقم الكود' },
   { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
@@ -281,7 +281,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
               {field.key === 'project' ? (
                 <>
                   <select value={form[field.formKey ?? field.key] ?? ''} disabled={projectsQuery.isPending || activeProjects.length === 0} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]">
-                    <option value="">{activeProjects.length === 0 ? 'لا توجد سجلات مسجلة، أضف سجلًا أولًا' : 'اختر السجل'}</option>
+                    <option value="">{activeProjects.length === 0 ? 'لا توجد أقسام مسجلة، أضف قسمًا أولًا' : 'اختر القسم'}</option>
                     {form.project && !activeProjects.some((project) => project.name === form.project) ? <option value={form.project}>{form.project} (غير مسجل أو غير نشط)</option> : null}
                     {activeProjects.map((project) => <option key={project.id} value={project.name}>{project.name}</option>)}
                   </select>
