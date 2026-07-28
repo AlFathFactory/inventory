@@ -64,6 +64,7 @@ export type InventoryReportRow = {
   itemName: string
   categoryName: string
   projectName: string
+  lastOperationDate: string
   totalAddedQuantity: number
   totalIssuedQuantity: number
   codeNumber: string | null
@@ -132,6 +133,29 @@ function toText(value: unknown): string {
   }
 
   return ''
+}
+
+function normalizeInventoryReportRows(values: unknown): InventoryReportRow[] {
+  return Array.isArray(values)
+    ? values.map((value): InventoryReportRow => {
+        const row = value as OperationRecord
+        return {
+          tableName: toText(row.table_name),
+          itemId: toText(row.item_id),
+          itemName: toText(row.item_name) || '—',
+          categoryName: toText(row.category_name) || '—',
+          projectName: toText(row.project_name) || '—',
+          lastOperationDate: toText(row.last_operation_date),
+          totalAddedQuantity: toNumber(row.total_added_quantity),
+          totalIssuedQuantity: toNumber(row.total_issued_quantity),
+          codeNumber: toText(row.code_number) || null,
+          weight: row.weight as number | string | null | undefined ?? null,
+          length: row.length as number | string | null | undefined ?? null,
+          width: row.width as number | string | null | undefined ?? null,
+          th: row.th as number | string | null | undefined ?? null,
+        }
+      })
+    : []
 }
 
 function normalizeOperationType(value: unknown): InventoryOperationType {
@@ -491,29 +515,95 @@ export async function getInventoryReport(
   const summaryRecord = payload.summary && typeof payload.summary === 'object'
     ? payload.summary as OperationRecord
     : {}
-  const rows = Array.isArray(payload.rows)
-    ? payload.rows.map((value): InventoryReportRow => {
-        const row = value as OperationRecord
-        return {
-          tableName: toText(row.table_name),
-          itemId: toText(row.item_id),
-          itemName: toText(row.item_name) || '—',
-          categoryName: toText(row.category_name) || '—',
-          projectName: toText(row.project_name) || '—',
-          totalAddedQuantity: toNumber(row.total_added_quantity),
-          totalIssuedQuantity: toNumber(row.total_issued_quantity),
-          codeNumber: toText(row.code_number) || null,
-          weight: row.weight as number | string | null | undefined ?? null,
-          length: row.length as number | string | null | undefined ?? null,
-          width: row.width as number | string | null | undefined ?? null,
-          th: row.th as number | string | null | undefined ?? null,
+  let rows = normalizeInventoryReportRows(payload.rows)
+  const totalItems = toNumber(payload.total_items)
+  let usedDatePaginationFallback = false
+
+  if (rows.some((row) => !row.lastOperationDate)) {
+    usedDatePaginationFallback = true
+    const fallbackPageSize = 100
+    const fallbackPageCount = Math.ceil(totalItems / fallbackPageSize)
+    const pageResults = await Promise.all(
+      Array.from({ length: fallbackPageCount }, (_, index) =>
+        client.rpc('get_aggregated_inventory_report_rpc', {
+          p_from_date: filters.fromDate || null,
+          p_to_date: filters.toDate || null,
+          p_category_name: filters.categoryName || null,
+          p_project_name: filters.projectName || null,
+          p_search: filters.searchTerm?.trim() || null,
+          p_operation_type: filters.operationType === 'both' ? null : filters.operationType,
+          p_page: index + 1,
+          p_page_size: fallbackPageSize,
+        }),
+      ),
+    )
+
+    const failedPage = pageResults.find((result) => result.error)
+    if (failedPage?.error) {
+      throw new Error(failedPage.error.message || 'تعذر ترتيب نتائج التقرير')
+    }
+
+    rows = pageResults.flatMap((result) => {
+      const pagePayload = result.data && typeof result.data === 'object'
+        ? result.data as Record<string, unknown>
+        : {}
+      return normalizeInventoryReportRows(pagePayload.rows)
+    })
+
+    const itemIds = [...new Set(rows.map((row) => row.itemId).filter(Boolean))]
+    if (itemIds.length > 0) {
+      const movementResults = await Promise.all(
+        Array.from({ length: Math.ceil(itemIds.length / 100) }, (_, index) => {
+          let movementQuery = client
+            .from('inventory_operations')
+            .select('table_name, item_id, operation_date, category_name, category_label, project_name, project')
+            .in('item_id', itemIds.slice(index * 100, (index + 1) * 100))
+            .in('operation_type', filters.operationType === 'both' ? ['add', 'issue'] : [filters.operationType])
+            .order('operation_date', { ascending: false })
+
+          if (filters.fromDate) movementQuery = movementQuery.gte('operation_date', filters.fromDate)
+          if (filters.toDate) movementQuery = movementQuery.lte('operation_date', filters.toDate)
+          return movementQuery
+        }),
+      )
+      const failedMovementQuery = movementResults.find((result) => result.error)
+      if (failedMovementQuery?.error) {
+        throw new Error(failedMovementQuery.error.message || 'تعذر تحميل تاريخ حركة الصنف')
+      }
+
+      const latestDates = new Map<string, string>()
+      for (const movement of movementResults.flatMap((result) => result.data ?? [])) {
+        const movementCategory = toText(movement.category_name) || toText(movement.category_label)
+        const movementProject = toText(movement.project_name) || toText(movement.project)
+        if (filters.categoryName && movementCategory !== filters.categoryName) continue
+        if (filters.projectName && movementProject !== filters.projectName) continue
+
+        const key = `${toText(movement.table_name)}:${toText(movement.item_id)}`
+        if (!latestDates.has(key)) {
+          latestDates.set(key, toText(movement.operation_date))
         }
-      })
-    : []
+      }
+
+      for (const row of rows) {
+        row.lastOperationDate ||= latestDates.get(`${row.tableName}:${row.itemId}`) ?? ''
+      }
+    }
+  }
+
+  rows.sort((left, right) => {
+    const dateComparison = right.lastOperationDate.localeCompare(left.lastOperationDate)
+    if (dateComparison !== 0) return dateComparison
+    return left.itemName.localeCompare(right.itemName, 'ar')
+  })
+
+  if (usedDatePaginationFallback) {
+    const pageStart = (Math.max(filters.page, 1) - 1) * filters.pageSize
+    rows = rows.slice(pageStart, pageStart + filters.pageSize)
+  }
 
   return {
     rows,
-    totalItems: toNumber(payload.total_items),
+    totalItems,
     summary: {
       additionOperationsCount: toNumber(summaryRecord.addition_operations_count),
       totalAddedQuantity: toNumber(summaryRecord.total_added_quantity),

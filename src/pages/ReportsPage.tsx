@@ -19,6 +19,16 @@ function displayValue(value: number | string | null) {
   return typeof value === 'number' ? numberFormatter.format(value) : value
 }
 
+const reportDateFormatter = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+  dateStyle: 'medium',
+})
+
+function displayReportDate(value: string) {
+  if (!value) return '—'
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? value : reportDateFormatter.format(date)
+}
+
 const baseColumns: DataTableColumn<InventoryReportRow>[] = [
   {
     id: 'item',
@@ -27,6 +37,12 @@ const baseColumns: DataTableColumn<InventoryReportRow>[] = [
   },
   { id: 'category', header: 'المخزن', renderCell: (row) => row.categoryName },
   { id: 'project', header: 'القسم', renderCell: (row) => row.projectName },
+  {
+    id: 'lastOperationDate',
+    header: 'آخر عملية',
+    renderCell: (row) => displayReportDate(row.lastOperationDate),
+    cellClassName: 'whitespace-nowrap tabular-nums text-slate-600',
+  },
 ]
 
 const rawMaterialColumns: DataTableColumn<InventoryReportRow>[] = [
