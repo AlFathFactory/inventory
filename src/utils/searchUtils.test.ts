@@ -10,6 +10,15 @@ describe('searchUtils', () => {
     expect(normalizeSearchTerm('  RM-KH  ')).toBe('rm-kh')
   })
 
+  it.each([
+    ['طاقيه', 'طاقية'],
+    ['طاقية', 'طاقيه'],
+    ['على', 'علي'],
+    ['علي', 'على'],
+  ])('matches Arabic letter variants in both directions: %s / %s', (query, value) => {
+    expect(includesSearchTerm(value, normalizeSearchTerm(query))).toBe(true)
+  })
+
   it('matches values case-insensitively and handles null values', () => {
     expect(includesSearchTerm('Main Store', 'store')).toBe(true)
     expect(includesSearchTerm(null, 'store')).toBe(false)

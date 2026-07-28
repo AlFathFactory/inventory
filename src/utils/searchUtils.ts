@@ -1,12 +1,16 @@
 export function normalizeSearchTerm(value: string): string {
-  return value.trim().toLocaleLowerCase()
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replaceAll('ة', 'ه')
+    .replaceAll('ى', 'ي')
 }
 
 export function includesSearchTerm(
   value: unknown,
   normalizedSearchTerm: string,
 ): boolean {
-  return String(value ?? '').toLocaleLowerCase().includes(normalizedSearchTerm)
+  return normalizeSearchTerm(String(value ?? '')).includes(normalizedSearchTerm)
 }
 
 export function matchesAnySearchValue(

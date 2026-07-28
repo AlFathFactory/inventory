@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { normalizeSearchTerm } from '../../../utils/searchUtils'
+import { includesSearchTerm, normalizeSearchTerm } from '../../../utils/searchUtils'
 import { usePagination } from '../../../hooks/usePagination'
 import type { DashboardInventoryRow } from '../types'
 
@@ -46,7 +46,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
         return false
       }
 
-      if (normalizedSearchTerm && !row.searchText.includes(normalizedSearchTerm)) {
+      if (normalizedSearchTerm && !includesSearchTerm(row.searchText, normalizedSearchTerm)) {
         return false
       }
 

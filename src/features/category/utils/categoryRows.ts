@@ -13,6 +13,7 @@ import {
   listCuttingDiscs,
   type CuttingDiscRecord,
 } from '../../../services/cuttingDiscsService'
+import { includesSearchTerm, normalizeSearchTerm } from '../../../utils/searchUtils'
 
 function mapGloveRows(rows: LongWeldingGloveRecord[] | null): CategorySummaryItem[] {
   return (rows ?? []).map((row) => ({
@@ -133,4 +134,3 @@ export function filterCategoryRowsByProject(
     (row) => (row.project_name ?? row.project ?? '') === selectedProjectName,
   )
 }
-import { includesSearchTerm, normalizeSearchTerm } from '../../../utils/searchUtils'
