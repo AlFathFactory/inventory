@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { normalizeSearchTerm } from '../../utils/searchUtils'
 import { usePagination } from '../../hooks/usePagination'
 import { getSupabaseConfigError, isSupabaseConfigured } from '../../lib/supabaseClient'
 import { LowStockFilters } from './components/LowStockFilters'
@@ -34,7 +35,7 @@ export function LowStockPage() {
   }
   const state = useLowStockAlerts()
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
-  const normalizedSearchTerm = useDeferredValue(searchTerm).trim().toLowerCase()
+  const normalizedSearchTerm = normalizeSearchTerm(useDeferredValue(searchTerm))
   const projectOptions = useMemo(() => Array.from(new Set(state.rows.map((row) => row.projectName).filter((name): name is string => Boolean(name)))).sort((a, b) => a.localeCompare(b, 'ar')), [state.rows])
   const searchedRows = useMemo(() => state.rows.filter((row) => !normalizedSearchTerm || row.searchText.includes(normalizedSearchTerm)), [normalizedSearchTerm, state.rows])
   const filteredRows = useMemo(() => {

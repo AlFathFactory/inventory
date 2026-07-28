@@ -1,4 +1,5 @@
 import { categoryOptions } from '../../../config/categoryConfig'
+import { SearchInput } from '../../../components/SearchInput'
 
 type DashboardInventoryFiltersProps = {
   searchValue: string
@@ -29,10 +30,9 @@ export function DashboardInventoryFilters({
     <div className="grid gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(180px,0.65fr)_minmax(180px,0.65fr)_auto]">
       <label className="space-y-2">
         <span className="block text-sm font-medium text-slate-700">بحث</span>
-        <input
-          type="search"
+        <SearchInput
           value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
+          onValueChange={onSearchChange}
           placeholder="ابحث في المخزن أو الصنف أو القسم أو أي بيانات مرتبطة"
           className={inputClassName()}
         />

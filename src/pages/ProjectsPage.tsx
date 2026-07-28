@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ToastOnChange } from '../components/ToastProvider'
+import { SearchInput } from '../components/SearchInput'
+import { matchesAnySearchValue, normalizeSearchTerm } from '../utils/searchUtils'
 import {
   createProject,
   setProjectStatus,
@@ -50,12 +52,12 @@ export function ProjectsPage() {
   const editingProjectIsUsed = editingProject ? usedProjectNames.has(editingProject.name) : false
 
   const filteredProjects = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase()
-    if (!search) return projectsQuery.data ?? []
+    const search = normalizeSearchTerm(searchTerm)
     return (projectsQuery.data ?? []).filter((project) =>
-      [project.name, project.code, project.notes, statusLabel(project.status)]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(search)),
+      matchesAnySearchValue(
+        [project.name, project.code, project.notes, statusLabel(project.status)],
+        search,
+      ),
     )
   }, [projectsQuery.data, searchTerm])
 
@@ -167,7 +169,7 @@ export function ProjectsPage() {
       <div className="rounded-[28px] border border-[var(--app-border)] bg-white p-5 shadow-[var(--app-shadow)]">
         <label className="block max-w-xl space-y-2">
           <span className="text-sm font-semibold text-slate-700">بحث الأقسام</span>
-          <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="ابحث بالاسم أو الكود أو الحالة" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
+          <SearchInput value={searchTerm} onValueChange={setSearchTerm} placeholder="ابحث بالاسم أو الكود أو الحالة" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
         </label>
 
         <div className="mt-5 overflow-x-auto">

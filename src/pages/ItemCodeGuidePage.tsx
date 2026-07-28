@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { SearchInput } from '../components/SearchInput'
+import { includesSearchTerm, normalizeSearchTerm } from '../utils/searchUtils'
 
 type CodeMeaning = {
   code: string
@@ -64,7 +66,7 @@ const sourceGroups = [
 ] satisfies Array<{ title: string; rows: CodeMeaning[] }>
 
 function matchesSearch(row: CodeMeaning, searchValue: string) {
-  return `${row.code} ${row.meaning}`.toLowerCase().includes(searchValue)
+  return includesSearchTerm(`${row.code} ${row.meaning}`, searchValue)
 }
 
 function CodeBadge({ children, tone = 'blue' }: { children: string; tone?: 'blue' | 'emerald' | 'violet' }) {
@@ -114,7 +116,7 @@ function CodeMeaningTable({ rows }: { rows: CodeMeaning[] }) {
 
 export function ItemCodeGuidePage() {
   const [search, setSearch] = useState('')
-  const searchValue = search.trim().toLowerCase()
+  const searchValue = normalizeSearchTerm(search)
   const filteredExamples = useMemo(
     () => examples.filter((row) => matchesSearch(row, searchValue)),
     [searchValue],
@@ -127,7 +129,7 @@ export function ItemCodeGuidePage() {
     () => sourceGroups.map((group) => ({
       ...group,
       rows: group.rows.filter((row) =>
-        group.title.toLowerCase().includes(searchValue) || matchesSearch(row, searchValue),
+        includesSearchTerm(group.title, searchValue) || matchesSearch(row, searchValue),
       ),
     })),
     [searchValue],
@@ -145,10 +147,9 @@ export function ItemCodeGuidePage() {
           </div>
           <label className="block w-full lg:max-w-md">
             <span className="mb-2 block text-sm font-semibold text-slate-700">ابحث في معاني الأكواد</span>
-            <input
-              type="search"
+            <SearchInput
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onValueChange={setSearch}
               placeholder="مثال: RM أو خامات أو صيانة"
               className="h-12 w-full rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 text-sm text-slate-800 outline-none transition focus:border-[var(--app-primary)] focus:bg-white"
             />

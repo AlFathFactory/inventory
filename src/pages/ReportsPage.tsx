@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type { DataTableColumn } from '../components/DataTable'
 import { DataTable } from '../components/DataTable'
+import { SearchInput } from '../components/SearchInput'
 import { TablePagination } from '../components/TablePagination'
 import { projectsQueryOptions } from '../features/projects/projectQueries'
 import { useInventoryReport } from '../features/reports/reportQueries'
@@ -171,7 +172,7 @@ export function ReportsPage() {
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="space-y-2 sm:col-span-2 xl:col-span-5">
             <span className="block text-sm font-semibold text-slate-700">بحث</span>
-            <input type="search" value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setCurrentPage(1) }} placeholder="ابحث باسم الصنف أو المخزن أو القسم أو رقم الكود" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
+            <SearchInput value={searchInput} onValueChange={(value) => { setSearchInput(value); setCurrentPage(1) }} placeholder="ابحث باسم الصنف أو المخزن أو القسم أو رقم الكود" className="h-[44px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none transition focus:border-[var(--app-primary)]" />
           </label>
           <label className="space-y-2">
             <span className="block text-sm font-semibold text-slate-700">من تاريخ</span>

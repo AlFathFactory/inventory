@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { SearchInput } from '../../components/SearchInput'
 import type { CategorySummaryItem } from '../../services/itemsService'
+import { matchesAnySearchValue, normalizeSearchTerm } from '../../utils/searchUtils'
 
 type ItemSelectionModalProps = {
   items: CategorySummaryItem[]
@@ -35,25 +37,21 @@ export function ItemSelectionModal({
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredItems = useMemo(() => {
-    const normalizedSearchTerm = searchTerm.trim().toLowerCase()
-
-    if (!normalizedSearchTerm) {
-      return items
-    }
+    const normalizedSearchTerm = normalizeSearchTerm(searchTerm)
 
     return items.filter((item) =>
-      [
-        item.internal_code,
-        item.item_name,
-        item.project_name,
-        item.material_source,
-        item.supplier_name,
-        item.code_number,
-        item.din,
-      ]
-        .filter(Boolean)
-        .map((value) => String(value ?? '').toLowerCase())
-        .some((value) => value.includes(normalizedSearchTerm)),
+      matchesAnySearchValue(
+        [
+          item.internal_code,
+          item.item_name,
+          item.project_name,
+          item.material_source,
+          item.supplier_name,
+          item.code_number,
+          item.din,
+        ],
+        normalizedSearchTerm,
+      ),
     )
   }, [items, searchTerm])
 
@@ -77,10 +75,9 @@ export function ItemSelectionModal({
 
         <div className="mt-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <input
-              type="text"
+            <SearchInput
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onValueChange={setSearchTerm}
               placeholder="ابحث عن الصنف أو القسم"
               className="h-[46px] min-w-[220px] flex-1 rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-[var(--app-primary)]"
             />

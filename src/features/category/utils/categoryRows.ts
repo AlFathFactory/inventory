@@ -111,7 +111,7 @@ export function filterCategoryRows(
   rows: CategorySummaryItem[],
   searchTerm: string,
 ) {
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+  const normalizedSearchTerm = normalizeSearchTerm(searchTerm)
 
   if (!normalizedSearchTerm) {
     return rows
@@ -119,7 +119,7 @@ export function filterCategoryRows(
 
   return rows.filter((row) =>
     searchableFields.some((field) =>
-      String(row[field] ?? '').toLowerCase().includes(normalizedSearchTerm),
+      includesSearchTerm(row[field], normalizedSearchTerm),
     ),
   )
 }
@@ -133,3 +133,4 @@ export function filterCategoryRowsByProject(
     (row) => (row.project_name ?? row.project ?? '') === selectedProjectName,
   )
 }
+import { includesSearchTerm, normalizeSearchTerm } from '../../../utils/searchUtils'

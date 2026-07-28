@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { SearchInput } from './SearchInput'
 
 export type DateRangeValue = {
   fromDate: string
@@ -32,10 +33,9 @@ export function DataFilters({
     <div className="flex flex-wrap items-end gap-4 rounded-[28px] border border-[var(--app-border)] bg-[var(--app-panel-soft)] p-4">
       <label className="w-full min-w-0 flex-1 space-y-2 sm:min-w-[240px]">
         <span className="block text-sm font-medium text-slate-700">بحث</span>
-        <input
-          type="search"
+        <SearchInput
           value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
+          onValueChange={onSearchChange}
           placeholder={searchPlaceholder}
           className={inputClassName()}
         />

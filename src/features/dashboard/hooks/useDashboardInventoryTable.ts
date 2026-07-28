@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { normalizeSearchTerm } from '../../../utils/searchUtils'
 import { usePagination } from '../../../hooks/usePagination'
 import type { DashboardInventoryRow } from '../types'
 
@@ -27,7 +28,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
   }
 
   const deferredSearchTerm = useDeferredValue(filters.searchTerm)
-  const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase()
+  const normalizedSearchTerm = normalizeSearchTerm(deferredSearchTerm)
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
