@@ -29,7 +29,7 @@ import {
   type MatrixOperationType,
   type OperationsRangeMode,
 } from '../features/operations/operationsMatrix'
-import { usePagination } from '../hooks/usePagination'
+import { useSearchParamsPagination } from '../hooks/useSearchParamsPagination'
 import { getItemDetailsRoute } from '../features/items/itemRoutes'
 import { prefetchInventoryItem } from '../features/inventory/inventoryCache'
 import {
@@ -214,8 +214,9 @@ export function OperationsPage() {
     ),
     [categoryFilter, normalizedSearch, operationRows],
   )
-  const pagination = usePagination(filteredRows, { initialPageSize: 20 })
+  const pagination = useSearchParamsPagination(filteredRows, { initialPageSize: 20 })
   const { setCurrentPage } = pagination
+  const previousPaginationFilters = useRef({ categoryFilter, searchTerm })
   const itemOptions = useMemo(
     () => operationRows.map(toSummaryItem),
     [operationRows],
@@ -244,6 +245,12 @@ export function OperationsPage() {
   }, [filteredRows, movements])
 
   useEffect(() => {
+    const previousFilters = previousPaginationFilters.current
+    if (
+      previousFilters.categoryFilter === categoryFilter &&
+      previousFilters.searchTerm === searchTerm
+    ) return
+    previousPaginationFilters.current = { categoryFilter, searchTerm }
     setCurrentPage(1)
   }, [categoryFilter, searchTerm, setCurrentPage])
 

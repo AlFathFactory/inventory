@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { includesSearchTerm, normalizeSearchTerm } from '../../../utils/searchUtils'
-import { usePagination } from '../../../hooks/usePagination'
+import { useSearchParamsPagination } from '../../../hooks/useSearchParamsPagination'
 import type { DashboardInventoryRow } from '../types'
 
 export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
@@ -16,6 +16,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams)
       const isDefaultValue = value === '' || value === 'all'
+      nextParams.delete('page')
 
       if (isDefaultValue) {
         nextParams.delete(name)
@@ -54,7 +55,7 @@ export function useDashboardInventoryTable(rows: DashboardInventoryRow[]) {
     })
   }, [filters.categoryKey, filters.projectName, normalizedSearchTerm, rows])
 
-  const pagination = usePagination(filteredRows, { initialPageSize: 10 })
+  const pagination = useSearchParamsPagination(filteredRows, { initialPageSize: 10 })
 
   return {
     filters,

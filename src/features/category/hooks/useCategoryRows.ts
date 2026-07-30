@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { liveQuery } from 'dexie'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
-import { usePagination } from '../../../hooks/usePagination'
+import { useSearchParamsPagination } from '../../../hooks/useSearchParamsPagination'
 import type { CategorySummaryItem } from '../../../services/itemsService'
 import { categoryQueryOptions } from '../../inventory/inventoryQueries'
 import { useActiveProjects } from '../../projects/projectQueries'
@@ -60,7 +60,7 @@ export function useCategoryRows(category: CategoryDefinition | null) {
     const searchedRows = filterCategoryRows(rows, deferredSearchTerm)
     return filterCategoryRowsByProject(searchedRows, selectedProjectName)
   }, [deferredSearchTerm, rows, selectedProjectName])
-  const pagination = usePagination(filteredRows, { initialPageSize: 10 })
+  const pagination = useSearchParamsPagination(filteredRows, { initialPageSize: 10 })
 
   return {
     rows,
@@ -72,6 +72,7 @@ export function useCategoryRows(category: CategoryDefinition | null) {
     setSearchTerm: (value: string) => {
       setSearchParams((currentParams) => {
         const nextParams = new URLSearchParams(currentParams)
+        nextParams.delete('page')
         if (value) nextParams.set('search', value)
         else nextParams.delete('search')
         return nextParams
@@ -82,6 +83,7 @@ export function useCategoryRows(category: CategoryDefinition | null) {
     setSelectedProjectName: (value: string) => {
       setSearchParams((currentParams) => {
         const nextParams = new URLSearchParams(currentParams)
+        nextParams.delete('page')
         if (value) nextParams.set('project', value)
         else nextParams.delete('project')
         return nextParams
