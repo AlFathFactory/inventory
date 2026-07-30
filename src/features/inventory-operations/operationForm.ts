@@ -7,6 +7,9 @@ export type OperationFormState = {
   supplierName: string
   purchaseOrderNumber: string
   issuedTo: string
+  employeeId?: string | null
+  supplierId?: string | null
+  requestId?: string
   notes: string
 }
 
@@ -89,6 +92,9 @@ export function createInitialOperationFormState(
     supplierName: '',
     purchaseOrderNumber: '',
     issuedTo: '',
+    employeeId: null,
+    supplierId: null,
+    requestId: crypto.randomUUID(),
     notes: '',
   }
 }
@@ -120,12 +126,12 @@ export function validateOperationForm({
     nextErrors.operationDate = 'التاريخ مطلوب'
   }
 
-  if (operationType === 'add' && !form.supplierName.trim()) {
+  if (operationType === 'add' && !form.supplierId && !form.supplierName.trim()) {
     nextErrors.supplierName = 'اسم المورد مطلوب'
   }
 
   if (operationType === 'issue') {
-    if (!form.issuedTo.trim()) {
+    if (!form.employeeId && !form.issuedTo.trim()) {
       nextErrors.issuedTo = 'اسم المستلم مطلوب'
     }
 

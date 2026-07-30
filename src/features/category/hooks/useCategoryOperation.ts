@@ -63,7 +63,11 @@ export function useCategoryOperation({
     setMessage(null)
   }
 
-  async function open(row: CategorySummaryItem, nextType: InventoryOperationType) {
+  async function open(
+    row: CategorySummaryItem,
+    nextType: InventoryOperationType,
+    initialOperationDate?: string,
+  ) {
     if (!category) return
 
     const itemId = row.item_id
@@ -106,7 +110,12 @@ export function useCategoryOperation({
     setSelectedItem(item)
     setSelectedItemId(String(item.itemId))
     setOperationType(nextType)
-    setForm(createInitialOperationFormState(result.data))
+    setForm({
+      ...createInitialOperationFormState(result.data),
+      ...(initialOperationDate
+        ? { operationDate: initialOperationDate }
+        : {}),
+    })
     setFormErrors({})
   }
 
@@ -146,10 +155,13 @@ export function useCategoryOperation({
           ? itemDetails.code_number?.trim() || null
           : null,
         supplierName: operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
+        supplierId: operationType === 'add' ? form.supplierId : null,
         purchaseOrderNumber: operationType === 'add'
           ? form.purchaseOrderNumber.trim() || undefined
           : undefined,
         issuedTo: operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
+        employeeId: operationType === 'issue' ? form.employeeId : null,
+        requestId: form.requestId,
         notes: form.notes.trim() || undefined,
         localItemId: selectedItem.offline_state === 'local'
           ? String(selectedItem.itemId)

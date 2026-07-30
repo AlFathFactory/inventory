@@ -184,6 +184,15 @@ function ReportIcon({ className = '' }: IconProps) {
   )
 }
 
+function OperationsIcon({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M5 7h14M5 12h14M5 17h14" />
+      <path d="M8 4v6M16 9v6M8 14v6" />
+    </svg>
+  )
+}
+
 function ChevronDownIcon({ className = '' }: IconProps) {
   return (
     <svg
@@ -206,6 +215,8 @@ function getSidebarIcon(path: string) {
       return <DashboardIcon className={iconClassName} />
     case '/reports':
       return <ReportIcon className={iconClassName} />
+    case '/operations':
+      return <OperationsIcon className={iconClassName} />
     case '/import':
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
@@ -241,10 +252,12 @@ const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
   { label: 'تقارير', to: '/reports' },
   { label: 'التنبيهات', to: '/low-stock' },
+  { label: 'الموظفين والموردين', to: '/parties' },
 ]
 
 const inventoryItems = [
   { label: 'جميع الأقسام', to: '/' },
+  { label: 'عمليات الصرف والإضافة', to: '/operations' },
   { label: 'التنبيهات', to: '/low-stock' },
   { label: 'إدارة الأقسام', to: '/projects' },
   ...categoryOptions.map((category) => ({

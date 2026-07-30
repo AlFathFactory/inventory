@@ -5,6 +5,7 @@ import {
   getOperationTypeLabel,
   type OperationFormState,
 } from './operationForm'
+import { PartyCombobox } from '../parties/PartyCombobox'
 
 type InventoryOperationItemData = Record<string, unknown> & {
   item_name?: string | null
@@ -166,16 +167,17 @@ export function InventoryOperationModal({
               <span className="block text-sm font-semibold text-slate-700">
                 اسم المورد
               </span>
-              <input
-                type="text"
-                value={form.supplierName}
-                onChange={(event) => onFieldChange('supplierName', event.target.value)}
-                className={fieldClassName(Boolean(formErrors.supplierName))}
-                placeholder="اسم المورد"
+              <PartyCombobox
+                kind="supplier"
+                selectedId={form.supplierId}
+                selectedName={form.supplierName}
+                disabled={isSubmitting}
+                error={formErrors.supplierName}
+                onSelect={(party) => {
+                  onFieldChange('supplierId', party.id)
+                  onFieldChange('supplierName', party.name)
+                }}
               />
-              {formErrors.supplierName ? (
-                <p className="text-xs text-red-600">{formErrors.supplierName}</p>
-              ) : null}
             </label>
           ) : null}
 
@@ -201,16 +203,17 @@ export function InventoryOperationModal({
               <span className="block text-sm font-semibold text-slate-700">
                 اسم المستلم
               </span>
-              <input
-                type="text"
-                value={form.issuedTo}
-                onChange={(event) => onFieldChange('issuedTo', event.target.value)}
-                className={fieldClassName(Boolean(formErrors.issuedTo))}
-                placeholder="اسم المستلم"
+              <PartyCombobox
+                kind="employee"
+                selectedId={form.employeeId}
+                selectedName={form.issuedTo}
+                disabled={isSubmitting}
+                error={formErrors.issuedTo}
+                onSelect={(party) => {
+                  onFieldChange('employeeId', party.id)
+                  onFieldChange('issuedTo', party.name)
+                }}
               />
-              {formErrors.issuedTo ? (
-                <p className="text-xs text-red-600">{formErrors.issuedTo}</p>
-              ) : null}
             </label>
           ) : null}
         </div>

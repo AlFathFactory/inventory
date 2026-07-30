@@ -23,8 +23,10 @@ export type ApplyInventoryOperationParams = {
   projectName?: string
   itemCode?: string | null
   supplierName?: string
+  supplierId?: string | null
   purchaseOrderNumber?: string
   issuedTo?: string
+  employeeId?: string | null
   receivedBy?: string
   notes?: string
   createdBy?: string
@@ -45,6 +47,15 @@ export type RecentInventoryOperation = {
   previousBalance: number | null
   newBalance: number | null
   notes: string
+}
+
+export type InventoryOperationsGridMovement = {
+  id: string
+  tableName: string
+  itemId: string | number
+  operationType: InventoryOperationType
+  quantity: number
+  operationDate: string
 }
 
 export type InventoryReportFilters = {
@@ -364,7 +375,17 @@ export async function applyInventoryOperation(
     )
   }
 
+  if (params.operationType === 'issue' && !params.employeeId) {
+    throw new Error('يجب اختيار موظف نشط قبل تنفيذ الصرف')
+  }
+  if (params.operationType === 'add' && !params.supplierId) {
+    throw new Error('يجب اختيار مورد نشط قبل تنفيذ الإضافة')
+  }
+
   if (!navigator.onLine) {
+    if (params.operationType === 'issue' || params.operationType === 'add') {
+      throw new Error('يلزم الاتصال بالإنترنت لاختيار الموظف أو المورد وحفظ الحركة المرتبطة')
+    }
     await saveOfflineOperation({
       tableName: params.tableName,
       itemId: params.localItemId ? null : params.itemId,
@@ -391,7 +412,7 @@ export async function applyInventoryOperation(
   const client = getClientOrThrow()
 
   const { data, error } = await client.rpc(
-    'apply_inventory_operation_transactional_rpc',
+    'apply_inventory_operation_with_party_rpc',
     {
       p_table_name: params.tableName,
       p_item_id: params.itemId,
@@ -401,9 +422,9 @@ export async function applyInventoryOperation(
       p_project_name: params.projectName || null,
       p_category_name: params.categoryName || null,
       p_item_name: params.itemName || null,
-      p_supplier_name: params.supplierName || null,
-      p_issued_to: params.issuedTo || null,
-      p_received_by: params.receivedBy || params.issuedTo || null,
+      p_employee_id: params.operationType === 'issue' ? params.employeeId || null : null,
+      p_supplier_id: params.operationType === 'add' ? params.supplierId || null : null,
+      p_received_by: params.receivedBy || null,
       p_purchase_order_number: params.purchaseOrderNumber || null,
       p_item_code: params.itemCode || null,
       p_notes: params.notes || null,
@@ -485,6 +506,49 @@ export async function getRecentInventoryOperations(limit = 20) {
   ]
     .sort(sortOperationsByDateDesc)
     .slice(0, limit)
+}
+
+export async function getInventoryOperationsForDateRange(
+  fromDate: string,
+  toDate: string,
+): Promise<InventoryOperationsGridMovement[]> {
+  const client = getClientOrThrow()
+  const pageSize = 1000
+  const movements: InventoryOperationsGridMovement[] = []
+
+  while (true) {
+    const from = movements.length
+    const { data, error } = await client
+      .from('inventory_operations')
+      .select('id, table_name, item_id, operation_type, quantity, operation_date')
+      .in('operation_type', ['add', 'issue'])
+      .gte('operation_date', fromDate)
+      .lte('operation_date', toDate)
+      .order('operation_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1)
+
+    if (error) {
+      throw new Error(error.message || 'تعذر تحميل حركات المخزون')
+    }
+
+    const page = (data ?? []).map((value): InventoryOperationsGridMovement => {
+      const row = value as OperationRecord
+      return {
+        id: toText(row.id),
+        tableName: toText(row.table_name),
+        itemId: typeof row.item_id === 'number'
+          ? row.item_id
+          : toText(row.item_id),
+        operationType: normalizeOperationType(row.operation_type),
+        quantity: toNumber(row.quantity),
+        operationDate: toText(row.operation_date),
+      }
+    })
+
+    movements.push(...page)
+    if (page.length < pageSize) return movements
+  }
 }
 
 export async function getInventoryReport(

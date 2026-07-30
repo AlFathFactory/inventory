@@ -13,6 +13,8 @@ import { SyncCenterPage } from '../pages/SyncCenterPage'
 import { AccessGate } from '../features/access/AccessGate'
 import { AccessProvider } from '../features/access/AccessContext'
 import { ToastProvider } from '../components/ToastProvider'
+import { PartiesPage } from '../pages/PartiesPage'
+import { OperationsPage } from '../pages/OperationsPage'
 
 // Hash routing keeps every request on index.html, so deep links continue to
 // work when the static host is not configured with an SPA fallback.
@@ -44,6 +46,14 @@ const router = createHashRouter([
       {
         path: 'projects',
         element: <ProjectsPage />,
+      },
+      {
+        path: 'operations',
+        element: <OperationsPage />,
+      },
+      {
+        path: 'parties',
+        element: <PartiesPage />,
       },
       {
         path: 'sync-center',
