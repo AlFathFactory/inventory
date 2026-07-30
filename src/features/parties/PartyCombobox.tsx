@@ -21,6 +21,7 @@ export function PartyCombobox({ kind, selectedId, selectedName = '', disabled, e
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [creating, setCreating] = useState(false)
+  const [hasSimilarMatches, setHasSimilarMatches] = useState(false)
   const [saving, setSaving] = useState(false)
   const [createError, setCreateError] = useState('')
   const [form, setForm] = useState({ name: '', code: '', department: '', phone: '', contactPerson: '', notes: '' })
@@ -54,6 +55,7 @@ export function PartyCombobox({ kind, selectedId, selectedName = '', disabled, e
 
   function startCreate() {
     setForm((current) => ({ ...current, name: normalizePartyName(input) }))
+    setHasSimilarMatches(options.length > 0)
     setCreateError('')
     setOpen(false)
     setCreating(true)
@@ -133,7 +135,9 @@ export function PartyCombobox({ kind, selectedId, selectedName = '', disabled, e
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4" dir="rtl">
           <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl">
             <h3 className="text-xl font-bold">إضافة {kind === 'employee' ? 'موظف' : 'مورد'} جديد</h3>
-            <p className="mt-1 text-sm text-amber-700">يوجد اسم مشابه بالفعل. راجع النتائج أولًا، أو أكّد إنشاء سجل جديد.</p>
+            {hasSimilarMatches ? (
+              <p className="mt-1 text-sm text-amber-700">يوجد اسم مشابه بالفعل. راجع النتائج أولًا، أو أكّد إنشاء سجل جديد.</p>
+            ) : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="الاسم *" className="rounded-xl border p-3" />
               <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="الكود" className="rounded-xl border p-3" />
