@@ -24,8 +24,8 @@ describe('getOperationsDisplayDates', () => {
     )
 
     expect(dates).toHaveLength(30)
-    expect(dates[0]).toBe('2026-06-30')
-    expect(dates.at(-1)).toBe('2026-06-01')
+    expect(dates[0]).toBe('2026-06-01')
+    expect(dates.at(-1)).toBe('2026-06-30')
   })
 })
 

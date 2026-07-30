@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   categoryConfig,
   categoryEntries,
@@ -29,6 +30,8 @@ import {
   type OperationsRangeMode,
 } from '../features/operations/operationsMatrix'
 import { usePagination } from '../hooks/usePagination'
+import { getItemDetailsRoute } from '../features/items/itemRoutes'
+import { prefetchInventoryItem } from '../features/inventory/inventoryCache'
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
@@ -147,6 +150,8 @@ function ActionButton({
 export function OperationsPage() {
   const todayValue = getLocalDateString()
   const currentMonth = getMonthValue(todayValue)
+  const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const dashboard = useDashboardData()
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
@@ -181,8 +186,12 @@ export function OperationsPage() {
   const rangeLabel = rangeMode === 'full-month'
     ? 'الشهر بالكامل'
     : 'آخر 5 أيام'
-  const rangeStart = dates.at(-1) ?? todayValue
-  const rangeEnd = dates[0] ?? todayValue
+  const rangeStart = (
+    rangeMode === 'full-month' ? dates[0] : dates.at(-1)
+  ) ?? todayValue
+  const rangeEnd = (
+    rangeMode === 'full-month' ? dates.at(-1) : dates[0]
+  ) ?? todayValue
   const movementsQuery = useQuery({
     queryKey: [...matrixQueryKey, rangeStart, rangeEnd],
     queryFn: () => getInventoryOperationsForDateRange(rangeStart, rangeEnd),
@@ -312,7 +321,6 @@ export function OperationsPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">شاشة العمل اليومية</span>
-              <span className="text-xs text-slate-500">نفس منطق ملف Excel بشكل أوضح</span>
             </div>
             <h2 className="mt-3 text-2xl font-bold text-slate-900">حركات الصرف والإضافة</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
@@ -445,7 +453,7 @@ export function OperationsPage() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-slate-500">
               <span className="font-bold text-slate-700">طريقة الاستخدام:</span>{' '}
-              اضغط + في خلية صرف أو إضافة. الرقم الظاهر هو إجمالي حركات ذلك اليوم.
+              اضغط أي خلية لإضافة حركة جديدة. الرقم الظاهر هو إجمالي كل حركات ذلك اليوم.
             </p>
             <div className="flex items-center gap-4 text-xs font-semibold text-slate-600">
               <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded bg-amber-100" /> صرف</span>
@@ -459,6 +467,23 @@ export function OperationsPage() {
           dates={dates}
           movementTotals={movementTotals}
           isLoading={isLoading}
+          onItemClick={(row) => {
+            navigate(
+              getItemDetailsRoute(row.categoryKey, row.itemId, 'operations'),
+              {
+                state: {
+                  operationsReturnTo: `${location.pathname}${location.search}`,
+                },
+              },
+            )
+          }}
+          onItemPrefetch={(row) => {
+            void prefetchInventoryItem(
+              queryClient,
+              categoryConfig[row.categoryKey].table,
+              row.itemId,
+            )
+          }}
           onOperation={(row, type, date) => beginOperation(toSummaryItem(row), type, date)}
         />
 

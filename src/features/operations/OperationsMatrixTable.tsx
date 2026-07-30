@@ -10,6 +10,8 @@ type OperationsMatrixTableProps = {
   dates: string[]
   movementTotals: ReadonlyMap<string, number>
   isLoading: boolean
+  onItemClick: (row: DashboardInventoryRow) => void
+  onItemPrefetch: (row: DashboardInventoryRow) => void
   onOperation: (
     row: DashboardInventoryRow,
     operationType: MatrixOperationType,
@@ -63,6 +65,7 @@ function OperationCell({
         type="button"
         onClick={() => onOperation(row, type, date)}
         aria-label={`${label} ${row.itemName} بتاريخ ${date}`}
+        title={total > 0 ? `تسجيل حركة ${label} إضافية` : `تسجيل ${label}`}
         className={[
           'group flex h-[48px] w-full items-center justify-center rounded-xl text-sm font-bold transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1',
           total > 0
@@ -87,6 +90,8 @@ export function OperationsMatrixTable({
   dates,
   movementTotals,
   isLoading,
+  onItemClick,
+  onItemPrefetch,
   onOperation,
 }: OperationsMatrixTableProps) {
   if (!isLoading && rows.length === 0) {
@@ -165,18 +170,26 @@ export function OperationsMatrixTable({
             const tableName = categoryConfig[row.categoryKey].table
             return (
               <tr key={row.id} className="group">
-                <td className="sticky right-0 z-20 w-[270px] border-b border-l border-slate-200 bg-white px-4 py-2.5 text-right group-hover:bg-slate-50">
-                  <div className="flex min-w-0 items-start gap-3">
+                <td className="sticky right-0 z-20 w-[270px] border-b border-l border-slate-200 bg-white p-1.5 text-right group-hover:bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() => onItemClick(row)}
+                    onMouseEnter={() => onItemPrefetch(row)}
+                    onFocus={() => onItemPrefetch(row)}
+                    aria-label={`فتح تفاصيل ${row.itemName}`}
+                    className="flex w-full min-w-0 items-start gap-3 rounded-xl px-2.5 py-1.5 text-right transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
                     <span className="mt-0.5 flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-100 px-1 text-[11px] font-bold text-slate-500">
                       {index + 1}
                     </span>
-                    <span className="min-w-0">
-                      <strong className="block truncate font-bold text-slate-900">{row.itemName}</strong>
+                    <span className="min-w-0 flex-1">
+                      <strong className="block truncate font-bold text-slate-900 underline-offset-4 hover:text-blue-700 hover:underline">{row.itemName}</strong>
                       <span className="mt-0.5 block truncate text-xs text-slate-500">
                         {row.categoryLabel}{row.projectName ? ` · ${row.projectName}` : ''}
                       </span>
                     </span>
-                  </div>
+                    <span className="mt-1 text-blue-500" aria-hidden="true">←</span>
+                  </button>
                 </td>
                 <td className="sticky right-[270px] z-20 w-[120px] border-b border-l border-slate-200 bg-emerald-50 px-3 text-center font-bold text-emerald-900 group-hover:bg-emerald-100">
                   {formatQuantity(row.stockBalance)}

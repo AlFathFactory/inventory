@@ -105,6 +105,13 @@ export type ItemMovement = {
   returnStatus: 'not_returned' | 'partially_returned' | 'fully_returned'
   relatedOperationId: string | null
   remainingReturnableQuantity: number
+  allocationStatus?: 'allocated' | 'pending_distribution'
+  employeeAllocations?: Array<{
+    employee_id: string
+    employee_name_snapshot: string
+    allocated_quantity: number | string | null
+    returned_quantity: number | string
+  }>
 }
 
 type ServiceSuccess<TData> = {
@@ -418,6 +425,24 @@ export async function getItemMovements(
       return createFailure(error.message)
     }
 
+    const issueIds = (data ?? [])
+      .filter((row) => row.operation_type === 'issue')
+      .map((row) => String(row.id))
+    const allocationMap = new Map<string, ItemMovement['employeeAllocations']>()
+    if (issueIds.length > 0) {
+      const { data: allocationRows, error: allocationError } = await supabaseClient!
+        .from('inventory_operation_employee_allocations')
+        .select('issue_operation_id,employee_id,employee_name_snapshot,allocated_quantity,returned_quantity')
+        .in('issue_operation_id', issueIds)
+      if (allocationError) return createFailure(allocationError.message)
+      for (const allocation of allocationRows ?? []) {
+        const issueId = String(allocation.issue_operation_id)
+        const current = allocationMap.get(issueId) ?? []
+        current.push(allocation)
+        allocationMap.set(issueId, current)
+      }
+    }
+
     return createSuccess(
       ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
         const quantity = Number(row.quantity ?? 0)
@@ -437,6 +462,12 @@ export async function getItemMovements(
             ? rawReturnStatus
             : 'not_returned'
 
+        const employeeAllocations = allocationMap.get(String(row.id)) ?? []
+        const allocationStatus = employeeAllocations.length > 1 &&
+          employeeAllocations.some((allocation) => allocation.allocated_quantity === null)
+          ? 'pending_distribution'
+          : 'allocated'
+
         return {
           ...row,
           returnedQuantity: normalizedReturnedQuantity,
@@ -446,6 +477,8 @@ export async function getItemMovements(
               ? row.related_operation_id
               : null,
           remainingReturnableQuantity,
+          employeeAllocations,
+          allocationStatus,
         } as ItemMovement
       }),
     )

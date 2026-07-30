@@ -8,6 +8,13 @@ export type OperationFormState = {
   purchaseOrderNumber: string
   issuedTo: string
   employeeId?: string | null
+  employeeIds?: Array<{
+    id: string
+    name: string
+    employee_code?: string | null
+    department?: string | null
+  }>
+  recipientMode?: 'single' | 'multiple'
   supplierId?: string | null
   requestId?: string
   notes: string
@@ -93,6 +100,8 @@ export function createInitialOperationFormState(
     purchaseOrderNumber: '',
     issuedTo: '',
     employeeId: null,
+    employeeIds: [],
+    recipientMode: 'single',
     supplierId: null,
     requestId: crypto.randomUUID(),
     notes: '',
@@ -131,7 +140,9 @@ export function validateOperationForm({
   }
 
   if (operationType === 'issue') {
-    if (!form.employeeId && !form.issuedTo.trim()) {
+    if (form.recipientMode === 'multiple' && (form.employeeIds?.length ?? 0) < 2) {
+      nextErrors.issuedTo = 'اختر موظفين على الأقل للصرف الجماعي'
+    } else if (form.recipientMode !== 'multiple' && !form.employeeId && !form.issuedTo.trim()) {
       nextErrors.issuedTo = 'اسم المستلم مطلوب'
     }
 

@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { isCustodyTable } from '../../services/itemsService'
 import { inventoryKeys } from './inventoryQueryKeys'
 import { reportKeys } from '../reports/reportQueries'
+import { partyKeys } from '../../services/partiesService'
 import {
   custodyItemQueryOptions,
   itemQueryOptions,
@@ -52,6 +53,7 @@ export async function invalidateItemData(
     queryClient.invalidateQueries({ queryKey: inventoryKeys.item(tableName, itemId) }),
     queryClient.invalidateQueries({ queryKey: inventoryKeys.movements(tableName, itemId) }),
     queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+    queryClient.invalidateQueries({ queryKey: partyKeys.all }),
     ...(isCustodyTable(tableName)
       ? [queryClient.invalidateQueries({
           queryKey: inventoryKeys.custodyItem(tableName, itemId),

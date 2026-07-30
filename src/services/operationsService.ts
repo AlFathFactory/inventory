@@ -27,6 +27,7 @@ export type ApplyInventoryOperationParams = {
   purchaseOrderNumber?: string
   issuedTo?: string
   employeeId?: string | null
+  employeeIds?: string[]
   receivedBy?: string
   notes?: string
   createdBy?: string
@@ -299,6 +300,7 @@ export type ReturnInventoryOperationParams = {
   notes?: string
   createdBy?: string
   requestId?: string
+  employeeId?: string | null
 }
 
 export async function returnInventoryItem(
@@ -315,7 +317,7 @@ export async function returnInventoryItem(
 
   const client = getClientOrThrow()
   const { data, error } = await client.rpc(
-    'return_inventory_item_rpc',
+    'return_inventory_item_with_employee_rpc',
     {
       p_issue_operation_id: params.issueOperationId,
       p_quantity: quantity,
@@ -324,6 +326,7 @@ export async function returnInventoryItem(
       p_notes: params.notes?.trim() || null,
       p_created_by: params.createdBy?.trim() || 'user',
       p_request_id: params.requestId ?? crypto.randomUUID(),
+      p_employee_id: params.employeeId || null,
     },
   )
 
@@ -375,7 +378,11 @@ export async function applyInventoryOperation(
     )
   }
 
-  if (params.operationType === 'issue' && !params.employeeId) {
+  if (
+    params.operationType === 'issue' &&
+    !params.employeeId &&
+    (params.employeeIds?.length ?? 0) < 2
+  ) {
     throw new Error('يجب اختيار موظف نشط قبل تنفيذ الصرف')
   }
   if (params.operationType === 'add' && !params.supplierId) {
@@ -423,6 +430,7 @@ export async function applyInventoryOperation(
       p_category_name: params.categoryName || null,
       p_item_name: params.itemName || null,
       p_employee_id: params.operationType === 'issue' ? params.employeeId || null : null,
+      p_employee_ids: params.operationType === 'issue' ? params.employeeIds ?? null : null,
       p_supplier_id: params.operationType === 'add' ? params.supplierId || null : null,
       p_received_by: params.receivedBy || null,
       p_purchase_order_number: params.purchaseOrderNumber || null,

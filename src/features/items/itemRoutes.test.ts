@@ -25,4 +25,10 @@ describe('getItemDetailsRoute', () => {
       '/category/raw_materials/item/12?source=reports',
     )
   })
+
+  it('preserves the operations source on the details route', () => {
+    expect(getItemDetailsRoute('consumables', '24', 'operations')).toBe(
+      '/category/consumables/item/24?source=operations',
+    )
+  })
 })

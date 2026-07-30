@@ -3,12 +3,14 @@ import type { ItemMovement } from '../../../services/itemsService'
 import { getDisplayText } from '../../inventory-operations/operationForm'
 import { formatMovementDate } from '../itemDetailsUtils'
 import { getLocalDateString } from '../../../utils/dateUtils'
+import type { IssueEmployeeAllocation } from '../../../services/partiesService'
 
 export type ReturnMovementForm = {
   quantity: string
   operationDate: string
   receivedBy: string
   notes: string
+  employeeId: string
 }
 
 type ReturnMovementDialogProps = {
@@ -18,6 +20,7 @@ type ReturnMovementDialogProps = {
   isSubmitting: boolean
   onCancel: () => void
   onSubmit: (form: ReturnMovementForm) => void
+  allocations?: IssueEmployeeAllocation[]
 }
 
 function Info({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -36,12 +39,14 @@ export function ReturnMovementDialog({
   isSubmitting,
   onCancel,
   onSubmit,
+  allocations = [],
 }: ReturnMovementDialogProps) {
   const [form, setForm] = useState<ReturnMovementForm>({
     quantity: '',
     operationDate: getLocalDateString(),
     receivedBy: '',
     notes: '',
+    employeeId: allocations.length === 1 ? allocations[0].employee_id : '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isConfirming, setIsConfirming] = useState(false)
@@ -66,6 +71,9 @@ export function ReturnMovementDialog({
       nextErrors.quantity = 'الكمية المرتجعة أكبر من الكمية المتبقية لهذه الحركة'
     }
     if (!form.operationDate) nextErrors.operationDate = 'تاريخ المرتجع مطلوب'
+    if (allocations.length > 1 && !form.employeeId) {
+      nextErrors.employeeId = 'اختر الموظف صاحب العهدة المرتجعة'
+    }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length === 0) setIsConfirming(true)
   }
@@ -97,6 +105,24 @@ export function ReturnMovementDialog({
 
         {!isConfirming ? (
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {allocations.length > 1 ? (
+              <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+                الموظف صاحب العهدة المرتجعة
+                <select
+                  value={form.employeeId}
+                  onChange={(event) => updateField('employeeId', event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-slate-400"
+                >
+                  <option value="">اختر من مستلمي حركة الصرف</option>
+                  {allocations.map((allocation) => (
+                    <option key={allocation.employee_id} value={allocation.employee_id}>
+                      {allocation.employee_name_snapshot}
+                    </option>
+                  ))}
+                </select>
+                {errors.employeeId ? <span className="mt-1 block text-xs text-red-600">{errors.employeeId}</span> : null}
+              </label>
+            ) : null}
             <label className="text-sm font-semibold text-slate-700">
               الكمية المرتجعة
               <input

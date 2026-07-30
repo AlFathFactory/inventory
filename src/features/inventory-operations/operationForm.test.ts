@@ -45,4 +45,40 @@ describe('validateOperationQuantity', () => {
     })).toEqual({ isValid: true, errors: {} })
     expect('projectName' in form).toBe(false)
   })
+
+  it('requires at least two employees for a group issue', () => {
+    const form = {
+      ...createInitialOperationFormState({ stock_balance: 50 }),
+      quantity: '10',
+      recipientMode: 'multiple' as const,
+      employeeIds: [{ id: 'employee-1', name: 'موظف أول' }],
+    }
+
+    const result = validateOperationForm({
+      details: { stock_balance: 50 },
+      form,
+      operationType: 'issue',
+    })
+
+    expect(result.isValid).toBe(false)
+    expect(result.errors.issuedTo).toBeTruthy()
+  })
+
+  it('accepts a group issue with two distinct selected employees', () => {
+    const form = {
+      ...createInitialOperationFormState({ stock_balance: 50 }),
+      quantity: '10',
+      recipientMode: 'multiple' as const,
+      employeeIds: [
+        { id: 'employee-1', name: 'موظف أول' },
+        { id: 'employee-2', name: 'موظف ثانٍ' },
+      ],
+    }
+
+    expect(validateOperationForm({
+      details: { stock_balance: 50 },
+      form,
+      operationType: 'issue',
+    })).toEqual({ isValid: true, errors: {} })
+  })
 })

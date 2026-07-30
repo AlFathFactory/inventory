@@ -161,6 +161,9 @@ export function useCategoryOperation({
           : undefined,
         issuedTo: operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
         employeeId: operationType === 'issue' ? form.employeeId : null,
+        employeeIds: operationType === 'issue' && form.recipientMode === 'multiple'
+          ? form.employeeIds?.map((employee) => employee.id)
+          : undefined,
         requestId: form.requestId,
         notes: form.notes.trim() || undefined,
         localItemId: selectedItem.offline_state === 'local'

@@ -59,6 +59,7 @@ export function ItemDetailsPage() {
   const { categoryKey, itemId } = useParams()
   const [searchParams] = useSearchParams()
   const isDashboardView = searchParams.get('source') === 'dashboard'
+  const isOperationsView = searchParams.get('source') === 'operations'
   const dashboardReturnTo =
     location.state &&
     typeof location.state === 'object' &&
@@ -83,6 +84,14 @@ export function ItemDetailsPage() {
     location.state.reportsReturnTo.startsWith('/')
       ? location.state.reportsReturnTo
       : '/reports'
+  const operationsReturnTo =
+    location.state &&
+    typeof location.state === 'object' &&
+    'operationsReturnTo' in location.state &&
+    typeof location.state.operationsReturnTo === 'string' &&
+    location.state.operationsReturnTo.startsWith('/')
+      ? location.state.operationsReturnTo
+      : '/operations'
   const hasReportsHistoryState = Boolean(
     location.state &&
       typeof location.state === 'object' &&
@@ -99,7 +108,7 @@ export function ItemDetailsPage() {
   const page = useItemDetailsPage(stockCategory, itemId)
 
   if (category && itemId && isCustodyTable(category.table)) {
-    return <CustodyDetailsView tableName={category.table} itemId={itemId} backTo={isDashboardView ? dashboardReturnTo : undefined} />
+    return <CustodyDetailsView tableName={category.table} itemId={itemId} backTo={isOperationsView ? operationsReturnTo : isDashboardView ? dashboardReturnTo : undefined} />
   }
 
   if (!category || !itemId) {
@@ -136,8 +145,18 @@ export function ItemDetailsPage() {
             onEdit={page.openEditModal}
             onOperation={page.openOperationModal}
             isReadOnly={isReadOnlyView}
-            backTo={isDashboardView ? dashboardReturnTo : isReportsView ? reportsReturnTo : categoryReturnTo}
-            backLabel={isReportsView ? 'رجوع للتقارير' : undefined}
+            backTo={isOperationsView
+              ? operationsReturnTo
+              : isDashboardView
+                ? dashboardReturnTo
+                : isReportsView
+                  ? reportsReturnTo
+                  : categoryReturnTo}
+            backLabel={isOperationsView
+              ? 'رجوع للعمليات'
+              : isReportsView
+                ? 'رجوع للتقارير'
+                : undefined}
           />
           <ItemMovementsSection
             category={category}
@@ -165,6 +184,7 @@ export function ItemDetailsPage() {
           isSubmitting={page.returningMovementId !== null}
           onCancel={page.closeReturnMovementDialog}
           onSubmit={(form) => void page.submitReturnMovement(form)}
+          allocations={page.returnAllocations}
         />
       ) : null}
 

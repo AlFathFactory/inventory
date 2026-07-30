@@ -1,6 +1,6 @@
 import type { CategoryKey } from '../../config/categoryConfig'
 
-export type ItemDetailsSource = 'category' | 'dashboard' | 'reports'
+export type ItemDetailsSource = 'category' | 'dashboard' | 'reports' | 'operations'
 
 export function getItemDetailsRoute(
   categoryKey: CategoryKey,

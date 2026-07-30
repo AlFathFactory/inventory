@@ -83,7 +83,20 @@ export function ItemMovementsSection({ category, internalCode, itemCode, filter,
     },
     { id: 'previous_balance', header: 'الرصيد قبل', renderCell: (row) => getDisplayText(row.previous_balance) },
     { id: 'new_balance', header: 'الرصيد بعد', renderCell: (row) => getDisplayText(row.new_balance) },
-    { id: 'counterparty', header: 'المورد / المستلم', renderCell: (row) => getDisplayText(getCounterpartyLabel(row)) },
+    {
+      id: 'counterparty',
+      header: 'المورد / المستلم',
+      renderCell: (row) => (
+        <div className="space-y-1">
+          <div>{getDisplayText(getCounterpartyLabel(row))}</div>
+          {row.operation_type === 'issue' && row.allocationStatus === 'pending_distribution' ? (
+            <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+              صرف جماعي — يحتاج توزيع
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
     { id: 'purchase_order_number', header: 'رقم أمر التوريد', renderCell: (row) => getDisplayText(row.purchase_order_number) },
     ...(category.table === 'raw_materials' || category.table === 'screws' || category.table === 'stock_screws' ? [{
       id: 'code_number',

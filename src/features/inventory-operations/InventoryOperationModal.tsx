@@ -5,7 +5,7 @@ import {
   getOperationTypeLabel,
   type OperationFormState,
 } from './operationForm'
-import { PartyCombobox } from '../parties/PartyCombobox'
+import { MultiEmployeeCombobox, PartyCombobox } from '../parties/PartyCombobox'
 
 type InventoryOperationItemData = Record<string, unknown> & {
   item_name?: string | null
@@ -199,22 +199,57 @@ export function InventoryOperationModal({
           ) : null}
 
           {operationType === 'issue' ? (
-            <label className="space-y-2 text-right">
+            <div className="space-y-3 text-right md:col-span-2">
+              <span className="block text-sm font-semibold text-slate-700">نوع الاستلام</span>
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    onFieldChange('recipientMode', 'single')
+                    onFieldChange('employeeIds', [])
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold ${form.recipientMode !== 'multiple' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
+                >
+                  مستلم واحد
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    onFieldChange('recipientMode', 'multiple')
+                    onFieldChange('employeeId', null)
+                    onFieldChange('issuedTo', '')
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold ${form.recipientMode === 'multiple' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
+                >
+                  عدة مستلمين
+                </button>
+              </div>
               <span className="block text-sm font-semibold text-slate-700">
-                اسم المستلم
+                {form.recipientMode === 'multiple' ? 'المستلمون' : 'اسم المستلم'}
               </span>
-              <PartyCombobox
-                kind="employee"
-                selectedId={form.employeeId}
-                selectedName={form.issuedTo}
-                disabled={isSubmitting}
-                error={formErrors.issuedTo}
-                onSelect={(party) => {
-                  onFieldChange('employeeId', party.id)
-                  onFieldChange('issuedTo', party.name)
-                }}
-              />
-            </label>
+              {form.recipientMode === 'multiple' ? (
+                <MultiEmployeeCombobox
+                  selected={form.employeeIds ?? []}
+                  disabled={isSubmitting}
+                  error={formErrors.issuedTo}
+                  onChange={(employees) => onFieldChange('employeeIds', employees)}
+                />
+              ) : (
+                <PartyCombobox
+                  kind="employee"
+                  selectedId={form.employeeId}
+                  selectedName={form.issuedTo}
+                  disabled={isSubmitting}
+                  error={formErrors.issuedTo}
+                  onSelect={(party) => {
+                    onFieldChange('employeeId', party.id)
+                    onFieldChange('issuedTo', party.name)
+                  }}
+                />
+              )}
+            </div>
           ) : null}
         </div>
 

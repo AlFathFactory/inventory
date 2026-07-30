@@ -29,6 +29,10 @@ import { deleteInventoryOperation } from '../../../services/operationsService'
 import { returnInventoryItem } from '../../../services/operationsService'
 import { useAccess } from '../../access/AccessContext'
 import type { ReturnMovementForm } from '../components/ReturnMovementDialog'
+import {
+  getIssueEmployeeAllocations,
+  type IssueEmployeeAllocation,
+} from '../../../services/partiesService'
 
 const emptyMovements: ItemMovement[] = []
 
@@ -62,6 +66,7 @@ export function useItemDetailsPage(
   const [deletingMovementId, setDeletingMovementId] = useState<string | null>(null)
   const deleteRequestInFlight = useRef(false)
   const [movementToReturn, setMovementToReturn] = useState<ItemMovement | null>(null)
+  const [returnAllocations, setReturnAllocations] = useState<IssueEmployeeAllocation[]>([])
   const [returningMovementId, setReturningMovementId] = useState<string | null>(null)
   const returnRequestInFlight = useRef(false)
 
@@ -177,12 +182,18 @@ export function useItemDetailsPage(
             : null,
         supplierName:
           operationType === 'add' ? form.supplierName.trim() || undefined : undefined,
+        supplierId: operationType === 'add' ? form.supplierId : null,
         purchaseOrderNumber:
           operationType === 'add'
             ? form.purchaseOrderNumber.trim() || undefined
             : undefined,
         issuedTo:
           operationType === 'issue' ? form.issuedTo.trim() || undefined : undefined,
+        employeeId: operationType === 'issue' ? form.employeeId : null,
+        employeeIds: operationType === 'issue' && form.recipientMode === 'multiple'
+          ? form.employeeIds?.map((employee) => employee.id)
+          : undefined,
+        requestId: form.requestId,
         notes: form.notes.trim() || undefined,
         localItemId: details.offline_state === 'local' ? String(operationItemId) : null,
       })
@@ -288,6 +299,7 @@ export function useItemDetailsPage(
         notes: returnForm.notes,
         createdBy: user?.name || 'user',
         requestId: crypto.randomUUID(),
+        employeeId: returnForm.employeeId || null,
       })
       setMovementToReturn(null)
       await invalidateItemData(queryClient, category.table, itemId)
@@ -326,6 +338,7 @@ export function useItemDetailsPage(
     latestMovementId: movements[0] ? String(movements[0].id) : undefined,
     movementToDelete,
     movementToReturn,
+    returnAllocations,
     returningMovementId,
     loadItemData,
     message: message ?? queryMessage,
@@ -351,17 +364,29 @@ export function useItemDetailsPage(
       if (deletingMovementId === null) setMovementToDelete(null)
     },
     confirmDeleteMovement,
-    openReturnMovementDialog: (movement: ItemMovement) => {
+    openReturnMovementDialog: async (movement: ItemMovement) => {
       if (
         movement.operation_type !== 'issue' ||
         movement.remainingReturnableQuantity <= 0 ||
         returningMovementId !== null
       ) return
-      setMovementToReturn(movement)
       setMessage(null)
+      try {
+        const allocations = await getIssueEmployeeAllocations(String(movement.id))
+        setReturnAllocations(allocations)
+        setMovementToReturn(movement)
+      } catch (error) {
+        setMessage({
+          type: 'error',
+          text: error instanceof Error ? error.message : 'تعذر تحميل مستلمي حركة الصرف',
+        })
+      }
     },
     closeReturnMovementDialog: () => {
-      if (returningMovementId === null) setMovementToReturn(null)
+      if (returningMovementId === null) {
+        setMovementToReturn(null)
+        setReturnAllocations([])
+      }
     },
     submitReturnMovement,
     updateFormField,

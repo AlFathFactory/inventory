@@ -38,6 +38,12 @@ export function getOperationsDisplayDates(
     ? lastDayOfMonth
     : Math.min(5, endDay)
 
+  if (rangeMode === 'full-month') {
+    return Array.from({ length: numberOfDays }, (_, index) =>
+      toLocalDateValue(new Date(year, month - 1, index + 1)),
+    )
+  }
+
   return Array.from({ length: numberOfDays }, (_, index) =>
     toLocalDateValue(new Date(year, month - 1, endDay - index)),
   )
