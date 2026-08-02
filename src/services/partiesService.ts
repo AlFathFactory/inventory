@@ -1,4 +1,5 @@
 import { getSupabaseConfigError, isSupabaseConfigured, supabaseClient } from '../lib/supabaseClient'
+import { matchesAnySearchValue, normalizeSearchTerm } from '../utils/searchUtils'
 
 export type Employee = {
   id: string
@@ -42,17 +43,29 @@ export function normalizePartyName(value: string) {
   return value.trim().replace(/\s+/g, ' ')
 }
 
+export function filterPartiesForSearch(
+  kind: PartyKind,
+  parties: Party[],
+  search: string,
+) {
+  const normalizedSearchTerm = normalizeSearchTerm(normalizePartyName(search))
+  return parties.filter((party) => matchesAnySearchValue(
+    kind === 'employee'
+      ? [party.name, party.employee_code, party.department, party.phone]
+      : [party.name, party.supplier_code, party.contact_person, party.phone],
+    normalizedSearchTerm,
+  ))
+}
+
 export async function searchActiveParties(kind: PartyKind, search = ''): Promise<Party[]> {
-  const term = normalizePartyName(search).replace(/[%_,()]/g, ' ')
-  let query = client().from(kind === 'employee' ? 'employees' : 'suppliers').select('*').eq('is_active', true)
-  if (term) {
-    query = kind === 'employee'
-      ? query.or(`name.ilike.%${term}%,employee_code.ilike.%${term}%,department.ilike.%${term}%,phone.ilike.%${term}%`)
-      : query.or(`name.ilike.%${term}%,supplier_code.ilike.%${term}%,contact_person.ilike.%${term}%,phone.ilike.%${term}%`)
-  }
-  const { data, error } = await query.order('name').limit(20)
+  const { data, error } = await client()
+    .from(kind === 'employee' ? 'employees' : 'suppliers')
+    .select('*')
+    .eq('is_active', true)
+    .order('name')
+    .limit(1000)
   if (error) throw new Error(error.message)
-  return (data ?? []) as Party[]
+  return filterPartiesForSearch(kind, (data ?? []) as Party[], search).slice(0, 20)
 }
 
 export async function getPartySummaries(kind: PartyKind): Promise<Party[]> {

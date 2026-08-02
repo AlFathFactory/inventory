@@ -7,6 +7,8 @@ import {
 } from '../services/partiesService'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 import { reportKeys } from '../features/reports/reportQueries'
+import { usePagination } from '../hooks/usePagination'
+import { TablePagination } from '../components/TablePagination'
 
 const number = (row: Party, ...keys: string[]) => Number(keys.map((key) => row[key]).find((value) => value != null) ?? 0)
 const text = (row: Party, ...keys: string[]) => String(keys.map((key) => row[key]).find((value) => value != null && value !== '') ?? '—')
@@ -204,6 +206,7 @@ export function PartiesPage() {
   const rows = useMemo(() => (query.data ?? []).filter((party) =>
     [party.name, party.employee_code, party.supplier_code, party.department, party.contact_person, party.phone]
       .some((value) => String(value ?? '').toLocaleLowerCase('ar').includes(search.trim().toLocaleLowerCase('ar')))), [query.data, search])
+  const pagination = usePagination(rows, { initialPageSize: 10 })
 
   async function persist(values: Record<string, string>) {
     setSaving(true)
@@ -238,16 +241,16 @@ export function PartiesPage() {
       <div className="mt-6 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
           <div className="flex rounded-2xl bg-slate-100 p-1">
-            {(['employee', 'supplier'] as PartyKind[]).map((value) => <button key={value} onClick={() => { setKind(value); setSearch('') }} className={`rounded-xl px-6 py-2 font-bold ${kind === value ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>{value === 'employee' ? 'الموظفين' : 'الموردين'}</button>)}
+            {(['employee', 'supplier'] as PartyKind[]).map((value) => <button key={value} onClick={() => { setKind(value); setSearch(''); pagination.setCurrentPage(1) }} className={`rounded-xl px-6 py-2 font-bold ${kind === value ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}>{value === 'employee' ? 'الموظفين' : 'الموردين'}</button>)}
           </div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث..." className="rounded-2xl border border-slate-200 px-4 py-2.5 sm:w-80" />
+          <input value={search} onChange={(e) => { setSearch(e.target.value); pagination.setCurrentPage(1) }} placeholder="بحث..." className="rounded-2xl border border-slate-200 px-4 py-2.5 sm:w-80" />
         </div>
         <div className="mt-5 grid gap-3 md:hidden">
           {query.isPending ? <div className="h-52 animate-pulse rounded-2xl bg-slate-100" /> : null}
           {query.isError ? <p className="rounded-xl bg-red-50 p-4 text-red-700">{query.error.message}</p> : null}
           {!query.isPending && !query.isError && rows.length === 0 ? <p className="rounded-2xl bg-slate-50 p-10 text-center text-slate-500">لا توجد نتائج</p> : null}
-          {!query.isPending && !query.isError ? rows.map((party) => (
-            <article key={party.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
+          {!query.isPending && !query.isError ? pagination.paginatedItems.map((party) => (
+            <article key={party.id} role="button" tabIndex={0} onClick={() => setSelected(party)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(party) } }} className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition hover:border-blue-200 hover:bg-blue-50/30 focus:outline-none focus:ring-2 focus:ring-blue-400">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-lg font-bold text-blue-700">
@@ -286,9 +289,9 @@ export function PartiesPage() {
                 ))}
               </div>
               <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
-                <button disabled={saving} onClick={() => setSelected(party)} className="flex-1 rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 disabled:opacity-50">التفاصيل</button>
-                <button disabled={saving} onClick={() => setEditing(party)} className="flex-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-50">تعديل</button>
-                <button disabled={saving} onClick={() => void toggle(party)} className="flex-1 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 disabled:opacity-50">{party.is_active ? 'تعطيل' : 'تفعيل'}</button>
+                <button disabled={saving} onClick={(event) => { event.stopPropagation(); setSelected(party) }} className="flex-1 rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 disabled:opacity-50">التفاصيل</button>
+                <button disabled={saving} onClick={(event) => { event.stopPropagation(); setEditing(party) }} className="flex-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-50">تعديل</button>
+                <button disabled={saving} onClick={(event) => { event.stopPropagation(); void toggle(party) }} className="flex-1 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 disabled:opacity-50">{party.is_active ? 'تعطيل' : 'تفعيل'}</button>
               </div>
             </article>
           )) : null}
@@ -298,7 +301,7 @@ export function PartiesPage() {
             query.isError ? <p className="rounded-xl bg-red-50 p-4 text-red-700">{query.error.message}</p> :
             rows.length === 0 ? <p className="p-12 text-center text-slate-500">لا توجد نتائج</p> :
             <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-sm"><thead className="bg-slate-50"><tr className="text-slate-500">{(kind === 'employee' ? employeeColumns : supplierColumns).map((h) => <th key={h} className="border-b border-slate-200 px-4 py-3.5 text-right text-xs font-bold">{h}</th>)}</tr></thead>
-              <tbody>{rows.map((party) => <tr key={party.id} className="group transition-colors hover:bg-blue-50/40"><td className="border-b border-slate-100 px-4 py-3.5">
+              <tbody>{pagination.paginatedItems.map((party) => <tr key={party.id} tabIndex={0} onClick={() => setSelected(party)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(party) } }} className="group cursor-pointer transition-colors hover:bg-blue-50/40 focus:bg-blue-50/60 focus:outline-none"><td className="border-b border-slate-100 px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-700 group-hover:bg-blue-100">{party.name.trim().charAt(0) || '—'}</div>
                     <div><div className="font-bold text-slate-900">{party.name}</div><div className="mt-0.5 text-[11px] text-slate-400">#{party.id.slice(0, 8)}</div></div>
@@ -309,9 +312,23 @@ export function PartiesPage() {
                 <td className="border-b border-slate-100 px-4 py-3.5"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${party.is_active ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'}`}><span className={`h-1.5 w-1.5 rounded-full ${party.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`} />{party.is_active ? 'نشط' : 'غير نشط'}</span></td>
                 {kind === 'employee' ? <><td className="border-b border-slate-100 px-4 py-3.5 font-semibold"><div>{number(party, 'issue_movements_count')}</div>{number(party, 'pending_distribution_movements_count') > 0 ? <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{number(party, 'pending_distribution_movements_count')} تحتاج توزيع</span> : null}</td><td className="border-b border-slate-100 px-4 py-3.5 font-semibold text-blue-700">{number(party, 'total_issued_quantity')}</td><td className="border-b border-slate-100 px-4 py-3.5 font-semibold text-emerald-700">{number(party, 'total_returned_quantity')}</td><td className="border-b border-slate-100 px-4 py-3.5"><span className="rounded-lg bg-amber-50 px-2 py-1 font-bold text-amber-700">{number(party, 'net_issued_quantity')}</span></td><td className="whitespace-nowrap border-b border-slate-100 px-4 py-3.5 text-slate-500">{date(party.last_issue_date)}</td></>
                   : <><td className="border-b border-slate-100 px-4 py-3.5 font-semibold">{number(party, 'addition_movements_count')}</td><td className="border-b border-slate-100 px-4 py-3.5 font-semibold text-blue-700">{number(party, 'total_supplied_quantity')}</td><td className="whitespace-nowrap border-b border-slate-100 px-4 py-3.5 text-slate-500">{date(party.last_addition_date)}</td></>}
-                <td className="border-b border-slate-100 px-4 py-3.5"><div className="flex items-center gap-1.5"><button disabled={saving} onClick={() => setSelected(party)} className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50">تفاصيل</button><button disabled={saving} onClick={() => setEditing(party)} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50">تعديل</button><button disabled={saving} onClick={() => void toggle(party)} className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50">{party.is_active ? 'تعطيل' : 'تفعيل'}</button></div></td>
+                <td className="border-b border-slate-100 px-4 py-3.5"><div className="flex items-center gap-1.5"><button disabled={saving} onClick={(event) => { event.stopPropagation(); setSelected(party) }} className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50">تفاصيل</button><button disabled={saving} onClick={(event) => { event.stopPropagation(); setEditing(party) }} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50">تعديل</button><button disabled={saving} onClick={(event) => { event.stopPropagation(); void toggle(party) }} className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50">{party.is_active ? 'تعطيل' : 'تفعيل'}</button></div></td>
               </tr>)}</tbody></table>}
         </div>
+        {!query.isPending && !query.isError && rows.length > 0 ? (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <TablePagination
+              currentPage={pagination.currentPage}
+              pageSize={pagination.pageSize}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+              pageStart={pagination.pageStart}
+              pageEnd={pagination.pageEnd}
+              onPageChange={pagination.setCurrentPage}
+              onPageSizeChange={pagination.setPageSize}
+            />
+          </div>
+        ) : null}
       </div>
       {editing !== undefined ? <PartyForm kind={kind} party={editing} saving={saving} onClose={() => setEditing(undefined)} onSave={(values) => void persist(values)} /> : null}
       {selected ? <Details kind={kind} party={selected} onClose={() => setSelected(null)} /> : null}
