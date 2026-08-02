@@ -170,9 +170,14 @@ type MultiEmployeeProps = {
 }
 
 export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: MultiEmployeeProps) {
+  const queryClient = useQueryClient()
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [form, setForm] = useState({ name: '', code: '', department: '', phone: '', notes: '' })
   const container = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -194,6 +199,38 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
   })
   const selectedIds = new Set(selected.map((employee) => employee.id))
   const options = (query.data ?? []).filter((employee) => !selectedIds.has(employee.id))
+
+  function startCreate() {
+    setForm({ name: normalizePartyName(input), code: '', department: '', phone: '', notes: '' })
+    setCreateError('')
+    setOpen(false)
+    setCreating(true)
+  }
+
+  async function submitCreate() {
+    if (!normalizePartyName(form.name)) {
+      setCreateError('اسم الموظف مطلوب')
+      return
+    }
+    setSaving(true)
+    setCreateError('')
+    try {
+      const employee = await createParty('employee', form)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: partyKeys.list('employee') }),
+        queryClient.invalidateQueries({ queryKey: partyKeys.summary('employee') }),
+      ])
+      if (!selected.some((item) => item.id === employee.id)) {
+        onChange([...selected, employee as Employee])
+      }
+      setInput('')
+      setCreating(false)
+    } catch (cause) {
+      setCreateError(cause instanceof Error ? cause.message : 'تعذر إنشاء الموظف')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div ref={container} className="relative">
@@ -243,10 +280,40 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
               <div className="text-xs text-slate-500">{[employee.department, employee.employee_code].filter(Boolean).join(' • ')}</div>
             </button>
           ))}
+          {search ? (
+            <button
+              type="button"
+              onClick={startCreate}
+              className="mt-1 w-full rounded-xl bg-blue-50 px-3 py-2.5 text-right text-sm font-bold text-blue-700 hover:bg-blue-100"
+            >
+              إضافة موظف جديد باسم &quot;{search}&quot;
+            </button>
+          ) : null}
         </div>
       ) : null}
       {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
       <p className="mt-1 text-xs text-slate-500">لن تُنسب الكمية لأي موظف حتى يتم توزيعها لاحقًا.</p>
+      {creating ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/45 p-4" dir="rtl">
+          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900">إضافة موظف جديد</h3>
+            <p className="mt-1 text-sm text-slate-500">سيتم إنشاء الموظف وإضافته تلقائيًا إلى مستلمي حركة الصرف.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="الاسم *" className="rounded-xl border border-slate-200 p-3" />
+              <input value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} placeholder="كود الموظف" className="rounded-xl border border-slate-200 p-3" />
+              <input value={form.department} onChange={(event) => setForm({ ...form, department: event.target.value })} placeholder="القسم" className="rounded-xl border border-slate-200 p-3" />
+              <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="الهاتف" className="rounded-xl border border-slate-200 p-3" />
+            </div>
+            {createError ? <p className="mt-3 text-sm text-red-600">{createError}</p> : null}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" disabled={saving} onClick={() => setCreating(false)} className="rounded-xl border border-slate-200 px-4 py-2">إلغاء</button>
+              <button type="button" disabled={saving} onClick={() => void submitCreate()} className="rounded-xl bg-blue-600 px-5 py-2 font-bold text-white disabled:opacity-50">
+                {saving ? 'جارٍ الحفظ...' : 'تأكيد وإضافة للمستلمين'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
