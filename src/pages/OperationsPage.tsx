@@ -9,6 +9,7 @@ import {
 } from '../config/categoryConfig'
 import { SearchInput } from '../components/SearchInput'
 import { TablePagination } from '../components/TablePagination'
+import { ToastOnChange } from '../components/ToastProvider'
 import { ItemSelectionModal } from '../features/item-creation/ItemSelectionModal'
 import { ItemCreateModal } from '../features/item-creation/ItemCreateModal'
 import { InventoryOperationModal } from '../features/inventory-operations/InventoryOperationModal'
@@ -323,6 +324,8 @@ export function OperationsPage() {
 
   return (
     <section dir="rtl" className="space-y-5">
+      <ToastOnChange message={message?.text ?? null} type={message?.type} />
+
       <div className="rounded-[26px] border border-[var(--app-border)] bg-white p-5 shadow-[var(--app-shadow)] sm:p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -358,18 +361,6 @@ export function OperationsPage() {
           {queryError}
         </div>
       ) : null}
-      {message ? (
-        <div className={[
-          'flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm',
-          message.type === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-            : 'border-red-200 bg-red-50 text-red-700',
-        ].join(' ')}>
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="rounded-lg px-2 py-1 font-bold hover:bg-black/5" aria-label="إغلاق الرسالة">×</button>
-        </div>
-      ) : null}
-
       <div className="grid gap-4 sm:grid-cols-3">
         <SummaryCard
           label="إجمالي الإضافة"
