@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   categoryConfig,
   categoryEntries,
@@ -27,7 +27,6 @@ import {
   getMonthValue,
   getOperationsDisplayDates,
   type MatrixOperationType,
-  type OperationsRangeMode,
 } from '../features/operations/operationsMatrix'
 import { useSearchParamsPagination } from '../hooks/useSearchParamsPagination'
 import { getItemDetailsRoute } from '../features/items/itemRoutes'
@@ -152,12 +151,13 @@ export function OperationsPage() {
   const currentMonth = getMonthValue(todayValue)
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   const dashboard = useDashboardData()
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
-  const [rangeMode, setRangeMode] = useState<OperationsRangeMode>('five-days')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const selectedMonth = searchParams.get('month') ?? currentMonth
+  const showAllRows = searchParams.get('showAll') === '1'
+  const searchTerm = searchParams.get('search') ?? ''
+  const categoryFilter = searchParams.get('category') ?? ''
   const [actionFlow, setActionFlow] = useState<ActionFlow>(null)
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey | null>(null)
   const [message, setMessage] = useState<CategoryMessage>(null)
@@ -180,18 +180,12 @@ export function OperationsPage() {
   const { open: openCreate } = creation
 
   const dates = useMemo(
-    () => getOperationsDisplayDates(selectedMonth, rangeMode, todayValue),
-    [rangeMode, selectedMonth, todayValue],
+    () => getOperationsDisplayDates(selectedMonth),
+    [selectedMonth],
   )
-  const rangeLabel = rangeMode === 'full-month'
-    ? 'الشهر بالكامل'
-    : 'آخر 5 أيام'
-  const rangeStart = (
-    rangeMode === 'full-month' ? dates[0] : dates.at(-1)
-  ) ?? todayValue
-  const rangeEnd = (
-    rangeMode === 'full-month' ? dates.at(-1) : dates[0]
-  ) ?? todayValue
+  const rangeLabel = 'الشهر بالكامل'
+  const rangeStart = dates[0] ?? todayValue
+  const rangeEnd = dates.at(-1) ?? todayValue
   const movementsQuery = useQuery({
     queryKey: [...matrixQueryKey, rangeStart, rangeEnd],
     queryFn: () => getInventoryOperationsForDateRange(rangeStart, rangeEnd),
@@ -215,8 +209,6 @@ export function OperationsPage() {
     [categoryFilter, normalizedSearch, operationRows],
   )
   const pagination = useSearchParamsPagination(filteredRows, { initialPageSize: 20 })
-  const { setCurrentPage } = pagination
-  const previousPaginationFilters = useRef({ categoryFilter, searchTerm })
   const itemOptions = useMemo(
     () => operationRows.map(toSummaryItem),
     [operationRows],
@@ -243,16 +235,6 @@ export function OperationsPage() {
       { added: 0, issued: 0, count: 0 },
     )
   }, [filteredRows, movements])
-
-  useEffect(() => {
-    const previousFilters = previousPaginationFilters.current
-    if (
-      previousFilters.categoryFilter === categoryFilter &&
-      previousFilters.searchTerm === searchTerm
-    ) return
-    previousPaginationFilters.current = { categoryFilter, searchTerm }
-    setCurrentPage(1)
-  }, [categoryFilter, searchTerm, setCurrentPage])
 
   useEffect(() => {
     if (
@@ -315,6 +297,24 @@ export function OperationsPage() {
     setPendingCreate({ requestId, categoryKey })
   }
 
+  function updateFilter(
+    name: 'search' | 'category' | 'month' | 'showAll',
+    value: string,
+  ) {
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams)
+      const isDefaultValue =
+        value === '' ||
+        (name === 'month' && value === currentMonth) ||
+        (name === 'showAll' && value !== '1')
+
+      nextParams.delete('page')
+      if (isDefaultValue) nextParams.delete(name)
+      else nextParams.set(name, value)
+      return nextParams
+    }, { replace: true })
+  }
+
   const configError = !isSupabaseConfigured ? getSupabaseConfigError() : null
   const queryError = dashboard.error || (
     movementsQuery.error instanceof Error ? movementsQuery.error.message : null
@@ -331,7 +331,7 @@ export function OperationsPage() {
             </div>
             <h2 className="mt-3 text-2xl font-bold text-slate-900">حركات الصرف والإضافة</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-              اختر الشهر وعدد الأيام، ثم اضغط على أي خلية لتنفيذ الحركة على الصنف والتاريخ المحددين.
+              اختر الشهر، ثم اضغط على أي خلية لتنفيذ الحركة على الصنف والتاريخ المحددين.
             </p>
           </div>
 
@@ -398,7 +398,7 @@ export function OperationsPage() {
               <span className="block text-xs font-bold text-slate-600">بحث سريع</span>
               <SearchInput
                 value={searchTerm}
-                onValueChange={setSearchTerm}
+                onValueChange={(value) => updateFilter('search', value)}
                 placeholder="ابحث باسم الصنف أو الكود أو القسم..."
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
               />
@@ -408,7 +408,7 @@ export function OperationsPage() {
               <span className="block text-xs font-bold text-slate-600">نوع المخزن</span>
               <select
                 value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
+                onChange={(event) => updateFilter('category', event.target.value)}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-500"
               >
                 <option value="">كل الأنواع</option>
@@ -426,34 +426,23 @@ export function OperationsPage() {
                 type="month"
                 value={selectedMonth}
                 max={currentMonth}
-                onChange={(event) => setSelectedMonth(event.target.value || currentMonth)}
+                onChange={(event) => updateFilter('month', event.target.value || currentMonth)}
                 dir="ltr"
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-500"
               />
             </label>
 
             <div className="space-y-1.5">
-              <span className="block text-xs font-bold text-slate-600">الأيام المعروضة</span>
-              <div className="flex h-11 rounded-xl bg-slate-100 p-1">
-                {([
-                  { value: 'five-days', label: '5 أيام' },
-                  { value: 'full-month', label: 'كل الشهر' },
-                ] as Array<{ value: OperationsRangeMode; label: string }>).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setRangeMode(option.value)}
-                    className={[
-                      'min-w-[88px] flex-1 rounded-lg px-3 text-sm font-bold transition',
-                      rangeMode === option.value
-                        ? 'bg-white text-blue-700 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800',
-                    ].join(' ')}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <span className="block text-xs font-bold text-slate-600">عرض الصفوف</span>
+              <label className="flex h-11 cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 transition hover:border-blue-300 hover:bg-blue-50/50">
+                <input
+                  type="checkbox"
+                  checked={showAllRows}
+                  onChange={(event) => updateFilter('showAll', event.target.checked ? '1' : '')}
+                  className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                />
+                <span className="text-sm font-bold text-slate-700">عرض الكل في صفحة واحدة</span>
+              </label>
             </div>
           </div>
 
@@ -470,10 +459,12 @@ export function OperationsPage() {
         </div>
 
         <OperationsMatrixTable
-          rows={pagination.paginatedItems}
+          rows={showAllRows ? filteredRows : pagination.paginatedItems}
           dates={dates}
           movementTotals={movementTotals}
           isLoading={isLoading}
+          virtualizeRows={showAllRows}
+          virtualizationResetKey={`${searchTerm}:${categoryFilter}`}
           onItemClick={(row) => {
             navigate(
               getItemDetailsRoute(row.categoryKey, row.itemId, 'operations'),
@@ -494,16 +485,22 @@ export function OperationsPage() {
           onOperation={(row, type, date) => beginOperation(toSummaryItem(row), type, date)}
         />
 
-        <TablePagination
-          currentPage={pagination.currentPage}
-          pageSize={pagination.pageSize}
-          totalItems={pagination.totalItems}
-          totalPages={pagination.totalPages}
-          pageStart={pagination.pageStart}
-          pageEnd={pagination.pageEnd}
-          onPageChange={pagination.setCurrentPage}
-          onPageSizeChange={pagination.setPageSize}
-        />
+        {!showAllRows ? (
+          <TablePagination
+            currentPage={pagination.currentPage}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            pageStart={pagination.pageStart}
+            pageEnd={pagination.pageEnd}
+            onPageChange={pagination.setCurrentPage}
+            onPageSizeChange={pagination.setPageSize}
+          />
+        ) : filteredRows.length > 0 ? (
+          <div className="border-t border-[var(--app-border)] bg-[var(--app-panel-soft)] px-4 py-3 text-xs font-semibold text-slate-600 sm:px-6">
+            يتم عرض {filteredRows.length.toLocaleString('en-US')} صنف بالتحميل التلقائي أثناء التمرير.
+          </div>
+        ) : null}
       </div>
 
       {operation.isPreparing ? (

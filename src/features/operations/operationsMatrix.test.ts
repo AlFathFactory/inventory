@@ -6,26 +6,19 @@ import {
 } from './operationsMatrix'
 
 describe('getOperationsDisplayDates', () => {
-  it('ends on today for the current month', () => {
-    expect(getOperationsDisplayDates('2026-07', 'five-days', '2026-07-30')).toEqual([
-      '2026-07-30',
-      '2026-07-29',
-      '2026-07-28',
-      '2026-07-27',
-      '2026-07-26',
-    ])
-  })
-
-  it('returns every calendar day for the full-month view', () => {
-    const dates = getOperationsDisplayDates(
-      '2026-06',
-      'full-month',
-      '2026-07-30',
-    )
+  it('returns every calendar day in the selected month', () => {
+    const dates = getOperationsDisplayDates('2026-06')
 
     expect(dates).toHaveLength(30)
     expect(dates[0]).toBe('2026-06-01')
     expect(dates.at(-1)).toBe('2026-06-30')
+  })
+
+  it('includes leap day when the selected month is February in a leap year', () => {
+    const dates = getOperationsDisplayDates('2028-02')
+
+    expect(dates).toHaveLength(29)
+    expect(dates.at(-1)).toBe('2028-02-29')
   })
 })
 

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { categoryConfig } from '../../config/categoryConfig'
 import type { DashboardInventoryRow } from '../dashboard/types'
 import {
@@ -10,6 +11,8 @@ type OperationsMatrixTableProps = {
   dates: string[]
   movementTotals: ReadonlyMap<string, number>
   isLoading: boolean
+  virtualizeRows?: boolean
+  virtualizationResetKey?: string
   onItemClick: (row: DashboardInventoryRow) => void
   onItemPrefetch: (row: DashboardInventoryRow) => void
   onOperation: (
@@ -22,6 +25,9 @@ type OperationsMatrixTableProps = {
 const numberFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 })
+
+const matrixRowHeight = 62
+const virtualRowOverscan = 6
 
 const weekdayFormatter = new Intl.DateTimeFormat('ar-EG', {
   weekday: 'short',
@@ -90,10 +96,93 @@ export function OperationsMatrixTable({
   dates,
   movementTotals,
   isLoading,
+  virtualizeRows = false,
+  virtualizationResetKey = '',
   onItemClick,
   onItemPrefetch,
   onOperation,
 }: OperationsMatrixTableProps) {
+  const scrollContainer = useRef<HTMLDivElement>(null)
+  const scrollFrame = useRef<number | null>(null)
+  const pendingScrollPosition = useRef({ scrollTop: 0, viewportHeight: 640 })
+  const [scrollPosition, setScrollPosition] = useState(
+    pendingScrollPosition.current,
+  )
+
+  useEffect(() => () => {
+    if (scrollFrame.current !== null) {
+      cancelAnimationFrame(scrollFrame.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!virtualizeRows) return
+    const container = scrollContainer.current
+    if (scrollFrame.current !== null) {
+      cancelAnimationFrame(scrollFrame.current)
+      scrollFrame.current = null
+    }
+    if (container) container.scrollTop = 0
+    const initialPosition = {
+      scrollTop: 0,
+      viewportHeight: container?.clientHeight || 640,
+    }
+    pendingScrollPosition.current = initialPosition
+    setScrollPosition(initialPosition)
+  }, [virtualizationResetKey, virtualizeRows])
+
+  const virtualRange = useMemo(() => {
+    if (!virtualizeRows) {
+      return { start: 0, end: rows.length }
+    }
+
+    const visibleStart = Math.floor(scrollPosition.scrollTop / matrixRowHeight)
+    const visibleRowCount = Math.ceil(
+      scrollPosition.viewportHeight / matrixRowHeight,
+    )
+    const start = Math.min(
+      Math.max(0, visibleStart - virtualRowOverscan),
+      Math.max(0, rows.length - visibleRowCount),
+    )
+    const end = Math.min(
+      rows.length,
+      visibleStart + visibleRowCount + virtualRowOverscan,
+    )
+    return { start, end }
+  }, [rows.length, scrollPosition, virtualizeRows])
+
+  const renderedRows = virtualizeRows
+    ? rows.slice(virtualRange.start, virtualRange.end)
+    : rows
+  const topSpacerHeight = virtualizeRows
+    ? virtualRange.start * matrixRowHeight
+    : 0
+  const bottomSpacerHeight = virtualizeRows
+    ? (rows.length - virtualRange.end) * matrixRowHeight
+    : 0
+
+  function handleScroll(event: React.UIEvent<HTMLDivElement>) {
+    if (!virtualizeRows) return
+    const nextPosition = {
+      scrollTop:
+        Math.floor(event.currentTarget.scrollTop / matrixRowHeight) *
+        matrixRowHeight,
+      viewportHeight: event.currentTarget.clientHeight,
+    }
+    if (
+      pendingScrollPosition.current.scrollTop === nextPosition.scrollTop &&
+      pendingScrollPosition.current.viewportHeight === nextPosition.viewportHeight
+    ) return
+
+    pendingScrollPosition.current = nextPosition
+    if (scrollFrame.current !== null) return
+
+    scrollFrame.current = requestAnimationFrame(() => {
+      setScrollPosition(pendingScrollPosition.current)
+      scrollFrame.current = null
+    })
+  }
+
   if (!isLoading && rows.length === 0) {
     return (
       <div className="px-6 py-14 text-center">
@@ -105,7 +194,11 @@ export function OperationsMatrixTable({
   }
 
   return (
-    <div className="relative max-h-[64vh] overflow-auto">
+    <div
+      ref={scrollContainer}
+      className="relative max-h-[64vh] overflow-auto"
+      onScroll={handleScroll}
+    >
       {isLoading ? (
         <div className="absolute inset-0 z-40 flex min-h-80 items-center justify-center bg-white/70 backdrop-blur-sm">
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg">
@@ -166,8 +259,18 @@ export function OperationsMatrixTable({
         </thead>
 
         <tbody>
-          {rows.map((row, index) => {
+          {topSpacerHeight > 0 ? (
+            <tr aria-hidden="true">
+              <td
+                colSpan={2 + dates.length * 2}
+                className="border-0 p-0"
+                style={{ height: `${topSpacerHeight}px` }}
+              />
+            </tr>
+          ) : null}
+          {renderedRows.map((row, index) => {
             const tableName = categoryConfig[row.categoryKey].table
+            const rowNumber = virtualRange.start + index + 1
             return (
               <tr key={row.id} className="group">
                 <td className="sticky right-0 z-20 w-[270px] border-b border-l border-slate-200 bg-white p-1.5 text-right group-hover:bg-slate-50">
@@ -180,7 +283,7 @@ export function OperationsMatrixTable({
                     className="flex w-full min-w-0 items-start gap-3 rounded-xl px-2.5 py-1.5 text-right transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <span className="mt-0.5 flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-100 px-1 text-[11px] font-bold text-slate-500">
-                      {index + 1}
+                      {rowNumber}
                     </span>
                     <span className="min-w-0 flex-1">
                       <strong className="block truncate font-bold text-slate-900 underline-offset-4 hover:text-blue-700 hover:underline">{row.itemName}</strong>
@@ -227,6 +330,15 @@ export function OperationsMatrixTable({
               </tr>
             )
           })}
+          {bottomSpacerHeight > 0 ? (
+            <tr aria-hidden="true">
+              <td
+                colSpan={2 + dates.length * 2}
+                className="border-0 p-0"
+                style={{ height: `${bottomSpacerHeight}px` }}
+              />
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

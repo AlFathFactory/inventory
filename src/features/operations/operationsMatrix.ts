@@ -1,12 +1,6 @@
 import type { InventoryOperationsGridMovement } from '../../services/operationsService'
 
-export type OperationsRangeMode = 'five-days' | 'full-month'
 export type MatrixOperationType = 'add' | 'issue'
-
-function parseLocalDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
 
 function toLocalDateValue(date: Date) {
   const year = date.getFullYear()
@@ -21,31 +15,13 @@ export function getMonthValue(dateValue: string) {
 
 export function getOperationsDisplayDates(
   monthValue: string,
-  rangeMode: OperationsRangeMode,
-  todayValue: string,
 ) {
   const [year, month] = monthValue.split('-').map(Number)
   if (!year || !month || month < 1 || month > 12) return []
 
   const lastDayOfMonth = new Date(year, month, 0).getDate()
-  const todayMonth = getMonthValue(todayValue)
-  const endDay = rangeMode === 'full-month'
-    ? lastDayOfMonth
-    : monthValue === todayMonth
-      ? Math.min(parseLocalDate(todayValue).getDate(), lastDayOfMonth)
-      : lastDayOfMonth
-  const numberOfDays = rangeMode === 'full-month'
-    ? lastDayOfMonth
-    : Math.min(5, endDay)
-
-  if (rangeMode === 'full-month') {
-    return Array.from({ length: numberOfDays }, (_, index) =>
-      toLocalDateValue(new Date(year, month - 1, index + 1)),
-    )
-  }
-
-  return Array.from({ length: numberOfDays }, (_, index) =>
-    toLocalDateValue(new Date(year, month - 1, endDay - index)),
+  return Array.from({ length: lastDayOfMonth }, (_, index) =>
+    toLocalDateValue(new Date(year, month - 1, index + 1)),
   )
 }
 
