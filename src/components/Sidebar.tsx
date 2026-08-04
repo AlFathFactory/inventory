@@ -256,6 +256,7 @@ const managementItems = [
 ]
 
 const inventoryItems = [
+  { label: 'تقارير', to: '/reports' },
   { label: 'جميع الأقسام', to: '/' },
   { label: 'عمليات الصرف والإضافة', to: '/operations' },
   { label: 'التنبيهات', to: '/low-stock' },

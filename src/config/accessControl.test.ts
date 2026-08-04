@@ -10,6 +10,10 @@ describe('canAccessPath', () => {
     expect(canAccessPath(['inventory'], '/operations')).toBe(true)
   })
 
+  it('allows inventory users to open the reports page', () => {
+    expect(canAccessPath(['inventory'], '/reports')).toBe(true)
+  })
+
   it('does not allow management-only users to open the data import page', () => {
     expect(canAccessPath(['management'], '/import')).toBe(false)
   })
