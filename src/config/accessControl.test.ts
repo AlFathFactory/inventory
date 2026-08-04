@@ -21,4 +21,12 @@ describe('canAccessPath', () => {
   it('allows management users to open employee and supplier management', () => {
     expect(canAccessPath(['management'], '/parties')).toBe(true)
   })
+
+  it('allows management users to open stocktake', () => {
+    expect(canAccessPath(['management'], '/stocktake')).toBe(true)
+  })
+
+  it('does not allow inventory-only users to open stocktake', () => {
+    expect(canAccessPath(['inventory'], '/stocktake')).toBe(false)
+  })
 })

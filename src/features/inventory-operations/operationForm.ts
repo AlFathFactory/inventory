@@ -82,7 +82,7 @@ export function getOperationTypeLabel(operationType: string | null) {
     case 'issue':
       return 'صرف'
     case 'adjust':
-      return 'جرد / تعديل رصيد'
+      return 'جرد'
     case 'return':
       return 'مرتجع'
     default:

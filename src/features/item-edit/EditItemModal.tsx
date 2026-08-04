@@ -38,7 +38,6 @@ const fieldsByTable: Record<string, EditField[]> = {
     { key: 'project', label: 'اسم القسم', required: true },
     { key: 'item_name', label: 'اسم الصنف', required: true },
     { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-    { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
     { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
     { key: 'notes', label: 'ملاحظات', type: 'textarea' },
   ],
@@ -46,7 +45,6 @@ const fieldsByTable: Record<string, EditField[]> = {
     { key: 'project', label: 'اسم القسم', required: true },
     { key: 'item_name', label: 'اسم الصنف', required: true },
     { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-    { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
     { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
     { key: 'expire_date', label: 'تاريخ الانتهاء', type: 'date' },
   ],
@@ -56,8 +54,6 @@ const fieldsByTable: Record<string, EditField[]> = {
   cylinders: [
     { key: 'project', label: 'القسم' },
     { key: 'type_name', label: 'نوع الاسطوانة', required: true },
-    { key: 'gas_balance', label: 'رصيد الغاز', type: 'number' },
-    { key: 'stock_balance', label: 'الرصيد المخزني', type: 'number' },
     { key: 'empty_count', label: 'فارغ', type: 'number' },
     { key: 'full_count', label: 'ملي', type: 'number' },
     { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
@@ -86,7 +82,6 @@ const screwFields: EditField[] = [
   { key: 'din', label: 'DIN' },
   { key: 'code_number', formKey: 'codeNumber', label: 'رقم الكود / Code Number' },
   { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-  { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
   { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
 ]
 
@@ -97,7 +92,6 @@ fieldsByTable.raw_materials = [
   { key: 'item_name', label: 'اسم الصنف', required: true },
   { key: 'code_number', label: 'رقم الكود' },
   { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-  { key: 'stock_balance', label: 'الرصيد الحالي', type: 'number' },
   { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
   { key: 'weight', label: 'وزن', type: 'number' },
   { key: 'length', label: 'LENGTH', type: 'number' },
@@ -143,31 +137,12 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
     [fields, itemData],
   )
   const [form, setForm] = useState<EditItemFormState>(initialForm)
-  const [adjustDate, setAdjustDate] = useState('')
-  const [adjustNotes, setAdjustNotes] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const balanceField = category.table === 'cylinders' ? 'gas_balance' : category.stockField ? 'stock_balance' : null
-  const balanceChanged = Boolean(
-    balanceField && Number(form[balanceField]) !== Number(initialForm[balanceField]),
-  )
 
   function updateField(key: string, value: string) {
-    setForm((current) => {
-      if (
-        category.table === 'cylinders' &&
-        (key === 'gas_balance' || key === 'stock_balance')
-      ) {
-        return {
-          ...current,
-          gas_balance: value,
-          stock_balance: value,
-        }
-      }
-
-      return { ...current, [key]: value }
-    })
+    setForm((current) => ({ ...current, [key]: value }))
     setErrors((current) => {
       const next = { ...current }
       delete next[key]
@@ -201,8 +176,6 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           : 'يجب إدخال تاريخ محلي صالح'
       }
     })
-    if (balanceChanged && !adjustDate) nextErrors.adjustDate = 'تاريخ التعديل مطلوب'
-    if (balanceChanged && !adjustNotes.trim()) nextErrors.adjustNotes = 'سبب تعديل الرصيد مطلوب'
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors)
       return
@@ -213,12 +186,9 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
       return [field.key, field.type === 'number' ? (value === '' ? null : Number(value)) : value || null]
     }))
     if (category.table === 'cylinders') {
-      const gasBalance = Number(form.gas_balance)
       Object.assign(patch, {
         project: form.project?.trim() || null,
         type_name: form.type_name.trim(),
-        gas_balance: gasBalance,
-        stock_balance: gasBalance,
         empty_count: form.empty_count === '' ? 0 : Number(form.empty_count),
         full_count: form.full_count === '' ? 0 : Number(form.full_count),
         min_quantity: form.min_quantity === '' ? 0 : Number(form.min_quantity),
@@ -240,7 +210,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
         payload: patch,
       })
       setIsSubmitting(false)
-      await onSuccess(balanceChanged, true)
+      await onSuccess(false, true)
       return
     }
     const result = category.table === 'cutting_discs'
@@ -262,19 +232,19 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           supplier_name: form.supplierName?.trim() || null,
         })
       : await updateItemDetails({
-      tableName: category.table,
-      itemId,
-      patch,
-      adjustDate: balanceChanged ? adjustDate : null,
-      notes: balanceChanged ? adjustNotes.trim() : null,
-      updatedBy: 'user',
+          tableName: category.table,
+          itemId,
+          patch,
+          adjustDate: null,
+          notes: null,
+          updatedBy: 'user',
         })
     setIsSubmitting(false)
     if (result.error) {
       setSubmitError(result.error)
       return
     }
-    await onSuccess(balanceChanged)
+    await onSuccess(false)
   }
 
   return (
@@ -311,12 +281,6 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
             </label>
           ))}
         </div>
-        {balanceChanged ? (
-          <div className="mt-6 grid gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 md:grid-cols-2">
-            <label className="space-y-2"><span className="block text-sm font-semibold text-slate-700">تاريخ التعديل *</span><input type="date" value={adjustDate} onChange={(e) => { setAdjustDate(e.target.value); setErrors((current) => ({ ...current, adjustDate: '' })) }} className="h-[46px] w-full rounded-2xl border border-blue-200 bg-white px-4 text-sm" />{errors.adjustDate ? <span className="text-xs text-red-600">{errors.adjustDate}</span> : null}</label>
-            <label className="space-y-2"><span className="block text-sm font-semibold text-slate-700">سبب تعديل الرصيد *</span><textarea value={adjustNotes} onChange={(e) => { setAdjustNotes(e.target.value); setErrors((current) => ({ ...current, adjustNotes: '' })) }} rows={2} className="w-full rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm" />{errors.adjustNotes ? <span className="text-xs text-red-600">{errors.adjustNotes}</span> : null}</label>
-          </div>
-        ) : null}
         {submitError ? <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div> : null}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-start"><button type="button" onClick={onClose} disabled={isSubmitting} className="h-[46px] rounded-2xl px-6 text-sm font-bold text-slate-700 hover:bg-slate-100">إلغاء</button><button type="button" onClick={() => void submit()} disabled={isSubmitting} className="h-[46px] min-w-[160px] rounded-2xl bg-[var(--app-primary)] px-6 text-sm font-bold text-white disabled:opacity-60">{isSubmitting ? 'جاري الحفظ...' : 'حفظ التعديلات'}</button></div>
       </div>

@@ -134,7 +134,6 @@ export function ItemDetailsOverview({
       {!isReadOnly ? <div className="mt-6 flex flex-wrap justify-start gap-3">
         <ActionButton label="إضافة كمية" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => onOperation('add')} />
         <ActionButton label="صرف كمية" className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => onOperation('issue')} />
-        <ActionButton label="جرد / تعديل رصيد" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => onOperation('adjust')} />
         <ActionButton label="تعديل الصنف" className="border border-[var(--app-border)] bg-white text-slate-700 hover:bg-slate-50" onClick={onEdit} />
       </div> : null}
     </div>

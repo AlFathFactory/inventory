@@ -72,7 +72,6 @@ export function CategoryActionsDropdown({
     { label: 'تعديل الصنف', className: 'text-violet-700 hover:bg-violet-50', onClick: onEdit },
     { label: 'صرف', className: 'text-orange-700 hover:bg-orange-50', onClick: () => onOperation('issue') },
     { label: 'إضافة', className: 'text-emerald-700 hover:bg-emerald-50', onClick: () => onOperation('add') },
-    { label: 'جرد', className: 'text-blue-700 hover:bg-blue-50', onClick: () => onOperation('adjust') },
     { label: 'حذف', className: 'text-red-700 hover:bg-red-50', onClick: onDelete },
   ]
 

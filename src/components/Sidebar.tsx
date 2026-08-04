@@ -217,6 +217,8 @@ function getSidebarIcon(path: string) {
       return <ReportIcon className={iconClassName} />
     case '/operations':
       return <OperationsIcon className={iconClassName} />
+    case '/stocktake':
+      return <OperationsIcon className={iconClassName} />
     case '/import':
       return <UploadIcon className={iconClassName} />
     case '/low-stock':
@@ -250,6 +252,7 @@ function getSidebarIcon(path: string) {
 
 const managementItems = [
   { label: 'لوحة التحكم', to: '/' },
+  { label: 'جرد', to: '/stocktake' },
   { label: 'تقارير', to: '/reports' },
   { label: 'التنبيهات', to: '/low-stock' },
   { label: 'الموظفين والموردين', to: '/parties' },

@@ -18,7 +18,7 @@ export const accessUsers: AccessUser[] = [
 ]
 
 const sharedPaths = ['/item-code-guide']
-const managementPaths = ['/', '/reports', '/low-stock', '/parties']
+const managementPaths = ['/', '/reports', '/low-stock', '/parties', '/stocktake']
 const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/projects', '/operations', '/sync-center']
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
 

@@ -298,7 +298,6 @@ function buildCategoryTableColumns({
             <>
               <CategoryOperationButton label="صرف" color="orange" onClick={() => onOperation(row, 'issue')} />
               <CategoryOperationButton label="إضافة" color="emerald" onClick={() => onOperation(row, 'add')} />
-              <CategoryOperationButton label="جرد" color="blue" onClick={() => onOperation(row, 'adjust')} />
             </>
           ) : null}
           <button
