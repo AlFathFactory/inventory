@@ -97,13 +97,6 @@ function buildCategoryTableColumns({
         renderCell: (row) => getDisplayValue(row.type_name),
       },
       {
-        id: 'supplier_name',
-        header: 'اسم المورد',
-        headerClassName: 'hidden px-4 py-3 text-slate-700 lg:table-cell',
-        cellClassName: 'hidden whitespace-nowrap px-4 py-3 text-slate-600 lg:table-cell',
-        renderCell: (row) => getDisplayValue(row.supplier_name),
-      },
-      {
         id: 'received_by',
         header: 'المستلم',
         renderCell: (row) => getDisplayValue(row.received_by),
@@ -207,13 +200,6 @@ function buildCategoryTableColumns({
       cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
       renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name ?? row.project),
     },
-    {
-      id: 'supplier_name',
-      header: 'اسم المورد',
-      headerClassName: 'hidden px-4 py-3 text-slate-700 lg:table-cell',
-      cellClassName: 'hidden whitespace-nowrap px-4 py-3 text-slate-600 lg:table-cell',
-      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.supplier_name),
-    },
     ...(category.table === 'screws' || category.table === 'stock_screws' ? [
       {
         id: 'din',
@@ -311,7 +297,7 @@ function buildCategoryTableColumns({
       ),
     },
   ].filter((column) => (
-    category.table !== 'raw_materials' || !['internal_code', 'supplier_name'].includes(column.id)
+    category.table !== 'raw_materials' || column.id !== 'internal_code'
   )).map((column) => ({
     headerClassName: 'px-4 py-3 text-slate-700',
     cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
