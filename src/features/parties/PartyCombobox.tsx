@@ -11,10 +11,19 @@ type Props = {
   selectedName?: string
   disabled?: boolean
   error?: string
+  onInputChange?: (value: string) => void
   onSelect: (party: Party) => void
 }
 
-export function PartyCombobox({ kind, selectedId, selectedName = '', disabled, error, onSelect }: Props) {
+export function PartyCombobox({
+  kind,
+  selectedId,
+  selectedName = '',
+  disabled,
+  error,
+  onInputChange,
+  onSelect,
+}: Props) {
   const queryClient = useQueryClient()
   const [input, setInput] = useState(selectedName)
   const [search, setSearch] = useState('')
@@ -87,7 +96,11 @@ export function PartyCombobox({ kind, selectedId, selectedName = '', disabled, e
           role="combobox" aria-expanded={open} aria-autocomplete="list"
           value={input} disabled={disabled}
           onFocus={() => setOpen(true)}
-          onChange={(event) => { setInput(event.target.value); setOpen(true) }}
+          onChange={(event) => {
+            setInput(event.target.value)
+            setOpen(true)
+            onInputChange?.(event.target.value)
+          }}
           onKeyDown={(event) => {
             const max = options.length + (search ? 1 : 0)
             if (event.key === 'ArrowDown') { event.preventDefault(); setActiveIndex((value) => Math.min(value + 1, max - 1)) }

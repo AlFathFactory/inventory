@@ -6,6 +6,7 @@ import { updateLongWeldingGlove } from '../../services/longWeldingGlovesService'
 import { updateCuttingDisc } from '../../services/cuttingDiscsService'
 import { useActiveProjects } from '../projects/projectQueries'
 import { saveOfflineOperation } from '../../services/offlineQueueService'
+import { PartyCombobox } from '../parties/PartyCombobox'
 
 type EditField = {
   key: string
@@ -16,6 +17,7 @@ type EditField = {
 }
 
 type EditItemFormState = Record<string, string> & {
+  supplierId?: string
   supplierName?: string
 }
 
@@ -130,10 +132,13 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
   const projectsQuery = useActiveProjects(hasProjectField)
   const activeProjects = projectsQuery.data ?? []
   const initialForm = useMemo(
-    () => Object.fromEntries(fields.map((field) => [
-      field.formKey ?? field.key,
-      initialValue(itemData, field.key),
-    ])),
+    () => ({
+      ...Object.fromEntries(fields.map((field) => [
+        field.formKey ?? field.key,
+        initialValue(itemData, field.key),
+      ])),
+      supplierId: '',
+    }),
     [fields, itemData],
   )
   const [form, setForm] = useState<EditItemFormState>(initialForm)
@@ -176,6 +181,11 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
           : 'يجب إدخال تاريخ محلي صالح'
       }
     })
+    const supplierName = form.supplierName?.trim() ?? ''
+    const initialSupplierName = initialValue(itemData, 'supplier_name').trim()
+    if (supplierName && supplierName !== initialSupplierName && !form.supplierId?.trim()) {
+      nextErrors.supplierName = 'اختر المورد من القائمة أو أضفه كمورد جديد'
+    }
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors)
       return
@@ -267,6 +277,22 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
                   </select>
                   <Link to="/projects" className="inline-flex text-xs font-bold text-[var(--app-primary)] hover:underline">+ إضافة سجل جديد</Link>
                 </>
+              ) : field.key === 'supplier_name' ? (
+                <PartyCombobox
+                  kind="supplier"
+                  selectedId={form.supplierId}
+                  selectedName={form.supplierName}
+                  disabled={isSubmitting}
+                  error={errors.supplierName}
+                  onInputChange={(value) => {
+                    updateField('supplierId', '')
+                    updateField('supplierName', value)
+                  }}
+                  onSelect={(party) => {
+                    updateField('supplierId', party.id)
+                    updateField('supplierName', party.name)
+                  }}
+                />
               ) : field.type === 'textarea' ? (
                 <textarea value={form[field.formKey ?? field.key] ?? ''} onChange={(e) => updateField(field.formKey ?? field.key, e.target.value)} rows={3} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--app-primary)]" />
               ) : (
@@ -275,9 +301,9 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
                   if (!integerQuantityFields.has(field.key) || /^\d*$/.test(value)) {
                     updateField(field.formKey ?? field.key, value)
                   }
-                }} placeholder={field.key === 'supplier_name' ? 'اكتب اسم المورد إن وجد' : undefined} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
+                }} className="h-[46px] w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 text-sm outline-none focus:border-[var(--app-primary)]" />
               )}
-              {errors[field.formKey ?? field.key] ? <span className="block text-xs text-red-600">{errors[field.formKey ?? field.key]}</span> : null}
+              {field.key !== 'supplier_name' && errors[field.formKey ?? field.key] ? <span className="block text-xs text-red-600">{errors[field.formKey ?? field.key]}</span> : null}
             </label>
           ))}
         </div>

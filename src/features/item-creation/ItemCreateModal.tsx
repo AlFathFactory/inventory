@@ -2,6 +2,7 @@ import type { CategoryDefinition } from '../../config/categoryConfig'
 import type { ItemCreateFormState } from './itemCreateForm'
 import { Link } from 'react-router-dom'
 import { useActiveProjects } from '../projects/projectQueries'
+import { PartyCombobox } from '../parties/PartyCombobox'
 
 type ItemCreateModalProps = {
   category: CategoryDefinition
@@ -156,17 +157,21 @@ export function ItemCreateModal({
           <h4 className="text-right text-base font-bold text-slate-900">بيانات المورد</h4>
           <label className="mt-4 block space-y-2 text-right">
             <span className="block text-sm font-semibold text-slate-700">اسم المورد</span>
-            <input
-              type="text"
-              name="supplierName"
-              value={form.supplierName ?? ''}
-              onChange={(event) => onFieldChange('supplierName', event.target.value)}
-              className={fieldClassName(Boolean(formErrors.supplierName))}
-              placeholder="اكتب اسم المورد إن وجد"
+            <PartyCombobox
+              kind="supplier"
+              selectedId={form.supplierId}
+              selectedName={form.supplierName}
+              disabled={isSubmitting}
+              error={formErrors.supplierName}
+              onInputChange={(value) => {
+                onFieldChange('supplierId', '')
+                onFieldChange('supplierName', value)
+              }}
+              onSelect={(party) => {
+                onFieldChange('supplierId', party.id)
+                onFieldChange('supplierName', party.name)
+              }}
             />
-            {formErrors.supplierName ? (
-              <p className="text-xs text-red-600">{formErrors.supplierName}</p>
-            ) : null}
           </label>
         </section>
 

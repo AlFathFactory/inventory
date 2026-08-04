@@ -1,6 +1,7 @@
 import type { CategoryDefinition } from '../../config/categoryConfig'
 
 export type ItemCreateFormState = Record<string, string> & {
+  supplierId?: string
   supplierName?: string
 }
 
@@ -11,6 +12,7 @@ export function createInitialItemCreateFormState(category: CategoryDefinition) {
     nextState[field.formKey ?? String(field.key)] = ''
   })
 
+  nextState.supplierId = ''
   nextState.supplierName = ''
 
   return nextState
@@ -58,6 +60,10 @@ export function validateItemCreateForm(
       }
     }
   })
+
+  if (form.supplierName?.trim() && !form.supplierId?.trim()) {
+    errors.supplierName = 'اختر المورد من القائمة أو أضفه كمورد جديد'
+  }
 
   return {
     isValid: Object.keys(errors).length === 0,
