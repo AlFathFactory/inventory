@@ -32,6 +32,7 @@ export function useDashboardData() {
     queryKey: inventoryKeys.dashboard(),
     queryFn: isSupabaseConfigured ? getDashboardData : async () => emptyData,
     placeholderData: emptyData,
+    staleTime: 5 * 60_000,
   })
 
   return {

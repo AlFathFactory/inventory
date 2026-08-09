@@ -1,9 +1,14 @@
 export function normalizeSearchTerm(value: string): string {
   return value
     .trim()
-    .toLocaleLowerCase()
+    .toLocaleLowerCase('ar')
+    .normalize('NFKD')
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
     .replaceAll('ة', 'ه')
     .replaceAll('ى', 'ي')
+    .replaceAll('ـ', '')
+    .replace(/\s+/g, ' ')
 }
 
 export function includesSearchTerm(

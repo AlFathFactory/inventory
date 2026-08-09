@@ -28,6 +28,7 @@ export type ApplyInventoryOperationParams = {
   issuedTo?: string
   employeeId?: string | null
   employeeIds?: string[]
+  employeeSelections?: Array<{ id: string; name: string }>
   receivedBy?: string
   notes?: string
   createdBy?: string
@@ -390,10 +391,8 @@ export async function applyInventoryOperation(
   }
 
   if (!navigator.onLine) {
-    if (params.operationType === 'issue' || params.operationType === 'add') {
-      throw new Error('يلزم الاتصال بالإنترنت لاختيار الموظف أو المورد وحفظ الحركة المرتبطة')
-    }
     await saveOfflineOperation({
+      requestId,
       tableName: params.tableName,
       itemId: params.localItemId ? null : params.itemId,
       localItemId: params.localItemId,
@@ -405,8 +404,12 @@ export async function applyInventoryOperation(
         categoryName: params.categoryName ?? null,
         itemName: params.itemName,
         supplierName: params.supplierName ?? null,
+        supplierId: params.supplierId ?? null,
         purchaseOrderNumber: params.purchaseOrderNumber ?? null,
-        issuedTo: params.issuedTo ?? null,
+        issuedTo: params.issuedTo ?? params.employeeSelections?.map((employee) => employee.name).join('، ') ?? null,
+        employeeId: params.employeeId ?? null,
+        employeeIds: params.employeeIds ?? null,
+        employees: params.employeeSelections ?? null,
         receivedBy: params.receivedBy ?? null,
         itemCode: params.itemCode ?? null,
         notes: params.notes ?? null,

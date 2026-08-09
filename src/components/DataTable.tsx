@@ -1,4 +1,5 @@
-import type { Key, ReactNode } from 'react'
+import { useEffect, useMemo, type Key, type ReactNode } from 'react'
+import { createDelayedAction } from '../utils/delayedAction'
 
 type DataTableColumn<Row> = {
   id: string
@@ -20,6 +21,7 @@ type DataTableProps<Row> = {
   rowClassName?: string | ((row: Row, index: number) => string)
   onRowClick?: (row: Row, index: number) => void
   onRowPrefetch?: (row: Row, index: number) => void
+  prefetchDelayMs?: number
 }
 
 function joinClassNames(...values: Array<string | false | null | undefined>) {
@@ -40,7 +42,13 @@ export function DataTable<Row>({
   rowClassName,
   onRowClick,
   onRowPrefetch,
+  prefetchDelayMs = 250,
 }: DataTableProps<Row>) {
+  const delayedPrefetch = useMemo(() => createDelayedAction(
+    ([row, index]: [Row, number]) => onRowPrefetch?.(row, index),
+    prefetchDelayMs,
+  ), [onRowPrefetch, prefetchDelayMs])
+  useEffect(() => () => delayedPrefetch.dispose(), [delayedPrefetch])
   const headerCellClassName = stickyHeader
     ? 'sticky top-0 z-10 bg-[var(--app-panel-soft)]'
     : ''
@@ -84,8 +92,9 @@ export function DataTable<Row>({
             <tr
               key={getRowKey(row, index)}
               onClick={onRowClick ? () => onRowClick(row, index) : undefined}
-              onMouseEnter={onRowPrefetch ? () => onRowPrefetch(row, index) : undefined}
-              onFocus={onRowPrefetch ? () => onRowPrefetch(row, index) : undefined}
+              onMouseEnter={onRowPrefetch ? () => delayedPrefetch.schedule([row, index]) : undefined}
+              onMouseLeave={onRowPrefetch ? delayedPrefetch.cancel : undefined}
+              onFocus={onRowPrefetch ? () => delayedPrefetch.runNow([row, index]) : undefined}
               tabIndex={onRowClick ? 0 : undefined}
               onKeyDown={onRowClick ? (event) => {
                 if (event.key === 'Enter' || event.key === ' ') {

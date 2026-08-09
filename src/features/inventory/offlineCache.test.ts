@@ -13,7 +13,7 @@ const baseRow: CategorySummaryItem = {
 
 function operation(overrides: Partial<OfflineOperation>): OfflineOperation {
   return {
-    id: crypto.randomUUID(), tableName: 'consumables', itemId: '1',
+    id: crypto.randomUUID(), requestId: crypto.randomUUID(), tableName: 'consumables', itemId: '1',
     localItemId: null, operationType: 'add', quantity: 0, payload: {},
     status: 'pending', errorMessage: null, createdAt: new Date().toISOString(),
     syncedAt: null, ...overrides,
@@ -33,7 +33,7 @@ describe('projectOfflineChanges', () => {
 
   it('projects local items and edits after a refresh', () => {
     const item: OfflineItem = {
-      localId: 'local-1', serverId: null, tableName: 'consumables',
+      localId: 'local-1', requestId: 'item-request-1', serverId: null, tableName: 'consumables',
       internalCode: 'TEMP-CO-1', itemName: 'local item', project: 'project',
       materialSource: null, payload: { item_name: 'local item', stock_balance: 4 },
       status: 'pending', errorMessage: null, createdAt: new Date().toISOString(),

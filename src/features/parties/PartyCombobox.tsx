@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createParty, normalizePartyName, partyKeys, searchActiveParties,
+  createParty, normalizePartyName, partyKeys, searchAvailableParties,
   type Employee, type Party, type PartyKind,
 } from '../../services/partiesService'
+import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 
 type Props = {
   kind: PartyKind
@@ -25,6 +26,8 @@ export function PartyCombobox({
   onSelect,
 }: Props) {
   const queryClient = useQueryClient()
+  const { connectionState } = useNetworkStatus()
+  const canCreate = connectionState === 'online'
   const [input, setInput] = useState(selectedName)
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
@@ -50,9 +53,9 @@ export function PartyCombobox({
   }, [])
 
   const query = useQuery({
-    queryKey: [...partyKeys.list(kind), search],
-    queryFn: () => searchActiveParties(kind, search),
-    enabled: open && navigator.onLine,
+    queryKey: [...partyKeys.list(kind), search, connectionState],
+    queryFn: () => searchAvailableParties(kind, search),
+    enabled: open,
   })
   const options = query.data ?? []
 
@@ -63,6 +66,7 @@ export function PartyCombobox({
   }
 
   function startCreate() {
+    if (!canCreate) return
     setForm((current) => ({ ...current, name: normalizePartyName(input) }))
     setHasSimilarMatches(options.length > 0)
     setCreateError('')
@@ -102,13 +106,13 @@ export function PartyCombobox({
             onInputChange?.(event.target.value)
           }}
           onKeyDown={(event) => {
-            const max = options.length + (search ? 1 : 0)
-            if (event.key === 'ArrowDown') { event.preventDefault(); setActiveIndex((value) => Math.min(value + 1, max - 1)) }
+            const max = options.length + (search && canCreate ? 1 : 0)
+            if (event.key === 'ArrowDown') { event.preventDefault(); setActiveIndex((value) => Math.min(value + 1, Math.max(0, max - 1))) }
             if (event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex((value) => Math.max(value - 1, 0)) }
             if (event.key === 'Enter' && open) {
               event.preventDefault()
               if (activeIndex < options.length) choose(options[activeIndex])
-              else if (search) startCreate()
+              else if (search && canCreate) startCreate()
             }
             if (event.key === 'Escape') setOpen(false)
           }}
@@ -131,12 +135,13 @@ export function PartyCombobox({
                 </div>
               </button>
             ))}
-            {!query.isPending && search ? (
+            {!query.isPending && search && canCreate ? (
               <button type="button" onMouseEnter={() => setActiveIndex(options.length)} onClick={startCreate}
                 className={`w-full rounded-xl px-3 py-2 text-right font-semibold text-blue-700 ${activeIndex === options.length ? 'bg-blue-50' : ''}`}>
                 إضافة {kind === 'employee' ? 'موظف' : 'مورد'} جديد باسم &quot;{search}&quot;
               </button>
             ) : null}
+            {!query.isPending && !canCreate ? <div className="p-3 text-xs font-semibold text-amber-700">يمكن الاختيار من البيانات المحفوظة فقط. أعد الاتصال لتسجيل موظف أو مورد جديد.</div> : null}
             {!query.isPending && !search && options.length === 0 ? <div className="p-3 text-sm text-slate-500">ابدأ الكتابة للبحث</div> : null}
           </div>
         ) : null}
@@ -184,6 +189,8 @@ type MultiEmployeeProps = {
 
 export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: MultiEmployeeProps) {
   const queryClient = useQueryClient()
+  const { connectionState } = useNetworkStatus()
+  const canCreate = connectionState === 'online'
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
@@ -206,14 +213,15 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
   }, [])
 
   const query = useQuery({
-    queryKey: [...partyKeys.list('employee'), 'multi', search],
-    queryFn: () => searchActiveParties('employee', search),
-    enabled: open && navigator.onLine,
+    queryKey: [...partyKeys.list('employee'), 'multi', search, connectionState],
+    queryFn: () => searchAvailableParties('employee', search),
+    enabled: open,
   })
   const selectedIds = new Set(selected.map((employee) => employee.id))
   const options = (query.data ?? []).filter((employee) => !selectedIds.has(employee.id))
 
   function startCreate() {
+    if (!canCreate) return
     setForm({ name: normalizePartyName(input), code: '', department: '', phone: '', notes: '' })
     setCreateError('')
     setOpen(false)
@@ -293,7 +301,7 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
               <div className="text-xs text-slate-500">{[employee.department, employee.employee_code].filter(Boolean).join(' • ')}</div>
             </button>
           ))}
-          {search ? (
+          {search && canCreate ? (
             <button
               type="button"
               onClick={startCreate}
@@ -302,6 +310,7 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
               إضافة موظف جديد باسم &quot;{search}&quot;
             </button>
           ) : null}
+          {!canCreate ? <div className="p-3 text-xs font-semibold text-amber-700">يمكن اختيار الموظفين المحفوظين فقط أثناء العمل دون اتصال.</div> : null}
         </div>
       ) : null}
       {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}

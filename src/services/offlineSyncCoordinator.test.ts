@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { syncOfflineData, prepareOfflineData } = vi.hoisted(() => ({
+const { syncOfflineData } = vi.hoisted(() => ({
   syncOfflineData: vi.fn<() => Promise<void>>(),
-  prepareOfflineData: vi.fn<() => Promise<void>>(),
 }))
 
 vi.mock('./syncService', () => ({ syncOfflineData }))
-vi.mock('./offlineBootstrapService', () => ({ prepareOfflineData }))
 
 import { runOfflineSyncOnce } from './offlineSyncCoordinator'
 
@@ -15,7 +13,6 @@ describe('runOfflineSyncOnce', () => {
     vi.clearAllMocks()
     Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { locks: undefined } })
     syncOfflineData.mockResolvedValue()
-    prepareOfflineData.mockResolvedValue()
   })
 
   it('returns one promise for repeated manual and automatic requests', async () => {
@@ -29,15 +26,11 @@ describe('runOfflineSyncOnce', () => {
     expect(syncOfflineData).toHaveBeenCalledTimes(1)
     release()
     await manual
-    expect(prepareOfflineData).toHaveBeenCalledTimes(1)
   })
 
-  it('never prepares the cache before operation sync finishes', async () => {
-    const order: string[] = []
-    syncOfflineData.mockImplementation(async () => { order.push('sync') })
-    prepareOfflineData.mockImplementation(async () => { order.push('prepare') })
+  it('does not redownload the complete snapshot after upload', async () => {
     await runOfflineSyncOnce()
-    expect(order).toEqual(['sync', 'prepare'])
+    expect(syncOfflineData).toHaveBeenCalledTimes(1)
   })
 
   it('uses the cross-tab Web Lock when available', async () => {

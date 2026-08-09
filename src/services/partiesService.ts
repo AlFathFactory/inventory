@@ -1,5 +1,7 @@
 import { getSupabaseConfigError, isSupabaseConfigured, supabaseClient } from '../lib/supabaseClient'
 import { matchesAnySearchValue, normalizeSearchTerm } from '../utils/searchUtils'
+import { getCachedPartyRecords } from './offlineBootstrapService'
+import { isTransportError } from './connectivityService'
 
 export type Employee = {
   id: string
@@ -66,6 +68,38 @@ export async function searchActiveParties(kind: PartyKind, search = ''): Promise
     .limit(1000)
   if (error) throw new Error(error.message)
   return filterPartiesForSearch(kind, (data ?? []) as Party[], search).slice(0, 20)
+}
+
+export async function searchCachedParties(kind: PartyKind, search = ''): Promise<Party[]> {
+  const records = await getCachedPartyRecords(kind)
+  const parties = records.map((record) => kind === 'employee'
+    ? {
+        id: record.id,
+        name: record.name,
+        employee_code: record.code,
+        department: record.detail,
+        phone: record.phone,
+        is_active: record.isActive,
+      } satisfies Employee
+    : {
+        id: record.id,
+        name: record.name,
+        supplier_code: record.code,
+        contact_person: record.detail,
+        phone: record.phone,
+        is_active: record.isActive,
+      } satisfies Supplier)
+  return filterPartiesForSearch(kind, parties, search).slice(0, 20)
+}
+
+export async function searchAvailableParties(kind: PartyKind, search = '') {
+  if (!navigator.onLine) return searchCachedParties(kind, search)
+  try {
+    return await searchActiveParties(kind, search)
+  } catch (error) {
+    if (!isTransportError(error)) throw error
+    return searchCachedParties(kind, search)
+  }
 }
 
 export async function getPartySummaries(kind: PartyKind): Promise<Party[]> {

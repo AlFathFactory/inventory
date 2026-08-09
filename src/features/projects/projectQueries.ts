@@ -1,6 +1,7 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { getActiveProjects, getProjects, getUnregisteredItemProjectNames, getUsedProjectNames } from '../../services/projectsService'
 import { getCachedProjects } from '../../services/offlineBootstrapService'
+import { isTransportError } from '../../services/connectivityService'
 
 export const projectKeys = {
   all: ['projects'] as const,
@@ -14,20 +15,32 @@ function requireData<T>(result: { data: T | null; error: string | null }) {
   return result.data
 }
 
+async function withProjectFallback<T>(server: () => Promise<T>, cached: () => Promise<T>) {
+  if (!navigator.onLine) return cached()
+  try {
+    return await server()
+  } catch (error) {
+    if (isTransportError(error)) return cached()
+    throw error
+  }
+}
+
 export const projectsQueryOptions = queryOptions({
   queryKey: projectKeys.all,
   networkMode: 'always',
-  queryFn: async () => navigator.onLine
-    ? requireData(await getProjects())
-    : getCachedProjects(),
+  queryFn: () => withProjectFallback(
+    async () => requireData(await getProjects()),
+    () => getCachedProjects(),
+  ),
 })
 
 export const activeProjectsQueryOptions = queryOptions({
   queryKey: projectKeys.active,
   networkMode: 'always',
-  queryFn: async () => navigator.onLine
-    ? requireData(await getActiveProjects())
-    : getCachedProjects(true),
+  queryFn: () => withProjectFallback(
+    async () => requireData(await getActiveProjects()),
+    () => getCachedProjects(true),
+  ),
 })
 
 export const unregisteredProjectsQueryOptions = queryOptions({

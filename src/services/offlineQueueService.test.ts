@@ -10,4 +10,17 @@ describe('offline operation identity', () => {
     expect(operation.requestId).toBe('00000000-0000-4000-8000-000000000002')
     expect(retried.requestId).toBe(operation.requestId)
   })
+
+  it('preserves a requestId created by the operation form', () => {
+    const operation = createOfflineOperation({
+      requestId: 'form-request-id',
+      tableName: 'consumables',
+      itemId: 7,
+      operationType: 'issue',
+      quantity: 2,
+      payload: { employeeId: 'employee-1' },
+    })
+    expect(operation.requestId).toBe('form-request-id')
+    expect(operation.payload).toMatchObject({ employeeId: 'employee-1' })
+  })
 })

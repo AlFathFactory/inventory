@@ -193,6 +193,9 @@ export function useItemDetailsPage(
         employeeIds: operationType === 'issue' && form.recipientMode === 'multiple'
           ? form.employeeIds?.map((employee) => employee.id)
           : undefined,
+        employeeSelections: operationType === 'issue' && form.recipientMode === 'multiple'
+          ? form.employeeIds?.map((employee) => ({ id: employee.id, name: employee.name }))
+          : undefined,
         requestId: form.requestId,
         notes: form.notes.trim() || undefined,
         localItemId: details.offline_state === 'local' ? String(operationItemId) : null,

@@ -1,11 +1,9 @@
-import { prepareOfflineData } from './offlineBootstrapService'
 import { syncOfflineData } from './syncService'
 
 let activeSyncPromise: Promise<void> | null = null
 
 async function executeSync() {
   await syncOfflineData()
-  await prepareOfflineData()
 }
 
 export function runOfflineSyncOnce(): Promise<void> {

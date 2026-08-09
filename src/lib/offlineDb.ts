@@ -1,6 +1,13 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-export type OfflineStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict'
+export type OfflineStatus =
+  | 'pending'
+  | 'syncing'
+  | 'synced'
+  | 'failed'
+  | 'conflict'
+  | 'blocked'
+  | 'needs_attention'
 export type OfflineOperationType = 'add' | 'issue' | 'adjust' | 'edit_item'
 
 export interface OfflineOperation {
@@ -21,6 +28,7 @@ export interface OfflineOperation {
 
 export interface OfflineItem {
   localId: string
+  requestId: string
   serverId: string | null
   tableName: string
   internalCode: string
@@ -59,6 +67,21 @@ export interface CachedProject {
   cachedAt: string
 }
 
+export type CachedPartyKind = 'employee' | 'supplier'
+
+export interface CachedParty {
+  cacheKey: string
+  id: string
+  kind: CachedPartyKind
+  name: string
+  normalizedName: string
+  code: string | null
+  detail: string | null
+  phone: string | null
+  isActive: boolean
+  cachedAt: string
+}
+
 export type OfflineCachePreparationStatus = 'ready' | 'not_ready' | 'preparing' | 'failed'
 
 export interface OfflineCacheMetadata {
@@ -73,6 +96,7 @@ class OfflineInventoryDatabase extends Dexie {
   offline_operations!: EntityTable<OfflineOperation, 'id'>
   cached_inventory_items!: EntityTable<CachedInventoryItem, 'id'>
   cached_projects!: EntityTable<CachedProject, 'id'>
+  cached_parties!: EntityTable<CachedParty, 'cacheKey'>
   offline_cache_metadata!: EntityTable<OfflineCacheMetadata, 'key'>
 
   constructor() {
@@ -104,6 +128,18 @@ class OfflineInventoryDatabase extends Dexie {
     }).upgrade(async (transaction) => {
       await transaction.table<OfflineOperation, string>('offline_operations').toCollection().modify((operation) => {
         operation.requestId ||= crypto.randomUUID()
+      })
+    })
+    this.version(5).stores({
+      offline_items: 'localId, &requestId, serverId, tableName, internalCode, status, createdAt',
+      offline_operations: 'id, &requestId, tableName, itemId, localItemId, operationType, status, createdAt',
+      cached_inventory_items: 'id, [tableName+itemId], tableName, itemId, internalCode, projectName, cachedAt',
+      cached_projects: 'id, name, code, status, cachedAt',
+      cached_parties: 'cacheKey, &[kind+id], kind, normalizedName, isActive, cachedAt',
+      offline_cache_metadata: 'key, status, updatedAt',
+    }).upgrade(async (transaction) => {
+      await transaction.table<OfflineItem, string>('offline_items').toCollection().modify((item) => {
+        item.requestId ||= crypto.randomUUID()
       })
     })
   }

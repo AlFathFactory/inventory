@@ -2,6 +2,8 @@ import { categoryConfig } from '../config/categoryConfig'
 import {
   offlineDb,
   type CachedInventoryItem,
+  type CachedParty,
+  type CachedPartyKind,
   type CachedProject,
   type OfflineCacheMetadata,
 } from '../lib/offlineDb'
@@ -9,6 +11,8 @@ import { supabaseClient } from '../lib/supabaseClient'
 import type { CategorySummaryItem } from './itemsService'
 import type { Project } from './projectsService'
 import { getStockStatusFromValues, getStockStatusLabel } from '../utils/statusUtils'
+import { requireSupabaseReachability } from './connectivityService'
+import { isInventoryTable } from './inventoryTablePolicy'
 
 const pageSize = 1000
 let activePreparation: Promise<void> | null = null
@@ -32,6 +36,26 @@ async function fetchAllRows(tableName: string, orderColumn: string) {
       ? query.order('table_name', { ascending: true }).order(orderColumn, { ascending: true })
       : query.order(orderColumn, { ascending: true })
     const { data, error } = await orderedQuery.range(rows.length, rows.length + pageSize - 1)
+    if (error) throw new Error(error.message)
+    const page = (data ?? []) as Record<string, unknown>[]
+    rows.push(...page)
+    if (page.length < pageSize) return rows
+  }
+}
+
+async function fetchActiveParties(kind: CachedPartyKind) {
+  if (!supabaseClient) throw new Error('Supabase غير مهيأ')
+  const tableName = kind === 'employee' ? 'employees' : 'suppliers'
+  const rows: Record<string, unknown>[] = []
+  while (true) {
+    const { data, error } = await supabaseClient
+      .from(tableName)
+      .select(kind === 'employee'
+        ? 'id, name, employee_code, department, phone, is_active'
+        : 'id, name, supplier_code, contact_person, phone, is_active')
+      .eq('is_active', true)
+      .order('id', { ascending: true })
+      .range(rows.length, rows.length + pageSize - 1)
     if (error) throw new Error(error.message)
     const page = (data ?? []) as Record<string, unknown>[]
     rows.push(...page)
@@ -69,19 +93,57 @@ function toCachedProject(raw: Record<string, unknown>, cachedAt: string): Cached
   }
 }
 
+function normalizePartyName(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ar')
+}
+
+function toCachedParty(
+  raw: Record<string, unknown>,
+  kind: CachedPartyKind,
+  cachedAt: string,
+): CachedParty {
+  const id = String(raw.id)
+  const name = String(raw.name ?? '').trim()
+  return {
+    cacheKey: `${kind}:${id}`,
+    id,
+    kind,
+    name,
+    normalizedName: normalizePartyName(name),
+    code: nullableText(kind === 'employee' ? raw.employee_code : raw.supplier_code),
+    detail: nullableText(kind === 'employee' ? raw.department : raw.contact_person),
+    phone: nullableText(raw.phone),
+    isActive: raw.is_active !== false,
+    cachedAt,
+  }
+}
+
+async function assertSnapshotCanBeReplaced() {
+  const [unresolvedItems, unresolvedOperations] = await Promise.all([
+    offlineDb.offline_items.filter((item) => item.status !== 'synced').count(),
+    offlineDb.offline_operations.filter((operation) => operation.status !== 'synced').count(),
+  ])
+  if (unresolvedItems + unresolvedOperations > 0) {
+    throw new Error('يجب رفع أو معالجة التغييرات المحلية السابقة قبل تجهيز جلسة جديدة.')
+  }
+}
+
 async function performPreparation() {
-  if (!navigator.onLine) throw new Error('لا يمكن تجهيز البيانات بدون اتصال بالإنترنت')
+  await requireSupabaseReachability()
   if (!supabaseClient) throw new Error('Supabase غير مهيأ')
+  await assertSnapshotCanBeReplaced()
   const previousMetadata = await offlineDb.offline_cache_metadata.get('bootstrap')
   await offlineDb.offline_cache_metadata.put({
     key: 'bootstrap', status: 'preparing', updatedAt: previousMetadata?.updatedAt ?? null, errorMessage: null,
   })
   try {
-    const [summaryRows, cuttingDiscs, weldingGloves, projects] = await Promise.all([
+    const [summaryRows, cuttingDiscs, weldingGloves, projects, employees, suppliers] = await Promise.all([
       fetchAllRows('inventory_category_items_summary_view', 'item_id'),
       fetchAllRows('cutting_discs', 'id'),
       fetchAllRows('long_welding_gloves', 'id'),
       fetchAllRows('projects', 'id'),
+      fetchActiveParties('employee'),
+      fetchActiveParties('supplier'),
     ])
     const cachedAt = new Date().toISOString()
     const items = [
@@ -90,16 +152,23 @@ async function performPreparation() {
       ...weldingGloves.map((row) => toCachedItem(row, 'long_welding_gloves')),
     ].map((item) => ({ ...item, cachedAt }))
     const cachedProjects = projects.map((row) => toCachedProject(row, cachedAt))
+    const cachedParties = [
+      ...employees.map((row) => toCachedParty(row, 'employee', cachedAt)),
+      ...suppliers.map((row) => toCachedParty(row, 'supplier', cachedAt)),
+    ]
     await offlineDb.transaction(
       'rw',
       offlineDb.cached_inventory_items,
       offlineDb.cached_projects,
+      offlineDb.cached_parties,
       offlineDb.offline_cache_metadata,
       async () => {
         await offlineDb.cached_inventory_items.clear()
         await offlineDb.cached_projects.clear()
+        await offlineDb.cached_parties.clear()
         await offlineDb.cached_inventory_items.bulkPut(items)
         await offlineDb.cached_projects.bulkPut(cachedProjects)
+        await offlineDb.cached_parties.bulkPut(cachedParties)
         await offlineDb.offline_cache_metadata.put({
           key: 'bootstrap', status: 'ready', updatedAt: cachedAt, errorMessage: null,
         })
@@ -157,4 +226,33 @@ export async function getCachedProjects(activeOnly = false): Promise<Project[]> 
     ...record.raw, id: record.id, name: record.name, code: record.code,
     status: record.status === 'inactive' ? 'inactive' : 'active',
   } as Project))
+}
+
+export async function getCachedPartyRecords(kind: CachedPartyKind) {
+  return offlineDb.cached_parties.where('kind').equals(kind).sortBy('name')
+}
+
+export async function refreshCachedInventoryItems(
+  references: Array<{ tableName: string; itemId: string }>,
+) {
+  if (!supabaseClient || !navigator.onLine || references.length === 0) return
+  const client = supabaseClient
+  const grouped = new Map<string, Set<string>>()
+  references.forEach(({ tableName, itemId }) => {
+    if (!isInventoryTable(tableName)) return
+    const ids = grouped.get(tableName) ?? new Set<string>()
+    ids.add(itemId)
+    grouped.set(tableName, ids)
+  })
+  const cachedAt = new Date().toISOString()
+  const refreshed = (await Promise.all([...grouped].map(async ([tableName, ids]) => {
+    const { data, error } = await client
+      .from(tableName)
+      .select('*')
+      .in('id', [...ids])
+    if (error) throw new Error(error.message)
+    return ((data ?? []) as Record<string, unknown>[])
+      .map((row) => ({ ...toCachedItem(row, tableName), cachedAt }))
+  }))).flat()
+  if (refreshed.length > 0) await offlineDb.cached_inventory_items.bulkPut(refreshed)
 }

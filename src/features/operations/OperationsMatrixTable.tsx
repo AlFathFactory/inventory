@@ -5,6 +5,7 @@ import {
   getMatrixCellTotal,
   type MatrixOperationType,
 } from './operationsMatrix'
+import { createDelayedAction } from '../../utils/delayedAction'
 
 type OperationsMatrixTableProps = {
   rows: DashboardInventoryRow[]
@@ -108,12 +109,18 @@ export function OperationsMatrixTable({
   const [scrollPosition, setScrollPosition] = useState(
     pendingScrollPosition.current,
   )
+  const delayedItemPrefetch = useMemo(
+    () => createDelayedAction(onItemPrefetch, 250),
+    [onItemPrefetch],
+  )
 
   useEffect(() => () => {
     if (scrollFrame.current !== null) {
       cancelAnimationFrame(scrollFrame.current)
     }
   }, [])
+
+  useEffect(() => () => delayedItemPrefetch.dispose(), [delayedItemPrefetch])
 
   useEffect(() => {
     if (!virtualizeRows) return
@@ -277,8 +284,9 @@ export function OperationsMatrixTable({
                   <button
                     type="button"
                     onClick={() => onItemClick(row)}
-                    onMouseEnter={() => onItemPrefetch(row)}
-                    onFocus={() => onItemPrefetch(row)}
+                    onMouseEnter={() => delayedItemPrefetch.schedule(row)}
+                    onMouseLeave={delayedItemPrefetch.cancel}
+                    onFocus={() => delayedItemPrefetch.runNow(row)}
                     aria-label={`فتح تفاصيل ${row.itemName}`}
                     className="flex w-full min-w-0 items-start gap-3 rounded-xl px-2.5 py-1.5 text-right transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
