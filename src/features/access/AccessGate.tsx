@@ -34,7 +34,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
               <img src="/logoo.png" alt="مصنع الفاتح" className="h-28 w-60 object-contain" />
             </div>
             <p className="mt-8 text-sm font-semibold tracking-wide text-amber-300">نظام إدارة المخزون</p>
-            <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">مرحباً بك في مصنع الفاتح</h1>
+            <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">مرحباً بك في مصنع الفتح</h1>
 <div>
   <p className="mt-4 inline-flex max-w-sm items-center gap-3 text-sm leading-7 text-blue-100">
     <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
