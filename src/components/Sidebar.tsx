@@ -205,15 +205,16 @@ const managementItems = [
 ]
 
 const inventoryItems = [
-  { label: 'تقارير', to: '/reports' },
   { label: 'جميع الأقسام', to: '/' },
   { label: 'عمليات الصرف والإضافة', to: '/operations' },
+  { label: 'تقارير', to: '/reports' },
   { label: 'التنبيهات', to: '/low-stock' },
   { label: 'إدارة الأقسام', to: '/projects' },
   ...categoryOptions.map((category) => ({
     label: category.label,
     to: category.route,
   })),
+    { label: 'الموظفين والموردين', to: '/parties' },
   { label: 'مركز المزامنة', to: '/sync-center' },
 ]
 
