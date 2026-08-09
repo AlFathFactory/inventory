@@ -112,54 +112,6 @@ function LayersIcon({ className = '' }: IconProps) {
   )
 }
 
-function DiscIcon({ className = '' }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className={className}
-    >
-      <circle cx="12" cy="12" r="7.5" />
-      <circle cx="12" cy="12" r="2" />
-    </svg>
-  )
-}
-
-function CylinderIcon({ className = '' }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className={className}
-    >
-      <ellipse cx="12" cy="6.5" rx="5.5" ry="2.5" />
-      <path d="M6.5 6.5v11c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5v-11" />
-      <path d="M6.5 12c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5" />
-    </svg>
-  )
-}
-
-function GloveIcon({ className = '' }: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className={className}
-    >
-      <path d="M8 11V6.5a1 1 0 1 1 2 0V10" />
-      <path d="M10 10V5.5a1 1 0 1 1 2 0V10" />
-      <path d="M12 10V6a1 1 0 1 1 2 0v5" />
-      <path d="M14 11V7.5a1 1 0 1 1 2 0V14a6 6 0 0 1-6 6H8.5A3.5 3.5 0 0 1 5 16.5V11a1.5 1.5 0 1 1 3 0Z" />
-    </svg>
-  )
-}
-
 function GuideIcon({ className = '' }: IconProps) {
   return (
     <svg
@@ -239,12 +191,6 @@ function getSidebarIcon(path: string) {
       return <NutIcon className={iconClassName} />
     case '/category/raw_materials':
       // return <BoxIcon className={iconClassName} />
-    case '/category/cutting_discs':
-      return <DiscIcon className={iconClassName} />
-    case '/category/cylinders':
-      return <CylinderIcon className={iconClassName} />
-    case '/category/long_welding_gloves':
-      return <GloveIcon className={iconClassName} />
     default:
       // return <BoxIcon className={iconClassName} />
   }

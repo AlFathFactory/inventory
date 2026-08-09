@@ -131,9 +131,7 @@ export function getCategoryBySheetName(sheetName: string): {
     table: candidate.category.table,
     parserType: stockMatrixCategories.has(candidate.key)
       ? 'stock-matrix'
-      : candidate.key === 'cylinders'
-        ? 'cylinder-matrix'
-        : 'custody-records',
+      : 'custody-records',
   }
 }
 
@@ -632,16 +630,17 @@ export async function parseInventoryExcel(file: File): Promise<ExcelImportPrevie
         0,
       )
 
+      const matchedCategoryKey: string = match.key
       const parsedRows =
         match.parserType === 'stock-matrix'
           ? parseStockMatrix(rows, match.key, file.name, sheetName, diagnosis)
-          : match.key === 'cutting_discs'
+          : matchedCategoryKey === 'cutting_discs'
             ? parseCuttingDiscs(rows, file.name, sheetName)
-            : match.key === 'long_welding_gloves'
+            : matchedCategoryKey === 'long_welding_gloves'
               ? parseLongWeldingGloves(rows, file.name, sheetName)
               : parseCylinders(rows, file.name, sheetName)
 
-      if (match.key === 'cylinders') {
+      if (matchedCategoryKey === 'cylinders') {
         diagnosis.warnings.push(
           'تم تحليل أرصدة الأسطوانات كسجلات حالة؛ لم يتم إنشاء حركات إضافة أو صرف.',
         )

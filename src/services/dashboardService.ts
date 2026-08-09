@@ -14,9 +14,6 @@ import type { DashboardData } from '../features/dashboard/types'
 import { buildDashboardInventoryRows } from '../features/dashboard/utils/dashboardInventoryRows'
 
 type DashboardRpcPayload = {
-  total_items?: number
-  low_stock_count?: number
-  out_of_stock_count?: number
   total_imported_files?: number
   last_imported_file?: string | null
   category_counts?: Record<string, number>
@@ -63,14 +60,20 @@ export async function getDashboardData(): Promise<DashboardData> {
       rows: InventoryRow[]
     }>,
   )
+  const lowStockItemsCount = rows.filter(
+    (row) => row.status === 'low' || row.status === 'out',
+  ).length
+  const outOfStockItemsCount = rows.filter(
+    (row) => row.status === 'out',
+  ).length
 
   return {
     stats: {
       totalCategories: categoryOptions.length,
       totalImportedFiles: asNumber(payload.total_imported_files),
-      totalMainRows: asNumber(payload.total_items),
-      lowStockItemsCount: asNumber(payload.low_stock_count),
-      outOfStockItemsCount: asNumber(payload.out_of_stock_count),
+      totalMainRows: rows.length,
+      lowStockItemsCount,
+      outOfStockItemsCount,
       lastImportedFile: payload.last_imported_file ?? null,
     },
     categoryCards,
