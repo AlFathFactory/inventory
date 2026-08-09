@@ -21,6 +21,10 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     title: 'استيراد البيانات',
     subtitle: 'نظام كامل لإدارة المخزون والإنتاج',
   },
+  '/reports': {
+    title: 'التقارير',
+    subtitle: 'تقارير حركات الصرف والإضافة وتحليل بيانات المخزون',
+  },
   '/low-stock': {
     title: 'التنبيهات',
     subtitle: 'تنبيهات المخزون وصلاحية الدهانات التي تحتاج إلى متابعة',
@@ -36,6 +40,14 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
   '/operations': {
     title: 'عمليات المخزون',
     subtitle: 'تسجيل ومراجعة حركات الصرف والإضافة بطريقة يومية سهلة',
+  },
+  '/parties': {
+    title: 'الموظفون والموردون',
+    subtitle: 'إدارة بيانات الموظفين والموردين ومراجعة نشاطهم',
+  },
+  '/stocktake': {
+    title: 'جرد المخزون',
+    subtitle: 'مراجعة الرصيد الفعلي وتسجيل تسويات الجرد',
   },
   '/sync-center': {
     title: 'مركز المزامنة',

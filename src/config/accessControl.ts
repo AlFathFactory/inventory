@@ -17,10 +17,21 @@ export const accessUsers: AccessUser[] = [
   { name: 'ادمن', password: 'admin26', areas: ['management', 'inventory'] },
 ]
 
-const sharedPaths = ['/item-code-guide']
+const sharedPaths = ['/item-code-guide', '/out-of-stock']
 const managementPaths = ['/', '/reports', '/low-stock', '/parties', '/stocktake']
 const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/projects', '/operations', '/parties', '/sync-center']
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
+const categoryPath = /^\/category\/[^/]+$/
+
+export function isKnownApplicationPath(pathname: string) {
+  return (
+    sharedPaths.includes(pathname) ||
+    managementPaths.includes(pathname) ||
+    inventoryPaths.includes(pathname) ||
+    categoryPath.test(pathname) ||
+    itemDetailsPath.test(pathname)
+  )
+}
 
 export function canAccessPath(areas: AccessArea[], pathname: string) {
   if (sharedPaths.includes(pathname)) return true

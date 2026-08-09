@@ -1,9 +1,9 @@
-import { Suspense, useEffect, useState } from 'react'
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Navigate, Outlet, useLocation, useNavigation } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { Topbar } from '../components/Topbar'
 import { OfflineStatusBanner } from '../components/OfflineStatusBanner'
-import { canAccessPath } from '../config/accessControl'
+import { canAccessPath, isKnownApplicationPath } from '../config/accessControl'
 import { useAccess } from '../features/access/AccessContext'
 import { BuildUpdateBanner } from '../components/BuildUpdateBanner'
 import { useInventoryRealtime } from '../hooks/useInventoryRealtime'
@@ -23,6 +23,7 @@ export function DashboardLayout() {
   useInventoryRealtime()
   const { user } = useAccess()
   const location = useLocation()
+  const navigation = useNavigation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   useEffect(() => { setIsDrawerOpen(false) }, [location.pathname])
@@ -38,7 +39,10 @@ export function DashboardLayout() {
     }
   }, [isDrawerOpen])
 
-  if (!user || !canAccessPath(user.areas, location.pathname)) {
+  if (!user || (
+    isKnownApplicationPath(location.pathname) &&
+    !canAccessPath(user.areas, location.pathname)
+  )) {
     return <Navigate to="/" replace />
   }
 
@@ -54,7 +58,7 @@ export function DashboardLayout() {
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <Topbar onMenuClick={() => setIsDrawerOpen(true)} />
           <main className="min-w-0 flex-1 px-4 pb-7 pt-6 sm:px-6 sm:pt-8 lg:px-8">
-            <Suspense fallback={<RouteLoadingState />}><Outlet /></Suspense>
+            {navigation.state === 'loading' ? <RouteLoadingState /> : <Outlet />}
           </main>
         </div>
       </div>

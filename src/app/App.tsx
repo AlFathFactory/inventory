@@ -1,86 +1,117 @@
-import { lazy } from 'react'
-import { createHashRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { DashboardPage } from '../pages/DashboardPage'
 import { AccessGate } from '../features/access/AccessGate'
 import { AccessProvider } from '../features/access/AccessContext'
 import { ToastProvider } from '../components/ToastProvider'
 
-const CategoryPage = lazy(() => import('../pages/CategoryPage').then((module) => ({ default: module.CategoryPage })))
-const ImportExcelPage = lazy(() => import('../pages/ImportExcelPage').then((module) => ({ default: module.ImportExcelPage })))
-const ItemDetailsPage = lazy(() => import('../pages/ItemDetailsPage').then((module) => ({ default: module.ItemDetailsPage })))
-const ItemCodeGuidePage = lazy(() => import('../pages/ItemCodeGuidePage').then((module) => ({ default: module.ItemCodeGuidePage })))
-const LowStockPage = lazy(() => import('../pages/LowStockPage').then((module) => ({ default: module.LowStockPage })))
-const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })))
-const ProjectsPage = lazy(() => import('../pages/ProjectsPage').then((module) => ({ default: module.ProjectsPage })))
-const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })))
-const SyncCenterPage = lazy(() => import('../pages/SyncCenterPage').then((module) => ({ default: module.SyncCenterPage })))
-const PartiesPage = lazy(() => import('../pages/PartiesPage').then((module) => ({ default: module.PartiesPage })))
-const OperationsPage = lazy(() => import('../pages/OperationsPage').then((module) => ({ default: module.OperationsPage })))
-const StocktakePage = lazy(() => import('../pages/StocktakePage').then((module) => ({ default: module.StocktakePage })))
+function AppHydrateFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center text-sm font-semibold text-slate-600" dir="rtl">
+      جاري تحميل النظام...
+    </div>
+  )
+}
 
 // Hash routing keeps every request on index.html, so deep links continue to
 // work when the static host is not configured with an SPA fallback.
 const router = createHashRouter([
   {
     path: '/',
-    element: <DashboardLayout />,
+    Component: DashboardLayout,
+    HydrateFallback: AppHydrateFallback,
     children: [
       {
         index: true,
-        element: <DashboardPage />,
+        Component: DashboardPage,
       },
       {
         path: 'reports',
-        element: <ReportsPage />,
+        lazy: async () => {
+          const { ReportsPage } = await import('../pages/ReportsPage')
+          return { Component: ReportsPage }
+        },
       },
       {
         path: 'import',
-        element: <ImportExcelPage />,
+        lazy: async () => {
+          const { ImportExcelPage } = await import('../pages/ImportExcelPage')
+          return { Component: ImportExcelPage }
+        },
       },
       {
         path: 'low-stock',
-        element: <LowStockPage />,
+        lazy: async () => {
+          const { LowStockPage } = await import('../pages/LowStockPage')
+          return { Component: LowStockPage }
+        },
       },
       {
         path: 'item-code-guide',
-        element: <ItemCodeGuidePage />,
+        lazy: async () => {
+          const { ItemCodeGuidePage } = await import('../pages/ItemCodeGuidePage')
+          return { Component: ItemCodeGuidePage }
+        },
       },
       {
         path: 'projects',
-        element: <ProjectsPage />,
+        lazy: async () => {
+          const { ProjectsPage } = await import('../pages/ProjectsPage')
+          return { Component: ProjectsPage }
+        },
       },
       {
         path: 'operations',
-        element: <OperationsPage />,
+        lazy: async () => {
+          const { OperationsPage } = await import('../pages/OperationsPage')
+          return { Component: OperationsPage }
+        },
       },
       {
         path: 'parties',
-        element: <PartiesPage />,
+        lazy: async () => {
+          const { PartiesPage } = await import('../pages/PartiesPage')
+          return { Component: PartiesPage }
+        },
       },
       {
         path: 'stocktake',
-        element: <StocktakePage />,
+        lazy: async () => {
+          const { StocktakePage } = await import('../pages/StocktakePage')
+          return { Component: StocktakePage }
+        },
       },
       {
         path: 'sync-center',
-        element: <SyncCenterPage />,
+        lazy: async () => {
+          const { SyncCenterPage } = await import('../pages/SyncCenterPage')
+          return { Component: SyncCenterPage }
+        },
       },
       {
         path: 'out-of-stock',
-        element: <DashboardPage />,
+        element: <Navigate to="/low-stock?status=out" replace />,
       },
       {
         path: 'category/:categoryKey',
-        element: <CategoryPage />,
+        lazy: async () => {
+          const { CategoryPage } = await import('../pages/CategoryPage')
+          return { Component: CategoryPage }
+        },
       },
       {
         path: 'category/:categoryKey/item/:itemId',
-        element: <ItemDetailsPage />,
+        lazy: async () => {
+          const { ItemDetailsPage } = await import('../pages/ItemDetailsPage')
+          return { Component: ItemDetailsPage }
+        },
       },
       {
         path: '*',
-        element: <NotFoundPage />,
+        lazy: async () => {
+          const { NotFoundPage } = await import('../pages/NotFoundPage')
+          return { Component: NotFoundPage }
+        },
       },
     ],
   },

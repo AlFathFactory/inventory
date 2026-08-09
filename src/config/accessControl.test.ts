@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canAccessPath } from './accessControl'
+import { canAccessPath, isKnownApplicationPath } from './accessControl'
 
 describe('canAccessPath', () => {
   it('allows inventory users to open the data import page', () => {
@@ -32,5 +32,16 @@ describe('canAccessPath', () => {
 
   it('does not allow inventory-only users to open stocktake', () => {
     expect(canAccessPath(['inventory'], '/stocktake')).toBe(false)
+  })
+
+  it('allows both roles to follow the legacy out-of-stock route', () => {
+    expect(canAccessPath(['management'], '/out-of-stock')).toBe(true)
+    expect(canAccessPath(['inventory'], '/out-of-stock')).toBe(true)
+  })
+
+  it('distinguishes application routes from unknown paths', () => {
+    expect(isKnownApplicationPath('/operations')).toBe(true)
+    expect(isKnownApplicationPath('/category/paints/item/123')).toBe(true)
+    expect(isKnownApplicationPath('/does-not-exist')).toBe(false)
   })
 })
