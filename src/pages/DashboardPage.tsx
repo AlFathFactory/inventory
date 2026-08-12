@@ -6,7 +6,7 @@ import { DashboardStatCard } from '../features/dashboard/components/DashboardSta
 import { DashboardTableSection } from '../features/dashboard/components/DashboardTableSection'
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData'
 import { useDashboardInventoryTable } from '../features/dashboard/hooks/useDashboardInventoryTable'
-import { getItemDetailsRoute } from '../features/items/itemRoutes'
+import { getDashboardRowDetailsRoute } from '../features/items/itemRoutes'
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
@@ -118,17 +118,21 @@ export function DashboardPage() {
               pageEnd={inventoryTable.pagination.pageEnd}
               onPageChange={inventoryTable.pagination.setCurrentPage}
               onPageSizeChange={inventoryTable.pagination.setPageSize}
-              onItemClick={(row) =>
-                navigate(
-                  getItemDetailsRoute(row.categoryKey, row.itemId, 'dashboard'),
-                  {
-                    state: {
-                      dashboardReturnTo: `${location.pathname}${location.search}`,
-                    },
-                  },
+              onItemClick={(row) => {
+                const target = getDashboardRowDetailsRoute(
+                  row.categoryKey,
+                  row.categoryId,
+                  row.itemId,
+                  'dashboard',
                 )
-              }
+                navigate(target, {
+                  state: {
+                    dashboardReturnTo: `${location.pathname}${location.search}`,
+                  },
+                })
+              }}
               onItemPrefetch={(row) => {
+                if (row.categoryKey === 'dynamic') return
                 void prefetchInventoryItem(
                   queryClient,
                   categoryConfig[row.categoryKey].table,

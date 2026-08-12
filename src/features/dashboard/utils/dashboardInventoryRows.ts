@@ -125,6 +125,7 @@ export function buildDashboardInventoryRows(
           receivedDate: extractStringValue(row.received_date),
           scrappedDate: extractStringValue(row.scrapped_date),
           categoryKey,
+          categoryId: null,
           categoryLabel: category.label,
           itemName,
           projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by),
@@ -158,4 +159,53 @@ export function getInventoryRowDateTimestamp(dateValue: string | null) {
 
   const timestamp = new Date(dateValue).getTime()
   return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+export function buildDynamicDashboardInventoryRows(
+  rows: InventoryRow[],
+): DashboardInventoryRow[] {
+  return rows.map((row, index) => {
+    const fallbackId = `inventory_items-row-${index}`
+    const itemId = extractItemId(row, fallbackId)
+    const itemName = extractStringValue(row.item_name) ?? 'عنصر غير مسمى'
+    const categoryLabel = extractStringValue(row.category_name) ?? 'غير مصنف'
+    const categoryId = extractStringValue(row.category_id)
+    const internalCode = extractStringValue(row.internal_code)
+    const supplierName = extractStringValue(row.supplier_name)
+    const projectName = extractStringValue(row.project)
+    const dateValue = extractStringValue(row.transaction_date)
+    const updatedAt =
+      extractStringValue(row.updated_at) ??
+      extractStringValue(row.created_at) ??
+      dateValue
+
+    return {
+      id: `inventory_items-${itemId}`,
+      itemId,
+      internalCode,
+      code: null,
+      typeName: null,
+      supplierName,
+      receivedBy: null,
+      receivedDate: null,
+      scrappedDate: null,
+      categoryKey: 'dynamic',
+      categoryId,
+      categoryLabel,
+      itemName,
+      projectName,
+      updatedAt,
+      dateValue,
+      dateLabel: formatInventoryDate(row.transaction_date),
+      addedQuantity: null,
+      issuedQuantity: null,
+      stockBalance: extractNumberValue(row.stock_balance),
+      minQuantity: extractNumberValue(row.min_quantity),
+      status: getStockStatus(row, 'stock_balance', 'min_quantity'),
+      searchText: [categoryLabel, 'inventory_items', itemName, internalCode, projectName, supplierName]
+        .filter((value): value is string => Boolean(value))
+        .join(' ')
+        .toLowerCase(),
+    }
+  })
 }

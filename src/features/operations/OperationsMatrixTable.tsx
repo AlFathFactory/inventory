@@ -276,6 +276,9 @@ export function OperationsMatrixTable({
             </tr>
           ) : null}
           {renderedRows.map((row, index) => {
+            if (row.categoryKey === 'dynamic') {
+              return null
+            }
             const tableName = categoryConfig[row.categoryKey].table
             const rowNumber = virtualRange.start + index + 1
             return (

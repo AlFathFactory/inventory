@@ -62,7 +62,16 @@ type PendingCreate = {
 const matrixQueryKey = ['operations-matrix'] as const
 const emptyMovements: InventoryOperationsGridMovement[] = []
 
+function isLegacyDashboardRow(
+  row: DashboardInventoryRow,
+): row is DashboardInventoryRow & { categoryKey: CategoryKey } {
+  return row.categoryKey !== 'dynamic'
+}
+
 function toSummaryItem(row: DashboardInventoryRow): CategorySummaryItem {
+  if (row.categoryKey === 'dynamic') {
+    throw new Error('toSummaryItem does not support dynamic inventory rows')
+  }
   const category = categoryConfig[row.categoryKey]
   return {
     table_name: category.table,
@@ -197,7 +206,7 @@ export function OperationsPage() {
 
   const operationRows = useMemo(
     () => dashboard.data.inventoryRows.filter((row) =>
-      Boolean(categoryConfig[row.categoryKey].operationsEnabled),
+      row.categoryKey !== 'dynamic' && Boolean(categoryConfig[row.categoryKey].operationsEnabled),
     ),
     [dashboard.data.inventoryRows],
   )
@@ -217,9 +226,9 @@ export function OperationsPage() {
 
   const filteredMovementSummary = useMemo(() => {
     const itemKeys = new Set(
-      filteredRows.map((row) =>
-        `${categoryConfig[row.categoryKey].table}:${row.itemId}`,
-      ),
+      filteredRows
+        .filter(isLegacyDashboardRow)
+        .map((row) => `${categoryConfig[row.categoryKey].table}:${row.itemId}`),
     )
 
     return movements.reduce(
@@ -457,6 +466,7 @@ export function OperationsPage() {
           virtualizeRows={showAllRows}
           virtualizationResetKey={`${searchTerm}:${categoryFilter}`}
           onItemClick={(row) => {
+            if (row.categoryKey === 'dynamic') return
             navigate(
               getItemDetailsRoute(row.categoryKey, row.itemId, 'operations'),
               {
@@ -467,6 +477,7 @@ export function OperationsPage() {
             )
           }}
           onItemPrefetch={(row) => {
+            if (row.categoryKey === 'dynamic') return
             void prefetchInventoryItem(
               queryClient,
               categoryConfig[row.categoryKey].table,

@@ -28,6 +28,9 @@ type PendingStocktake = {
 }
 
 function toSummaryItem(row: DashboardInventoryRow): CategorySummaryItem {
+  if (row.categoryKey === 'dynamic') {
+    throw new Error('toSummaryItem does not support dynamic inventory rows')
+  }
   const category = categoryConfig[row.categoryKey]
 
   return {
@@ -64,15 +67,17 @@ export function StocktakePage() {
   const [pendingStocktake, setPendingStocktake] = useState<PendingStocktake | null>(null)
   const requestSequence = useRef(0)
   const handledRequest = useRef<number | null>(null)
-  const activeCategory: CategoryDefinition | null = pendingStocktake
-    ? categoryConfig[pendingStocktake.row.categoryKey]
-    : null
+  const activeCategory: CategoryDefinition | null =
+    pendingStocktake && pendingStocktake.row.categoryKey !== 'dynamic'
+      ? categoryConfig[pendingStocktake.row.categoryKey]
+      : null
   const operation = useCategoryOperation({ category: activeCategory, setMessage })
 
   const rows = useMemo(() => {
     const normalizedSearch = normalizeSearchTerm(searchTerm)
 
     return dashboard.data.inventoryRows.filter((row) => (
+      row.categoryKey !== 'dynamic' &&
       Boolean(categoryConfig[row.categoryKey].operationsEnabled) &&
       (!categoryFilter || row.categoryKey === categoryFilter) &&
       includesSearchTerm(row.searchText, normalizedSearch)

@@ -10,11 +10,12 @@ export type DashboardStats = {
 }
 
 export type CategoryCard = {
-  key: CategoryKey
+  key: string
   label: string
   route: string
   table: string
   rowCount: number
+  categoryId?: string | null
 }
 
 export type DashboardInventoryRow = {
@@ -27,7 +28,8 @@ export type DashboardInventoryRow = {
   receivedBy: string | null
   receivedDate: string | null
   scrappedDate: string | null
-  categoryKey: CategoryKey
+  categoryKey: CategoryKey | 'dynamic'
+  categoryId: string | null
   categoryLabel: string
   itemName: string
   projectName: string | null
