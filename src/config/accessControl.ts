@@ -19,9 +19,10 @@ export const accessUsers: AccessUser[] = [
 
 const sharedPaths = ['/item-code-guide', '/out-of-stock']
 const managementPaths = ['/', '/reports', '/low-stock', '/parties', '/stocktake']
-const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/projects', '/operations', '/parties', '/sync-center']
+const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/projects', '/dynamic-categories', '/operations', '/parties', '/sync-center']
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
 const categoryPath = /^\/category\/[^/]+$/
+const dynamicCategoryItemsPath = /^\/dynamic-categories\/[^/]+\/items$/
 
 export function isKnownApplicationPath(pathname: string) {
   return (
@@ -29,7 +30,8 @@ export function isKnownApplicationPath(pathname: string) {
     managementPaths.includes(pathname) ||
     inventoryPaths.includes(pathname) ||
     categoryPath.test(pathname) ||
-    itemDetailsPath.test(pathname)
+    itemDetailsPath.test(pathname) ||
+    dynamicCategoryItemsPath.test(pathname)
   )
 }
 
@@ -44,6 +46,8 @@ export function canAccessPath(areas: AccessArea[], pathname: string) {
 
   return (
     areas.includes('inventory') &&
-    (inventoryPaths.includes(pathname) || pathname.startsWith('/category/'))
+    (inventoryPaths.includes(pathname) ||
+      pathname.startsWith('/category/') ||
+      dynamicCategoryItemsPath.test(pathname))
   )
 }

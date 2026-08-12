@@ -37,6 +37,10 @@ const topbarCopyByPath: Record<string, TopbarCopy> = {
     title: 'إدارة الأقسام',
     subtitle: 'إدارة أسماء الأقسام المستخدمة في أصناف وحركات المخزون',
   },
+  '/dynamic-categories': {
+    title: 'التصنيفات الديناميكية',
+    subtitle: 'إنشاء التصنيفات المرنة وإعادة تسميتها وإدارة حالتها دون تغيير بنية قاعدة البيانات',
+  },
   '/operations': {
     title: 'عمليات المخزون',
     subtitle: 'تسجيل ومراجعة حركات الصرف والإضافة بطريقة يومية سهلة',
@@ -79,10 +83,22 @@ function getCategoryTopbarCopy(pathname: string): TopbarCopy | null {
   }
 }
 
+function getDynamicCategoryTopbarCopy(pathname: string): TopbarCopy | null {
+  if (!/^\/dynamic-categories\/[^/]+\/items$/.test(pathname)) {
+    return null
+  }
+
+  return {
+    title: 'أصناف التصنيف الديناميكي',
+    subtitle: 'استعراض الأصناف المرتبطة بهذا التصنيف دون تنفيذ عمليات مخزون',
+  }
+}
+
 export function Topbar({ onMenuClick }: TopbarProps) {
   const location = useLocation()
   const copy =
     topbarCopyByPath[location.pathname] ??
+    getDynamicCategoryTopbarCopy(location.pathname) ??
     getCategoryTopbarCopy(location.pathname) ?? {
       title: 'نظام المخزون',
       // subtitle: 'واجهة عربية تدعم RTL لإدارة المخزون داخل المصنع',

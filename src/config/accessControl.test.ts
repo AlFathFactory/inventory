@@ -10,6 +10,16 @@ describe('canAccessPath', () => {
     expect(canAccessPath(['inventory'], '/operations')).toBe(true)
   })
 
+  it('allows inventory users to manage dynamic categories and open their items', () => {
+    expect(canAccessPath(['inventory'], '/dynamic-categories')).toBe(true)
+    expect(canAccessPath(['inventory'], '/dynamic-categories/category-id/items')).toBe(true)
+  })
+
+  it('keeps dynamic category management outside management-only access', () => {
+    expect(canAccessPath(['management'], '/dynamic-categories')).toBe(false)
+    expect(canAccessPath(['management'], '/dynamic-categories/category-id/items')).toBe(false)
+  })
+
   it('allows inventory users to open the reports page', () => {
     expect(canAccessPath(['inventory'], '/reports')).toBe(true)
   })
@@ -42,6 +52,7 @@ describe('canAccessPath', () => {
   it('distinguishes application routes from unknown paths', () => {
     expect(isKnownApplicationPath('/operations')).toBe(true)
     expect(isKnownApplicationPath('/category/paints/item/123')).toBe(true)
+    expect(isKnownApplicationPath('/dynamic-categories/category-id/items')).toBe(true)
     expect(isKnownApplicationPath('/does-not-exist')).toBe(false)
   })
 })

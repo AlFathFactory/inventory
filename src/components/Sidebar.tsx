@@ -179,6 +179,8 @@ function getSidebarIcon(path: string) {
       return <GuideIcon className={iconClassName} />
     case '/projects':
       return <LayersIcon className={iconClassName} />
+    case '/dynamic-categories':
+      return <LayersIcon className={iconClassName} />
     case '/sync-center':
       return <UploadIcon className={iconClassName} />
     case '/category/consumables':
@@ -210,6 +212,7 @@ const inventoryItems = [
   { label: 'تقارير', to: '/reports' },
   { label: 'التنبيهات', to: '/low-stock' },
   { label: 'إدارة الأقسام', to: '/projects' },
+  { label: 'التصنيفات الديناميكية', to: '/dynamic-categories' },
   ...categoryOptions.map((category) => ({
     label: category.label,
     to: category.route,
