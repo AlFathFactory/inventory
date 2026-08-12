@@ -1,0 +1,12 @@
+categories: 0
+consumables: 1111
+cutting_discs: 0
+cylinders: 0
+inventory_internal_codes: 3889
+inventory_items: 0
+inventory_operations: 2983
+long_welding_gloves: 0
+paints: 48
+raw_materials: 380
+screws: 370
+stock_screws: 33
