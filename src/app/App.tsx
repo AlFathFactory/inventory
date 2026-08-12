@@ -77,6 +77,13 @@ const router = createHashRouter([
         },
       },
       {
+        path: 'dynamic-categories/:categoryId/items/:itemId',
+        lazy: async () => {
+          const { DynamicItemDetailsPage } = await import('../pages/DynamicItemDetailsPage')
+          return { Component: DynamicItemDetailsPage }
+        },
+      },
+      {
         path: 'operations',
         lazy: async () => {
           const { OperationsPage } = await import('../pages/OperationsPage')

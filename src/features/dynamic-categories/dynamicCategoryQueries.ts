@@ -1,17 +1,27 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   createDynamicCategory,
+  createDynamicInventoryItem,
   getDynamicCategory,
+  getDynamicItem,
   listDynamicCategories,
   listDynamicCategoryItems,
+  listDynamicItemMovements,
   renameDynamicCategory,
   setDynamicCategoryArchived,
+  setDynamicInventoryItemArchived,
+  updateDynamicInventoryItem,
 } from './dynamicCategoryService'
+import type { DynamicItemCreateInput, DynamicItemEditInput, DynamicItemFilters } from './types'
 
 export const dynamicCategoryKeys = {
   all: ['dynamic-categories'] as const,
   detail: (categoryId: string) => ['dynamic-category', categoryId] as const,
-  items: (categoryId: string) => ['dynamic-category', categoryId, 'items'] as const,
+  itemsRoot: (categoryId: string) => ['dynamic-category-items', categoryId] as const,
+  items: (categoryId: string, filters: DynamicItemFilters) =>
+    ['dynamic-category-items', categoryId, filters] as const,
+  item: (itemId: string) => ['dynamic-item', itemId] as const,
+  movements: (itemId: string) => ['dynamic-item-movements', itemId] as const,
 }
 
 export const dynamicCategoriesQueryOptions = queryOptions({
@@ -27,11 +37,30 @@ export function dynamicCategoryQueryOptions(categoryId: string) {
   })
 }
 
-export function dynamicCategoryItemsQueryOptions(categoryId: string) {
+export function dynamicCategoryItemsQueryOptions(
+  categoryId: string,
+  filters: DynamicItemFilters,
+) {
   return queryOptions({
-    queryKey: dynamicCategoryKeys.items(categoryId),
-    queryFn: () => listDynamicCategoryItems(categoryId),
+    queryKey: dynamicCategoryKeys.items(categoryId, filters),
+    queryFn: () => listDynamicCategoryItems(categoryId, filters),
     enabled: Boolean(categoryId),
+  })
+}
+
+export function dynamicItemQueryOptions(itemId: string, categoryId: string) {
+  return queryOptions({
+    queryKey: dynamicCategoryKeys.item(itemId),
+    queryFn: () => getDynamicItem(itemId, categoryId),
+    enabled: Boolean(itemId && categoryId),
+  })
+}
+
+export function dynamicItemMovementsQueryOptions(itemId: string) {
+  return queryOptions({
+    queryKey: dynamicCategoryKeys.movements(itemId),
+    queryFn: () => listDynamicItemMovements(itemId),
+    enabled: Boolean(itemId),
   })
 }
 
@@ -75,6 +104,54 @@ export function useSetDynamicCategoryArchived() {
         queryClient.invalidateQueries({
           queryKey: dynamicCategoryKeys.detail(variables.categoryId),
         }),
+      ])
+    },
+  })
+}
+
+export function useCreateDynamicItem() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: DynamicItemCreateInput) => createDynamicInventoryItem(input),
+    onSettled: async (_, __, variables) => {
+      if (!variables) return
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.detail(variables.categoryId) }),
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.itemsRoot(variables.categoryId) }),
+      ])
+    },
+  })
+}
+
+export function useUpdateDynamicItem(categoryId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ itemId, input }: { itemId: string; input: DynamicItemEditInput }) =>
+      updateDynamicInventoryItem(itemId, input),
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.item(variables.itemId) }),
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.itemsRoot(categoryId) }),
+      ])
+    },
+  })
+}
+
+export function useSetDynamicItemArchived(categoryId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ itemId, isArchived }: { itemId: string; isArchived: boolean }) =>
+      setDynamicInventoryItemArchived(itemId, isArchived),
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.detail(categoryId) }),
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.item(variables.itemId) }),
+        queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.itemsRoot(categoryId) }),
       ])
     },
   })

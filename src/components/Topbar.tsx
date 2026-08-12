@@ -84,14 +84,14 @@ function getCategoryTopbarCopy(pathname: string): TopbarCopy | null {
 }
 
 function getDynamicCategoryTopbarCopy(pathname: string): TopbarCopy | null {
-  if (!/^\/dynamic-categories\/[^/]+\/items$/.test(pathname)) {
+  if (!/^\/dynamic-categories\/[^/]+\/items(?:\/[^/]+)?$/.test(pathname)) {
     return null
   }
 
-  return {
-    title: 'أصناف التصنيف الديناميكي',
-    subtitle: 'استعراض الأصناف المرتبطة بهذا التصنيف دون تنفيذ عمليات مخزون',
-  }
+  const isItemDetails = /^\/dynamic-categories\/[^/]+\/items\/[^/]+$/.test(pathname)
+  return isItemDetails
+    ? { title: 'تفاصيل الصنف الديناميكي', subtitle: 'بيانات الصنف الأساسية وسجل حركاته' }
+    : { title: 'أصناف التصنيف الديناميكي', subtitle: 'إدارة الأصناف المرتبطة بهذا التصنيف' }
 }
 
 export function Topbar({ onMenuClick }: TopbarProps) {

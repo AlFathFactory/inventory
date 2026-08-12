@@ -23,6 +23,7 @@ const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/projects', '
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
 const categoryPath = /^\/category\/[^/]+$/
 const dynamicCategoryItemsPath = /^\/dynamic-categories\/[^/]+\/items$/
+const dynamicItemDetailsPath = /^\/dynamic-categories\/[^/]+\/items\/[^/]+$/
 
 export function isKnownApplicationPath(pathname: string) {
   return (
@@ -31,7 +32,8 @@ export function isKnownApplicationPath(pathname: string) {
     inventoryPaths.includes(pathname) ||
     categoryPath.test(pathname) ||
     itemDetailsPath.test(pathname) ||
-    dynamicCategoryItemsPath.test(pathname)
+    dynamicCategoryItemsPath.test(pathname) ||
+    dynamicItemDetailsPath.test(pathname)
   )
 }
 
@@ -48,6 +50,7 @@ export function canAccessPath(areas: AccessArea[], pathname: string) {
     areas.includes('inventory') &&
     (inventoryPaths.includes(pathname) ||
       pathname.startsWith('/category/') ||
-      dynamicCategoryItemsPath.test(pathname))
+      dynamicCategoryItemsPath.test(pathname) ||
+      dynamicItemDetailsPath.test(pathname))
   )
 }
