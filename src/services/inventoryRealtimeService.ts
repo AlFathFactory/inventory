@@ -3,6 +3,7 @@ import { supabaseClient } from '../lib/supabaseClient'
 
 export type InventoryRealtimeEvent =
   | { kind: 'inventory'; tableName: string }
+  | { kind: 'dynamic-inventory' }
   | { kind: 'projects' }
   | { kind: 'imports' }
 
@@ -67,6 +68,16 @@ export function subscribeToInventoryChanges(
     )
   }
   channel = channel
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'inventory_items' },
+      () => onEvent({ kind: 'dynamic-inventory' }),
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'categories' },
+      () => onEvent({ kind: 'dynamic-inventory' }),
+    )
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'projects' },

@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import type { QueryKey } from '@tanstack/react-query'
+import { dynamicCategoryKeys } from '../features/dynamic-categories/dynamicCategoryQueries'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 import { projectKeys } from '../features/projects/projectQueries'
 import { queryClient } from '../lib/queryClient'
@@ -12,6 +14,27 @@ function eventKey(event: InventoryRealtimeEvent) {
   return event.kind === 'inventory' ? `inventory:${event.tableName}` : event.kind
 }
 
+export function getInvalidationTargetsForEventKey(key: string): readonly QueryKey[] {
+  if (key.startsWith('inventory:')) {
+    const tableName = key.slice('inventory:'.length)
+    return [inventoryKeys.category(tableName), inventoryKeys.alerts()]
+  }
+  if (key === 'dynamic-inventory') {
+    return [
+      inventoryKeys.alerts(),
+      dynamicCategoryKeys.all,
+      dynamicCategoryKeys.detailRoot,
+      dynamicCategoryKeys.itemsListRoot,
+      dynamicCategoryKeys.itemRoot,
+      dynamicCategoryKeys.movementsRoot,
+    ]
+  }
+  if (key === 'projects') {
+    return [projectKeys.all]
+  }
+  return []
+}
+
 export function useInventoryRealtime() {
   useEffect(() => {
     const scheduler = createTrailingInvalidation((eventKeys) => {
@@ -20,12 +43,8 @@ export function useInventoryRealtime() {
         void queryClient.invalidateQueries({ queryKey: inventoryKeys.dashboard() })
       }
       for (const key of eventKeys) {
-        if (key.startsWith('inventory:')) {
-          const tableName = key.slice('inventory:'.length)
-          void queryClient.invalidateQueries({ queryKey: inventoryKeys.category(tableName) })
-          void queryClient.invalidateQueries({ queryKey: inventoryKeys.alerts() })
-        } else if (key === 'projects') {
-          void queryClient.invalidateQueries({ queryKey: projectKeys.all })
+        for (const queryKey of getInvalidationTargetsForEventKey(key)) {
+          void queryClient.invalidateQueries({ queryKey })
         }
       }
     })

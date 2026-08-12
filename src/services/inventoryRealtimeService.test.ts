@@ -45,4 +45,43 @@ describe('inventory realtime coordination', () => {
     cleanup()
     expect(client.removeChannel).toHaveBeenCalledWith(channel)
   })
+
+  it('subscribes to inventory_items and categories on the same single channel', () => {
+    const filters: Array<{ event: string; schema: string; table: string }> = []
+    const channel = {
+      on: vi.fn((_event: string, filter: { event: string; schema: string; table: string }, _callback: () => void) => {
+        filters.push(filter)
+        return channel
+      }),
+      subscribe: vi.fn(() => channel),
+    }
+    const client = {
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn(),
+    }
+    subscribeToInventoryChanges(() => undefined, client)
+    expect(client.channel).toHaveBeenCalledTimes(1)
+    expect(filters.some((filter) => filter.table === 'inventory_items')).toBe(true)
+    expect(filters.some((filter) => filter.table === 'categories')).toBe(true)
+  })
+
+  it('emits a dynamic-inventory event for inventory_items and categories changes', () => {
+    const callbacksByTable = new Map<string, () => void>()
+    const channel = {
+      on: vi.fn((_event: string, filter: { table: string }, callback: () => void) => {
+        callbacksByTable.set(filter.table, callback)
+        return channel
+      }),
+      subscribe: vi.fn(() => channel),
+    }
+    const client = {
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn(),
+    }
+    const events: InventoryRealtimeEvent[] = []
+    subscribeToInventoryChanges((event) => events.push(event), client)
+    callbacksByTable.get('inventory_items')?.()
+    callbacksByTable.get('categories')?.()
+    expect(events).toEqual([{ kind: 'dynamic-inventory' }, { kind: 'dynamic-inventory' }])
+  })
 })

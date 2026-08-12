@@ -20,11 +20,15 @@ import type { DynamicItemCreateInput, DynamicItemEditInput, DynamicItemFilters }
 export const dynamicCategoryKeys = {
   all: ['dynamic-categories'] as const,
   detail: (categoryId: string) => ['dynamic-category', categoryId] as const,
+  detailRoot: ['dynamic-category'] as const,
   itemsRoot: (categoryId: string) => ['dynamic-category-items', categoryId] as const,
+  itemsListRoot: ['dynamic-category-items'] as const,
   items: (categoryId: string, filters: DynamicItemFilters) =>
     ['dynamic-category-items', categoryId, filters] as const,
   item: (itemId: string) => ['dynamic-item', itemId] as const,
+  itemRoot: ['dynamic-item'] as const,
   movements: (itemId: string) => ['dynamic-item-movements', itemId] as const,
+  movementsRoot: ['dynamic-item-movements'] as const,
 }
 
 export const dynamicCategoriesQueryOptions = queryOptions({
