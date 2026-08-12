@@ -28,6 +28,8 @@ type InventoryOperationModalProps = {
     value: OperationFormState[TKey],
   ) => void
   onSubmit: () => void | Promise<void>
+  operationTitle?: string
+  adjustQuantityLabel?: string
 }
 
 function fieldClassName(hasError = false) {
@@ -59,6 +61,8 @@ export function InventoryOperationModal({
   onClose,
   onFieldChange,
   onSubmit,
+  operationTitle,
+  adjustQuantityLabel,
 }: InventoryOperationModalProps) {
   if (!operationType) {
     return null
@@ -75,7 +79,7 @@ export function InventoryOperationModal({
         <div className="flex items-start justify-between gap-4">
           <div className="text-right">
             <h3 className="text-[1.5rem] font-bold text-slate-900">
-              {getOperationTypeLabel(operationType)}
+              {operationTitle ?? getOperationTypeLabel(operationType)}
             </h3>
             <p className="mt-1 text-sm text-[var(--app-text-muted)]">
               {itemName} داخل قسم {itemData.category_name || category.label}
@@ -127,7 +131,9 @@ export function InventoryOperationModal({
 
           <label className="space-y-2 text-right">
             <span className="block text-sm font-semibold text-slate-700">
-              {operationType === 'adjust' ? 'الرصيد الفعلي بعد الجرد' : 'الكمية'}
+              {operationType === 'adjust'
+                ? adjustQuantityLabel ?? 'الرصيد الفعلي بعد الجرد'
+                : 'الكمية'}
             </span>
             <input
               type="number"

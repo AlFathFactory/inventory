@@ -1,4 +1,5 @@
 import { getSupabaseConfigError, supabaseClient } from '../../lib/supabaseClient'
+import { getItemMovements } from '../../services/itemsService'
 import {
   buildDynamicItemArchivePatch,
   buildDynamicItemEditPatch,
@@ -13,7 +14,6 @@ import type {
   DynamicItemCreateInput,
   DynamicItemEditInput,
   DynamicItemFilters,
-  DynamicItemMovement,
 } from './types'
 
 export const DYNAMIC_CATEGORY_NAME_REQUIRED = 'اسم التصنيف مطلوب.'
@@ -40,8 +40,6 @@ const listItemColumns =
   'id, category_id, internal_code, item_name, project, supplier_name, stock_balance, min_quantity, is_archived, created_at, updated_at'
 const detailItemColumns =
   'id, category_id, internal_code, item_name, project, supplier_name, opening_balance, stock_balance, min_quantity, added, issued, total_added, total_issued, notes, source_sheet, is_archived, transaction_date, created_at, updated_at'
-const movementColumns =
-  'id, table_name, item_id, operation_type, quantity, operation_date, previous_balance, new_balance, supplier_name, issued_to, received_by, notes, created_at'
 
 type RawItem = Partial<DynamicCategoryItem> & Pick<DynamicCategoryItem, 'id' | 'category_id' | 'item_name'>
 
@@ -354,17 +352,9 @@ export async function setDynamicInventoryItemArchived(itemId: string, isArchived
 }
 
 export async function listDynamicItemMovements(itemId: string) {
-  const client = requireSupabase()
-  const { data, error } = await client
-    .from('inventory_item_movements_view')
-    .select(movementColumns)
-    .eq('table_name', 'inventory_items')
-    .eq('item_id', itemId)
-    .order('operation_date', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  if (error) throwDatabaseError(error, 'تعذر تحميل سجل حركات الصنف.')
-  return (data ?? []) as DynamicItemMovement[]
+  const result = await getItemMovements('inventory_items', itemId)
+  if (result.error) throw new Error(result.error)
+  return result.data
 }
 
 export async function createDynamicCategory(categoryName: string) {

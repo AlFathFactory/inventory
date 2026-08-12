@@ -359,12 +359,13 @@ export async function applyInventoryOperation(
 ) {
   const quantity = Number(params.quantity)
   const requestId = params.requestId ?? crypto.randomUUID()
+  const isDynamicInventoryItem = params.tableName === 'inventory_items'
 
   if (!params.tableName || params.itemId === null || params.itemId === undefined || String(params.itemId).trim() === '') {
     throw new Error('بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى')
   }
 
-  if (!isStockInventoryTable(params.tableName)) {
+  if (!isStockInventoryTable(params.tableName) && !isDynamicInventoryItem) {
     throw new Error(`Unsupported inventory table: ${params.tableName}`)
   }
 
@@ -391,6 +392,9 @@ export async function applyInventoryOperation(
   }
 
   if (!navigator.onLine) {
+    if (isDynamicInventoryItem) {
+      throw new Error('عمليات أصناف التصنيفات الديناميكية تتطلب اتصالًا بالإنترنت حاليًا.')
+    }
     await saveOfflineOperation({
       requestId,
       tableName: params.tableName,

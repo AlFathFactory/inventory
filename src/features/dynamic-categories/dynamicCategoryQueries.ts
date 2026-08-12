@@ -1,4 +1,7 @@
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { inventoryKeys } from '../inventory/inventoryQueryKeys'
+import { reportKeys } from '../reports/reportQueries'
+import { partyKeys } from '../../services/partiesService'
 import {
   createDynamicCategory,
   createDynamicInventoryItem,
@@ -155,4 +158,21 @@ export function useSetDynamicItemArchived(categoryId: string) {
       ])
     },
   })
+}
+
+export async function invalidateDynamicItemStockData(
+  queryClient: QueryClient,
+  categoryId: string,
+  itemId: string,
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.item(itemId) }),
+    queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.movements(itemId) }),
+    queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.itemsRoot(categoryId) }),
+    queryClient.invalidateQueries({ queryKey: dynamicCategoryKeys.all }),
+    queryClient.invalidateQueries({ queryKey: inventoryKeys.dashboard() }),
+    queryClient.invalidateQueries({ queryKey: inventoryKeys.alerts() }),
+    queryClient.invalidateQueries({ queryKey: reportKeys.all }),
+    queryClient.invalidateQueries({ queryKey: partyKeys.all }),
+  ])
 }
