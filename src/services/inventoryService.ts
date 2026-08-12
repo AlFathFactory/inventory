@@ -1069,3 +1069,82 @@ export async function getExpiryAlertRows<
     )
   }
 }
+
+const dynamicItemAlertColumns =
+  'id, item_name, project, stock_balance, min_quantity, internal_code, category_id, transaction_date, updated_at'
+
+export async function getDynamicLowStockRows(): ServiceResult<InventoryRow[]> {
+  const clientFailure = getClientOrFailure()
+
+  if (clientFailure) {
+    return clientFailure
+  }
+
+  try {
+    const { data: categoryRows, error: categoryError } = await supabaseClient!
+      .from('categories')
+      .select('id, name')
+      .eq('is_archived', false)
+
+    if (categoryError) {
+      return createFailure(categoryError.message)
+    }
+
+    const activeCategoryNames = new Map<string, string>(
+      (categoryRows ?? []).map((category) => [
+        category.id as string,
+        category.name as string,
+      ]),
+    )
+
+    const items: InventoryRow[] = []
+    let from = 0
+
+    while (true) {
+      const { data, error } = await supabaseClient!
+        .from('inventory_items')
+        .select(dynamicItemAlertColumns)
+        .eq('is_archived', false)
+        .order('id', { ascending: true })
+        .range(from, from + alertQueryPageSize - 1)
+
+      if (error) {
+        return createFailure(error.message)
+      }
+
+      const page = (data ?? []) as InventoryRow[]
+      if (page.length === 0) {
+        break
+      }
+
+      items.push(...page)
+      from += alertQueryPageSize
+    }
+
+    const rows = items
+      .filter((row) => {
+        const categoryId = row.category_id
+        return typeof categoryId === 'string' && activeCategoryNames.has(categoryId)
+      })
+      .filter((row) => {
+        const stockValue = toComparableNumber(row.stock_balance)
+        const minQuantityValue = toComparableNumber(row.min_quantity)
+
+        if (stockValue === null || minQuantityValue === null) {
+          return false
+        }
+
+        return stockValue <= minQuantityValue
+      })
+      .map((row) => ({
+        ...row,
+        category_name: activeCategoryNames.get(row.category_id as string) ?? null,
+      }))
+
+    return createSuccess(rows)
+  } catch (error) {
+    return createFailure(
+      normalizeError(error, 'Failed to fetch dynamic inventory alert rows.'),
+    )
+  }
+}

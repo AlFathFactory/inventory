@@ -65,14 +65,49 @@ export function mapLowStockRows(categoryKey: CategoryKey, category: CategoryDefi
     const minQuantity = category.minQuantityField ? extractNumberValue(row[category.minQuantityField]) : null
     const status = getStockStatusFromValues(stockBalance, minQuantity)
     if (status === null || status === 'safe') return []
-    return [{ id: `${category.table}-low-${index}`, categoryKey, categoryLabel: category.label, itemName, projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by), dateValue: extractStringValue(row[category.dateField]), dateLabel: formatInventoryDate(row[category.dateField]), expiryDateLabel: '—', stockBalance, minQuantity, status, searchText: buildSearchText(category, row, itemName) }]
+    return [{ id: `${category.table}-low-${index}`, itemId: extractStringValue(row.id) ?? `${category.table}-low-${index}`, categoryKey, categoryId: null, categoryLabel: category.label, itemName, projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by), dateValue: extractStringValue(row[category.dateField]), dateLabel: formatInventoryDate(row[category.dateField]), expiryDateLabel: '—', stockBalance, minQuantity, status, searchText: buildSearchText(category, row, itemName) }]
+  })
+}
+
+export function mapDynamicLowStockRows(rows: InventoryRow[]): LowStockRow[] {
+  return rows.flatMap((row, index) => {
+    const stockBalance = extractNumberValue(row.stock_balance)
+    const minQuantity = extractNumberValue(row.min_quantity)
+    const status = getStockStatusFromValues(stockBalance, minQuantity)
+    if (status === null || status === 'safe') return []
+    const itemName = getItemName(row)
+    const categoryLabel = extractStringValue(row.category_name) ?? 'غير مصنف'
+    const categoryId = extractStringValue(row.category_id)
+    const internalCode = extractStringValue(row.internal_code)
+    const projectName = extractStringValue(row.project)
+    const itemId = extractStringValue(row.id) ?? `inventory_items-low-${index}`
+    const searchText = [categoryLabel, 'inventory_items', itemName, internalCode, projectName]
+      .filter((value): value is string => Boolean(value))
+      .join(' ')
+      .toLowerCase()
+    return [{
+      id: `inventory_items-low-${index}`,
+      itemId,
+      categoryKey: 'dynamic',
+      categoryId,
+      categoryLabel,
+      itemName,
+      projectName,
+      dateValue: extractStringValue(row.transaction_date),
+      dateLabel: formatInventoryDate(row.transaction_date),
+      expiryDateLabel: '—',
+      stockBalance,
+      minQuantity,
+      status,
+      searchText,
+    }]
   })
 }
 
 export function mapOutOfStockRows(categoryKey: CategoryKey, category: CategoryDefinition & { stockField: string }, rows: InventoryRow[]): LowStockRow[] {
   return rows.map((row, index) => {
     const itemName = getItemName(row)
-    return { id: `${category.table}-out-${index}`, categoryKey, categoryLabel: category.label, itemName, projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by), dateValue: extractStringValue(row[category.dateField]), dateLabel: formatInventoryDate(row[category.dateField]), expiryDateLabel: '—', stockBalance: extractNumberValue(row[category.stockField]), minQuantity: null, status: 'out', searchText: buildSearchText(category, row, itemName) }
+    return { id: `${category.table}-out-${index}`, itemId: extractStringValue(row.id) ?? `${category.table}-out-${index}`, categoryKey, categoryId: null, categoryLabel: category.label, itemName, projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by), dateValue: extractStringValue(row[category.dateField]), dateLabel: formatInventoryDate(row[category.dateField]), expiryDateLabel: '—', stockBalance: extractNumberValue(row[category.stockField]), minQuantity: null, status: 'out', searchText: buildSearchText(category, row, itemName) }
   })
 }
 
@@ -84,7 +119,7 @@ export function mapExpiryRows(rows: InventoryRow[]): LowStockRow[] {
     const status = expireDate ? getExpiryAlertStatus(expireDate) : null
     if (!status) return []
     const itemName = getItemName(row)
-    return [{ id: `${category.table}-${status}-${index}`, categoryKey: 'paints', categoryLabel: category.label, itemName, projectName: extractStringValue(row.project), dateValue: extractStringValue(row[category.dateField]), dateLabel: formatInventoryDate(row[category.dateField]), expiryDateLabel: formatInventoryDate(expireDate), stockBalance: category.stockField ? extractNumberValue(row[category.stockField]) : null, minQuantity: category.minQuantityField ? extractNumberValue(row[category.minQuantityField]) : null, status, searchText: `${buildSearchText(category, row, itemName)} ${expireDate}` }]
+    return [{ id: `${category.table}-${status}-${index}`, itemId: extractStringValue(row.id) ?? `${category.table}-${status}-${index}`, categoryKey: 'paints', categoryId: null, categoryLabel: category.label, itemName, projectName: extractStringValue(row.project), dateValue: extractStringValue(row[category.dateField]), dateLabel: formatInventoryDate(row[category.dateField]), expiryDateLabel: formatInventoryDate(expireDate), stockBalance: category.stockField ? extractNumberValue(row[category.stockField]) : null, minQuantity: category.minQuantityField ? extractNumberValue(row[category.minQuantityField]) : null, status, searchText: `${buildSearchText(category, row, itemName)} ${expireDate}` }]
   })
 }
 

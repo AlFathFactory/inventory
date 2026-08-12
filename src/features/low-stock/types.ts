@@ -7,7 +7,9 @@ export type AlertStatusFilter = 'all' | AlertStatus
 
 export type LowStockRow = {
   id: string
-  categoryKey: CategoryKey
+  itemId: string
+  categoryKey: CategoryKey | 'dynamic'
+  categoryId: string | null
   categoryLabel: string
   itemName: string
   projectName: string | null
