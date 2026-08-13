@@ -246,17 +246,17 @@ function SidebarGroup({
   if (!showWhen) return null
 
   return (
-    <section className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
+    <section className="rounded-2xl border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-soft)] p-2 shadow-[0_1px_2px_rgba(0,0,0,0.15)]">
       <button
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
-        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-[13px] font-bold text-white transition-colors hover:bg-white/8"
+        className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-right text-[13px] font-bold text-[var(--app-sidebar-text)] transition-colors hover:bg-white/10"
         aria-expanded={isOpen}
       >
         <span>{title}</span>
         <ChevronDownIcon
           className={[
-            'h-4 w-4 text-[#b9cff8] transition-transform duration-200',
+            'h-4 w-4 text-[var(--app-sidebar-text-muted)] transition-transform duration-200',
             isOpen ? 'rotate-180' : '',
           ].join(' ')}
         />
@@ -277,17 +277,17 @@ function SidebarSubGroup({ title, children, initiallyOpen = false }: SidebarSubG
   const [isOpen, setIsOpen] = useState(initiallyOpen)
 
   return (
-    <div className="rounded-xl bg-white/[0.02]">
+    <div className="rounded-xl bg-[var(--app-sidebar-soft-strong)]">
       <button
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
-        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-[13px] font-semibold text-[#d6e4ff] transition-colors hover:bg-white/8"
+        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-[13px] font-semibold text-[var(--app-sidebar-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--app-sidebar-text)]"
         aria-expanded={isOpen}
       >
         <span>{title}</span>
         <ChevronDownIcon
           className={[
-            'h-3.5 w-3.5 text-[#b9cff8] transition-transform duration-200',
+            'h-3.5 w-3.5 text-[var(--app-sidebar-text-muted)] transition-transform duration-200',
             isOpen ? 'rotate-180' : '',
           ].join(' ')}
         />
@@ -310,9 +310,9 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
   return (
     <aside
       className={[
-        'relative bg-[var(--app-sidebar)] text-white',
+        'relative bg-[var(--app-sidebar)] text-[var(--app-sidebar-text)]',
         drawer
-          ? 'h-[100dvh] w-[min(86vw,340px)] overflow-y-auto shadow-[-12px_0_32px_rgba(3,12,45,0.28)]'
+          ? 'h-[100dvh] w-[min(86vw,340px)] overflow-y-auto shadow-[-12px_0_32px_rgba(15,15,17,0.35)]'
           : 'min-h-screen w-[260px] flex-none',
       ].join(' ')}
     >
@@ -320,7 +320,7 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
         <button
           type="button"
           onClick={onClose}
-          className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-xl text-[#d6e4ff] transition hover:bg-white/10 hover:text-white"
+          className="absolute left-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-xl text-[var(--app-sidebar-text-muted)] transition hover:bg-white/10 hover:text-[var(--app-sidebar-text)]"
           aria-label="Close navigation"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="m6 6 12 12M18 6 6 18" /></svg>
@@ -329,7 +329,7 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
       <div className="flex h-full flex-col px-[18px] pb-8 pt-7">
         <div className="mb-6 text-right">
           <h2 className="text-[25px] font-bold tracking-tight">مصنع الفــــتـــــــــــــــح</h2>
-          <p className="mt-1 text-[12px] text-[#d6e4ff]">نظام إدارة المــخــــــــزون</p>
+          <p className="mt-1 text-[12px] text-[var(--app-sidebar-text-muted)]">نظام إدارة المــخــــــــزون</p>
         </div>
 
         <nav className="flex flex-col gap-3 overflow-y-auto">
@@ -401,7 +401,7 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
             ))}
           </SidebarGroup>
 
-          <div className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
+          <div className="rounded-2xl border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-soft)] p-2 shadow-[0_1px_2px_rgba(0,0,0,0.15)]">
             <SidebarNavItem
               to="/item-code-guide"
               label="دليل أكواد الأصناف"
@@ -410,8 +410,8 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
             />
           </div>
 
-          <div className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">
-            <button type="button" onClick={() => { lock(); onClose?.() }} className="w-full rounded-xl px-3 py-2 text-sm font-semibold text-[#d6e4ff] transition hover:bg-white/10">
+          <div className="rounded-2xl border border-[var(--app-sidebar-border)] bg-[var(--app-sidebar-soft)] p-2 shadow-[0_1px_2px_rgba(0,0,0,0.15)]">
+            <button type="button" onClick={() => { lock(); onClose?.() }} className="w-full rounded-xl px-3 py-2 text-sm font-semibold text-[var(--app-sidebar-text-muted)] transition hover:bg-white/10 hover:text-[var(--app-sidebar-text)]">
              تسجيل الخروج
             </button>
           </div>

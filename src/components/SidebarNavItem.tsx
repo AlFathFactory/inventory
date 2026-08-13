@@ -19,8 +19,8 @@ export function SidebarNavItem({ icon, label, to, hidden = false, onNavigate }: 
           className={[
             'flex h-9 flex-row-reverse items-center justify-end gap-2 rounded-[10px] px-[18px] text-[13px] transition-colors',
             isActive
-              ? 'bg-white font-semibold text-[var(--app-sidebar)]'
-              : 'font-normal text-[#eef4ff] hover:bg-white/8 hover:text-white',
+              ? 'bg-[var(--app-sidebar-active)] font-semibold text-[var(--app-sidebar-active-text)]'
+              : 'font-normal text-[var(--app-sidebar-text-secondary)] hover:bg-white/10 hover:text-[var(--app-sidebar-text)]',
           ].join(' ')}
         >
           <span className="truncate">{label}</span>
@@ -28,7 +28,7 @@ export function SidebarNavItem({ icon, label, to, hidden = false, onNavigate }: 
             className={[
               'flex h-[18px] w-[18px] items-center justify-center transition-colors',
               isActive
-                ? 'text-[var(--app-primary)]'
+                ? 'text-[var(--app-sidebar-active-text)]'
                 : 'text-[var(--app-sidebar-accent)]',
             ].join(' ')}
             aria-hidden="true"

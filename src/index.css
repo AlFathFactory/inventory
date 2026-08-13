@@ -2,22 +2,31 @@
 @import "./styles/fonts.css";
 
 :root {
-  --app-bg: #f5f7fb;
-  --app-bg-accent: #eef4ff;
+  --app-bg: #f3f4f6;
+  --app-bg-accent: #eef1f5;
   --app-panel: #ffffff;
-  --app-panel-soft: #f9fafb;
-  --app-border: #e4e7ec;
+  --app-panel-soft: #f7f8fa;
+  --app-border: #e3e5ea;
   --app-border-strong: #b9c7f5;
   --app-text: #101828;
   --app-text-muted: #667085;
-  --app-sidebar: #0b1f66;
-  --app-sidebar-accent: #6172f3;
+  /* Sidebar palette: orange accent + a pure gray/white/black ramp only. */
+  --app-sidebar: #454545;
+  --app-sidebar-soft: #505050;
+  --app-sidebar-soft-strong: #5c5c5c;
+  --app-sidebar-border: rgba(0, 0, 0, 0.18);
+  --app-sidebar-text: #f5f5f5;
+  --app-sidebar-text-secondary: #d6d6d6;
+  --app-sidebar-text-muted: #a8a8a8;
+  --app-sidebar-accent: #bdbdbd;
+  --app-sidebar-active: #f97316;
+  --app-sidebar-active-text: #171717;
   --app-primary: #155eef;
   --app-primary-strong: #174cd3;
   --app-success: #12b76a;
   --app-warning: #f79009;
   --app-danger: #f04438;
-  --app-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --app-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
   --app-font-family: "IBM Plex Sans Arabic Custom", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: var(--app-text);
   background-color: var(--app-bg);
@@ -49,7 +58,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top right, rgba(97, 114, 243, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(21, 94, 239, 0.08), transparent 24%),
     linear-gradient(180deg, var(--app-bg-accent) 0%, var(--app-bg) 18%, var(--app-bg) 100%);
 }
 
