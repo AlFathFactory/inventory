@@ -226,13 +226,13 @@ const staticWarehouseSectionItems = categoryOptions.map((category) => ({
 }))
 
 const inventoryExtraItems = [
-  { label: 'إدارة الأقسام', to: '/dynamic-categories' },
   { label: 'الموظفين والموردين', to: '/parties' },
   { label: 'مركز المزامنة', to: '/sync-center' },
 ]
 
 const adminItems = [
   { label: 'إدارة المشاريع', to: '/projects' },
+  { label: 'إدارة الأقسام', to: '/dynamic-categories' },
 ]
 
 type SidebarGroupProps = {

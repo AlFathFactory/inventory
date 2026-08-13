@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Outlet, useLocation, useNavigation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { Topbar } from '../components/Topbar'
 import { OfflineStatusBanner } from '../components/OfflineStatusBanner'
@@ -23,10 +23,25 @@ export function DashboardLayout() {
   useInventoryRealtime()
   const { user } = useAccess()
   const location = useLocation()
+  const navigate = useNavigate()
   const navigation = useNavigation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   useEffect(() => { setIsDrawerOpen(false) }, [location.pathname])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Backspace') return
+      const target = event.target as HTMLElement | null
+      const tag = target?.tagName
+      const isEditable = target?.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+      if (isEditable) return
+      event.preventDefault()
+      navigate(-1)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate])
 
   useEffect(() => {
     if (!isDrawerOpen) return
