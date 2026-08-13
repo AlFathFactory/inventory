@@ -206,19 +206,26 @@ const managementItems = [
   { label: 'الموظفين والموردين', to: '/parties' },
 ]
 
-const inventoryItems = [
+const operationsItems = [
   { label: 'جميع الأقسام', to: '/' },
   { label: 'عمليات الصرف والإضافة', to: '/operations' },
   { label: 'تقارير', to: '/reports' },
   { label: 'التنبيهات', to: '/low-stock' },
+]
+
+const warehouseSectionItems = categoryOptions.map((category) => ({
+  label: category.label,
+  to: category.route,
+}))
+
+const inventoryExtraItems = [
+  { label: 'الموظفين والموردين', to: '/parties' },
+  { label: 'مركز المزامنة', to: '/sync-center' },
+]
+
+const adminItems = [
   { label: 'إدارة الأقسام', to: '/projects' },
   { label: 'التصنيفات الديناميكية', to: '/dynamic-categories' },
-  ...categoryOptions.map((category) => ({
-    label: category.label,
-    to: category.route,
-  })),
-    { label: 'الموظفين والموردين', to: '/parties' },
-  { label: 'مركز المزامنة', to: '/sync-center' },
 ]
 
 type SidebarGroupProps = {
@@ -260,6 +267,37 @@ function SidebarGroup({
   )
 }
 
+type SidebarSubGroupProps = {
+  title: string
+  children: ReactNode
+  initiallyOpen?: boolean
+}
+
+function SidebarSubGroup({ title, children, initiallyOpen = false }: SidebarSubGroupProps) {
+  const [isOpen, setIsOpen] = useState(initiallyOpen)
+
+  return (
+    <div className="rounded-xl bg-white/[0.02]">
+      <button
+        type="button"
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
+        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-[13px] font-semibold text-[#d6e4ff] transition-colors hover:bg-white/8"
+        aria-expanded={isOpen}
+      >
+        <span>{title}</span>
+        <ChevronDownIcon
+          className={[
+            'h-3.5 w-3.5 text-[#b9cff8] transition-transform duration-200',
+            isOpen ? 'rotate-180' : '',
+          ].join(' ')}
+        />
+      </button>
+
+      {isOpen ? <div className="mt-1 space-y-1 pr-2">{children}</div> : null}
+    </div>
+  )
+}
+
 type SidebarProps = {
   drawer?: boolean
   onClose?: () => void
@@ -267,6 +305,7 @@ type SidebarProps = {
 
 export function Sidebar({ drawer = false, onClose }: SidebarProps) {
   const { user, lock } = useAccess()
+  const isAdmin = Boolean(user?.areas.includes('management') && user?.areas.includes('inventory'))
 
   return (
     <aside
@@ -307,7 +346,31 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
           </SidebarGroup>
 
           <SidebarGroup title="المخزن" showWhen={user?.areas.includes('inventory') ?? false}>
-            {inventoryItems.map((item) => (
+            <SidebarSubGroup title="عمليات" initiallyOpen>
+              {operationsItems.map((item) => (
+                <SidebarNavItem
+                  key={item.to}
+                  to={item.to}
+                  label={item.label}
+                  icon={getSidebarIcon(item.to)}
+                  onNavigate={onClose}
+                />
+              ))}
+            </SidebarSubGroup>
+
+            <SidebarSubGroup title="اقسام المخزن">
+              {warehouseSectionItems.map((item) => (
+                <SidebarNavItem
+                  key={item.to}
+                  to={item.to}
+                  label={item.label}
+                  icon={getSidebarIcon(item.to)}
+                  onNavigate={onClose}
+                />
+              ))}
+            </SidebarSubGroup>
+
+            {inventoryExtraItems.map((item) => (
               <SidebarNavItem
                 key={item.to}
                 to={item.to}
@@ -316,6 +379,7 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
                 onNavigate={onClose}
               />
             ))}
+
             <SidebarNavItem
               to="/import"
               hidden={!user?.areas.includes('inventory')}
@@ -323,6 +387,18 @@ export function Sidebar({ drawer = false, onClose }: SidebarProps) {
               icon={getSidebarIcon('/import')}
               onNavigate={onClose}
             />
+          </SidebarGroup>
+
+          <SidebarGroup title="الأدمن" showWhen={isAdmin}>
+            {adminItems.map((item) => (
+              <SidebarNavItem
+                key={item.to}
+                to={item.to}
+                label={item.label}
+                icon={getSidebarIcon(item.to)}
+                onNavigate={onClose}
+              />
+            ))}
           </SidebarGroup>
 
           <div className="rounded-2xl border border-white/20 bg-white/[0.035] p-2">

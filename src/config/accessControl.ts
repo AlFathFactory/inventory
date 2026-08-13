@@ -19,7 +19,9 @@ export const accessUsers: AccessUser[] = [
 
 const sharedPaths = ['/item-code-guide', '/out-of-stock']
 const managementPaths = ['/', '/reports', '/low-stock', '/parties', '/stocktake']
-const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/projects', '/dynamic-categories', '/operations', '/parties', '/sync-center']
+const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/operations', '/parties', '/sync-center']
+// Admin-only pages: require both management and inventory access.
+const adminPaths = ['/projects', '/dynamic-categories']
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
 const categoryPath = /^\/category\/[^/]+$/
 const dynamicCategoryItemsPath = /^\/dynamic-categories\/[^/]+\/items$/
@@ -30,6 +32,7 @@ export function isKnownApplicationPath(pathname: string) {
     sharedPaths.includes(pathname) ||
     managementPaths.includes(pathname) ||
     inventoryPaths.includes(pathname) ||
+    adminPaths.includes(pathname) ||
     categoryPath.test(pathname) ||
     itemDetailsPath.test(pathname) ||
     dynamicCategoryItemsPath.test(pathname) ||
@@ -39,6 +42,10 @@ export function isKnownApplicationPath(pathname: string) {
 
 export function canAccessPath(areas: AccessArea[], pathname: string) {
   if (sharedPaths.includes(pathname)) return true
+
+  const isAdmin = areas.includes('management') && areas.includes('inventory')
+  if (isAdmin && adminPaths.includes(pathname)) return true
+
   if (
     areas.includes('management') &&
     (managementPaths.includes(pathname) || itemDetailsPath.test(pathname))
