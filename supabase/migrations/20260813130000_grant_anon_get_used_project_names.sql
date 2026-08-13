@@ -1,0 +1,23 @@
+-- Fix "permission denied for function get_used_project_names".
+--
+-- Root cause: this app has no real Supabase Auth session layer — the
+-- in-app "login" is a local password gate (sessionStorage), unrelated to
+-- Supabase roles. Every request the frontend makes goes out as `anon`.
+-- get_used_project_names() was granted only to `authenticated` (revoke
+-- ... from anon) across its last 3 migrations, apparently on the mistaken
+-- assumption this app uses real Supabase Auth sessions — making it
+-- permanently uncallable from the app for every user, not an
+-- intermittent/race-condition failure.
+--
+-- Fix: grant `anon` execute, matching the grant pattern already used by
+-- every other RPC this app calls (e.g. apply_inventory_operation_with_
+-- party_rpc, return_inventory_item_with_employee_rpc, create_category).
+-- RLS on the underlying tables (consumables, inventory_items,
+-- inventory_operations, etc.) already grants `anon` full SELECT access
+-- with qual = true, so this does not lower security below what already
+-- exists everywhere else in this app — it only fixes an inconsistent
+-- grant that made this one function unusable.
+--
+-- No function body change, no signature change.
+
+grant execute on function public.get_used_project_names() to anon;
