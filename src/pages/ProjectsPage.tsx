@@ -155,7 +155,7 @@ export function ProjectsPage() {
     <section dir="rtl" className="space-y-6">
       <div className="flex flex-col gap-4 rounded-[28px] border border-[var(--app-border)] bg-white p-6 shadow-[var(--app-shadow)] sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">إدارة الأقسام</h2>
+          <h2 className="text-2xl font-bold text-slate-900">إدارة المشاريع</h2>
           <p className="mt-1 text-sm text-slate-500">أضف الأقسام وعدّلها لتوحيد أسمائها في جميع نماذج المخزون.</p>
         </div>
         <button type="button" onClick={() => openCreate()} className="h-[44px] rounded-2xl bg-[var(--app-primary)] px-5 text-sm font-bold text-white hover:bg-[var(--app-primary-strong)]">

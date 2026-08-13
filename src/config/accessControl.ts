@@ -19,9 +19,9 @@ export const accessUsers: AccessUser[] = [
 
 const sharedPaths = ['/item-code-guide', '/out-of-stock']
 const managementPaths = ['/', '/reports', '/low-stock', '/parties', '/stocktake']
-const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/operations', '/parties', '/sync-center']
+const inventoryPaths = ['/', '/reports', '/import', '/low-stock', '/operations', '/parties', '/sync-center', '/dynamic-categories']
 // Admin-only pages: require both management and inventory access.
-const adminPaths = ['/projects', '/dynamic-categories']
+const adminPaths = ['/projects']
 const itemDetailsPath = /^\/category\/[^/]+\/item\/[^/]+$/
 const categoryPath = /^\/category\/[^/]+$/
 const dynamicCategoryItemsPath = /^\/dynamic-categories\/[^/]+\/items$/

@@ -1,5 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { categoryOptions } from '../config/categoryConfig'
+import { dynamicCategoriesQueryOptions } from '../features/dynamic-categories/dynamicCategoryQueries'
+import { getDynamicCategoryItemsRoute } from '../features/dynamic-categories/dynamicCategoryRoutes'
 import { SidebarNavItem } from './SidebarNavItem'
 import { useAccess } from '../features/access/AccessContext'
 
@@ -162,6 +165,10 @@ function ChevronDownIcon({ className = '' }: IconProps) {
 function getSidebarIcon(path: string) {
   const iconClassName = 'h-[18px] w-[18px]'
 
+  if (path.startsWith('/dynamic-categories/')) {
+    return <LayersIcon className={iconClassName} />
+  }
+
   switch (path) {
     case '/':
       return <DashboardIcon className={iconClassName} />
@@ -213,19 +220,19 @@ const operationsItems = [
   { label: 'التنبيهات', to: '/low-stock' },
 ]
 
-const warehouseSectionItems = categoryOptions.map((category) => ({
+const staticWarehouseSectionItems = categoryOptions.map((category) => ({
   label: category.label,
   to: category.route,
 }))
 
 const inventoryExtraItems = [
+  { label: 'إدارة الأقسام', to: '/dynamic-categories' },
   { label: 'الموظفين والموردين', to: '/parties' },
   { label: 'مركز المزامنة', to: '/sync-center' },
 ]
 
 const adminItems = [
-  { label: 'إدارة الأقسام', to: '/projects' },
-  { label: 'التصنيفات الديناميكية', to: '/dynamic-categories' },
+  { label: 'إدارة المشاريع', to: '/projects' },
 ]
 
 type SidebarGroupProps = {
@@ -306,6 +313,19 @@ type SidebarProps = {
 export function Sidebar({ drawer = false, onClose }: SidebarProps) {
   const { user, lock } = useAccess()
   const isAdmin = Boolean(user?.areas.includes('management') && user?.areas.includes('inventory'))
+  const dynamicCategoriesQuery = useQuery({
+    ...dynamicCategoriesQueryOptions,
+    enabled: user?.areas.includes('inventory') ?? false,
+  })
+  const warehouseSectionItems = useMemo(() => {
+    const dynamicItems = (dynamicCategoriesQuery.data ?? [])
+      .filter((category) => !category.is_archived)
+      .map((category) => ({
+        label: category.name,
+        to: getDynamicCategoryItemsRoute(category.id),
+      }))
+    return [...staticWarehouseSectionItems, ...dynamicItems]
+  }, [dynamicCategoriesQuery.data])
 
   return (
     <aside
