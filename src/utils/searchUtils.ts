@@ -8,7 +8,13 @@ export function normalizeSearchTerm(value: string): string {
     .replaceAll('ة', 'ه')
     .replaceAll('ى', 'ي')
     .replaceAll('ـ', '')
-    .replace(/\s+/g, ' ')
+    .replace(/[٠-٩]/g, (digit) =>
+      String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit))
+    )
+    .replace(/[۰-۹]/g, (digit) =>
+      String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit))
+    )
+    .replace(/\s+/g, '')
 }
 
 export function includesSearchTerm(
