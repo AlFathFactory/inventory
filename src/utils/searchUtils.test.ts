@@ -11,6 +11,19 @@ describe('searchUtils', () => {
   })
 
   it.each([
+    ['مسمار20*80'],
+    ['مسمار      20    *'],
+  ])('ignores spacing differences in inventory dimensions: %s', (query) => {
+    expect(
+      includesSearchTerm('مسمار 20 * 80', normalizeSearchTerm(query)),
+    ).toBe(true)
+  })
+
+  it('normalizes Arabic and Persian digits to western digits', () => {
+    expect(normalizeSearchTerm('مسمار ٢٠ * ۸۰')).toBe('مسمار20*80')
+  })
+
+  it.each([
     ['طاقيه', 'طاقية'],
     ['طاقية', 'طاقيه'],
     ['على', 'علي'],

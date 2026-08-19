@@ -48,6 +48,15 @@ describe('dynamic item utilities', () => {
     expect(matchesDynamicItemSearch(item, 'غير موجود')).toBe(false)
   })
 
+  it('ignores spacing differences when searching dynamic item names', () => {
+    expect(
+      matchesDynamicItemSearch(
+        { ...item, item_name: 'مسمار 20 * 80' },
+        'مسمار20*80',
+      ),
+    ).toBe(true)
+  })
+
   it('supports an empty filtered result', () => {
     expect([item].filter((row) => matchesDynamicItemSearch(row, 'لا يطابق'))).toEqual([])
   })

@@ -7,6 +7,7 @@ import { getCategoryByTable } from '../config/categoryConfig'
 import type { ParsedInventoryRow, ParsedRowsByTable } from '../utils/excelParser'
 import type { NormalizedInventoryImport, NormalizedImportItem } from '../utils/jsonImportParser'
 import { getExpiryAlertStatus } from '../utils/expiryStatus'
+import { matchesAnySearchValue, normalizeSearchTerm } from '../utils/searchUtils'
 
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue =
@@ -660,10 +661,6 @@ function getNextDateValue(value: string): string {
   return `${nextYear}-${nextMonth}-${nextDay}`
 }
 
-function escapeSearchTerm(searchTerm: string): string {
-  return searchTerm.replaceAll('%', '\\%').replaceAll(',', '\\,')
-}
-
 function toComparableNumber(value: JsonValue): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -756,36 +753,21 @@ export async function searchCategoryRows<
     return createFailure('At least one search field is required.')
   }
 
-  const trimmedSearchTerm = searchTerm.trim()
+  const normalizedSearchTerm = normalizeSearchTerm(searchTerm)
 
-  if (!trimmedSearchTerm) {
+  if (!normalizedSearchTerm) {
     return getCategoryRows<TRow>(tableName)
   }
 
-  const escapedSearchTerm = escapeSearchTerm(trimmedSearchTerm)
-  const orFilter = searchFields
-    .map((field) => `${field}.ilike.%${escapedSearchTerm}%`)
-    .join(',')
+  const result = await getCategoryRows<TRow>(tableName)
+  if (result.data === null) return result
 
-  try {
-    const { data, error } = await supabaseClient!
-      .from(tableName)
-      .select('*')
-      .or(orFilter)
-
-    if (error) {
-      return createFailure(error.message)
-    }
-
-    return createSuccess((data ?? []) as TRow[])
-  } catch (error) {
-    return createFailure(
-      normalizeError(
-        error,
-        `Failed to search rows in table "${tableName}".`,
-      ),
-    )
-  }
+  return createSuccess(result.data.filter((row) =>
+    matchesAnySearchValue(
+      searchFields.map((field) => row[field]),
+      normalizedSearchTerm,
+    ),
+  ))
 }
 
 export async function insertRows<

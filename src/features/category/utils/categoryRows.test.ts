@@ -25,6 +25,11 @@ describe('filterCategoryRows', () => {
     expect(filterCategoryRows([row], 'المورد الرئيسي')).toEqual([row])
   })
 
+  it('finds an item when the query omits stored dimension spacing', () => {
+    const dimensionedRow = { ...row, item_name: 'مسمار 20 * 80' }
+    expect(filterCategoryRows([dimensionedRow], 'مسمار20*80')).toEqual([dimensionedRow])
+  })
+
   it('filters projects by exact stored name', () => {
     expect(filterCategoryRowsByProject([row], 'مشروع الاختبار')).toEqual([row])
     expect(filterCategoryRowsByProject([row], 'مشروع')).toEqual([])

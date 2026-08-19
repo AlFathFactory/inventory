@@ -10,11 +10,11 @@ import {
   useSetDynamicCategoryArchived,
 } from '../features/dynamic-categories/dynamicCategoryQueries'
 import {
-  normalizeDynamicCategoryName,
   validateDynamicCategoryName,
 } from '../features/dynamic-categories/dynamicCategoryService'
 import { getDynamicCategoryItemsRoute } from '../features/dynamic-categories/dynamicCategoryRoutes'
 import type { DynamicCategory } from '../features/dynamic-categories/types'
+import { matchesAnySearchValue, normalizeSearchTerm } from '../utils/searchUtils'
 
 type StatusFilter = 'active' | 'archived' | 'all'
 type CategoryDialogState = { mode: 'create' } | { mode: 'rename'; category: DynamicCategory }
@@ -54,7 +54,7 @@ export function DynamicCategoriesPage() {
   const itemCount = categories.reduce((total, category) => total + category.item_count, 0)
 
   const filteredCategories = useMemo(() => {
-    const normalizedSearch = normalizeDynamicCategoryName(searchTerm).toLocaleLowerCase('ar')
+    const normalizedSearch = normalizeSearchTerm(searchTerm)
 
     return categories.filter((category) => {
       const matchesStatus =
@@ -62,9 +62,7 @@ export function DynamicCategoriesPage() {
         (statusFilter === 'active' && !category.is_archived) ||
         (statusFilter === 'archived' && category.is_archived)
       const matchesSearch =
-        !normalizedSearch ||
-        category.name.toLocaleLowerCase('ar').includes(normalizedSearch) ||
-        category.code_prefix.toLocaleLowerCase('en').includes(normalizedSearch)
+        matchesAnySearchValue([category.name, category.code_prefix], normalizedSearch)
 
       return matchesStatus && matchesSearch
     })

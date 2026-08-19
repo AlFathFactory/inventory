@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   allocateGroupIssue, createParty, getEmployeeActivity, getIssueEmployeeAllocations,
-  getPartySummaries, getSupplierActivity, partyKeys, saveParty,
+  filterPartiesForSearch, getPartySummaries, getSupplierActivity, partyKeys, saveParty,
   type IssueEmployeeAllocation, type Party, type PartyKind,
 } from '../services/partiesService'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
@@ -203,9 +203,10 @@ export function PartiesPage() {
   const [selected, setSelected] = useState<Party | null>(null)
   const [saving, setSaving] = useState(false)
   const query = useQuery({ queryKey: partyKeys.summary(kind), queryFn: () => getPartySummaries(kind) })
-  const rows = useMemo(() => (query.data ?? []).filter((party) =>
-    [party.name, party.employee_code, party.supplier_code, party.department, party.contact_person, party.phone]
-      .some((value) => String(value ?? '').toLocaleLowerCase('ar').includes(search.trim().toLocaleLowerCase('ar')))), [query.data, search])
+  const rows = useMemo(
+    () => filterPartiesForSearch(kind, query.data ?? [], search),
+    [kind, query.data, search],
+  )
   const pagination = usePagination(rows, { initialPageSize: 10 })
 
   async function persist(values: Record<string, string>) {

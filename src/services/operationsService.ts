@@ -5,6 +5,7 @@ import {
 } from '../lib/supabaseClient'
 import { saveOfflineOperation } from './offlineQueueService'
 import { isStockInventoryTable } from './inventoryTablePolicy'
+import { normalizeSearchTerm } from '../utils/searchUtils'
 
 export type InventoryOperationType = 'add' | 'issue' | 'adjust'
 
@@ -570,6 +571,7 @@ export async function getInventoryReport(
   filters: InventoryReportFilters,
 ): Promise<InventoryReport> {
   const client = getClientOrThrow()
+  const normalizedSearchTerm = normalizeSearchTerm(filters.searchTerm ?? '')
   const { data, error } = await client.rpc(
     'get_aggregated_inventory_report_rpc',
     {
@@ -577,7 +579,7 @@ export async function getInventoryReport(
       p_to_date: filters.toDate || null,
       p_category_name: filters.categoryName || null,
       p_project_name: filters.projectName || null,
-      p_search: filters.searchTerm?.trim() || null,
+      p_search: normalizedSearchTerm || null,
       p_operation_type: filters.operationType === 'both' ? null : filters.operationType,
       p_page: filters.page,
       p_page_size: filters.pageSize,
@@ -609,7 +611,7 @@ export async function getInventoryReport(
           p_to_date: filters.toDate || null,
           p_category_name: filters.categoryName || null,
           p_project_name: filters.projectName || null,
-          p_search: filters.searchTerm?.trim() || null,
+          p_search: normalizedSearchTerm || null,
           p_operation_type: filters.operationType === 'both' ? null : filters.operationType,
           p_page: index + 1,
           p_page_size: fallbackPageSize,

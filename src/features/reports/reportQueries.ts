@@ -3,6 +3,7 @@ import {
   getInventoryReport,
   type InventoryReportFilters,
 } from '../../services/operationsService'
+import { normalizeSearchTerm } from '../../utils/searchUtils'
 
 export const reportKeys = {
   all: ['reports'] as const,
@@ -14,7 +15,7 @@ export const reportKeys = {
       filters.toDate ?? '',
       filters.categoryName ?? '',
       filters.projectName ?? '',
-      filters.searchTerm?.trim() ?? '',
+      normalizeSearchTerm(filters.searchTerm ?? ''),
       filters.operationType,
       filters.page,
       filters.pageSize,

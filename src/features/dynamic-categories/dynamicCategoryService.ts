@@ -197,15 +197,6 @@ export async function listDynamicCategoryItems(categoryId: string, filters: Dyna
     query = query.eq('is_archived', filters.archive === 'archived')
   }
 
-  const normalizedSearch = normalizeDynamicItemText(filters.search)
-  const canUseServerSearch = /^[\p{L}\p{N}\s-]+$/u.test(normalizedSearch)
-  if (normalizedSearch && canUseServerSearch) {
-    const pattern = `%${normalizedSearch}%`
-    query = query.or(
-      `item_name.ilike.${pattern},internal_code.ilike.${pattern},supplier_name.ilike.${pattern},project.ilike.${pattern}`,
-    )
-  }
-
   const sortColumn = {
     name: 'item_name',
     code: 'internal_code',
@@ -223,7 +214,7 @@ export async function listDynamicCategoryItems(categoryId: string, filters: Dyna
 
   return ((data ?? []) as unknown as RawItem[])
     .map(mapItem)
-    .filter((item) => matchesDynamicItemSearch(item, normalizedSearch))
+    .filter((item) => matchesDynamicItemSearch(item, filters.search))
     .filter(
       (item) =>
         filters.status === 'all' ||

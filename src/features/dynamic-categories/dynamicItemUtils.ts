@@ -3,6 +3,7 @@ import type {
   DynamicItemEditInput,
   DynamicItemStockStatus,
 } from './types'
+import { matchesAnySearchValue, normalizeSearchTerm } from '../../utils/searchUtils'
 
 export const DYNAMIC_ITEM_NAME_REQUIRED = 'اسم الصنف مطلوب.'
 export const DYNAMIC_ITEM_QUANTITY_INVALID = 'يجب أن تكون الكميات أرقامًا تساوي صفرًا أو أكثر.'
@@ -40,10 +41,9 @@ export function getDynamicItemStockStatus(
 }
 
 export function matchesDynamicItemSearch(item: DynamicCategoryItem, search: string) {
-  const term = normalizeDynamicItemText(search).toLocaleLowerCase('ar')
-  if (!term) return true
-  return [item.item_name, item.internal_code, item.supplier_name, item.project].some((value) =>
-    value?.toLocaleLowerCase('ar').includes(term),
+  return matchesAnySearchValue(
+    [item.item_name, item.internal_code, item.supplier_name, item.project],
+    normalizeSearchTerm(search),
   )
 }
 
