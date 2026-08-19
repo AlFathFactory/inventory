@@ -1,9 +1,7 @@
 # Inventory database
 
 The repository contains an ordered Supabase baseline in `supabase/migrations`. Apply it to a new project with the Supabase CLI after reviewing the access policies for the deployment's user model.
-
 ## Stock tables
-
 The stock-managed tables are `consumables`, `paints`, `screws`, `stock_screws`, `raw_materials`, and `cylinders`. Every record has a stable `item_key` protected by a unique index. The first five tables use `stock_balance`; cylinders use `gas_balance` and expose it as `stock_balance` through the summary view.
 
 Balances must not be changed by browser-side read/modify/write code. Add, issue, and adjustment operations call `apply_inventory_operation_transactional_rpc`. The function validates the table allowlist, locks the item with `FOR UPDATE`, checks the resulting balance, updates the item, and writes the movement in one transaction. For an adjustment, `quantity` is the final counted balance rather than a difference.
