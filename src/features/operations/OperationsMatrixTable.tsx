@@ -324,6 +324,9 @@ export function OperationsMatrixTable({
     0,
   )
   const matrixColumnCount = frozenColumns.length + dates.length * 2
+  const hasActiveScrewFilters = showScrewDetails && Boolean(
+    screwFilters.din.trim() || screwFilters.codeNumber.trim(),
+  )
 
   useEffect(() => () => {
     if (scrollFrame.current !== null) {
@@ -405,7 +408,7 @@ export function OperationsMatrixTable({
     })
   }
 
-  if (!isLoading && rows.length === 0) {
+  if (!isLoading && rows.length === 0 && !hasActiveScrewFilters) {
     return (
       <div className="px-6 py-14 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-xl text-slate-500">∅</div>
@@ -515,6 +518,26 @@ export function OperationsMatrixTable({
                 className="border-0 p-0"
                 style={{ height: `${topSpacerHeight}px` }}
               />
+            </tr>
+          ) : null}
+          {!isLoading && rows.length === 0 && hasActiveScrewFilters ? (
+            <tr>
+              <td
+                colSpan={frozenColumns.length}
+                className="h-32 border-b border-l border-slate-200 bg-white px-6 text-center"
+              >
+                <div className="mx-auto max-w-sm">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg text-slate-500">∅</div>
+                  <p className="mt-2 text-sm font-bold text-slate-800">لا توجد مسامير مطابقة للتصفية</p>
+                  <p className="mt-1 text-xs text-slate-500">عدّل أو امسح تصفية DIN أو رقم الكود من الأيقونات أعلاه.</p>
+                </div>
+              </td>
+              {dates.length > 0 ? (
+                <td
+                  colSpan={dates.length * 2}
+                  className="border-b border-slate-200 bg-slate-50/40"
+                />
+              ) : null}
             </tr>
           ) : null}
           {renderedRows.map((row, index) => {
