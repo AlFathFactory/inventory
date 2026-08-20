@@ -107,8 +107,9 @@ export function ItemDetailsOverview({
       ) : null}
 
       {category.table === 'paints' ? (
-        <div className="mt-4 max-w-sm overflow-hidden rounded-2xl border border-[var(--app-border)]">
-          <CompactStat label="تاريخ الانتهاء" value={getDisplayText(details.expire_date)} />
+        <div className="mt-4 grid max-w-2xl overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 sm:divide-x sm:divide-x-reverse sm:divide-[var(--app-border)]">
+          <CompactStat label="تاريخ الإنتاج" value={getDisplayText(details.production_date)} />
+          <CompactStat label="تاريخ الصلاحية" value={getDisplayText(details.expire_date)} />
         </div>
       ) : null}
 

@@ -255,11 +255,18 @@ function buildCategoryTableColumns({
       { id: 'width', header: 'WIDTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.width) },
       { id: 'th', header: 'TH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.th) },
     ] : []),
-    ...(category.table === 'paints' ? [{
-      id: 'expire_date',
-      header: 'تاريخ الانتهاء',
-      renderCell: (row: CategorySummaryItem) => getDisplayValue(row.expire_date),
-    }] : []),
+    ...(category.table === 'paints' ? [
+      {
+        id: 'production_date',
+        header: 'تاريخ الإنتاج',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.production_date),
+      },
+      {
+        id: 'expire_date',
+        header: 'تاريخ الصلاحية',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.expire_date),
+      },
+    ] : []),
     {
       id: 'actions',
       header: 'الإجراءات',

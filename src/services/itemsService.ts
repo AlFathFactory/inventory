@@ -19,6 +19,7 @@ export type CategorySummaryItem = {
   item_name: string | null
   stock_balance: number | string | null
   min_quantity: number | string | null
+  production_date?: string | null
   expire_date?: string | null
   status: string | null
   total_added: number | string | null
@@ -202,6 +203,35 @@ async function getAllCategorySummaryRows(
   }
 }
 
+type PaintProductionDateRow = {
+  id: string | number
+  production_date: string | null
+}
+
+async function getAllPaintProductionDates(): ServiceResult<PaintProductionDateRow[]> {
+  const rows: PaintProductionDateRow[] = []
+
+  while (true) {
+    const from = rows.length
+    const { data, error } = await supabaseClient!
+      .from('paints')
+      .select('id, production_date')
+      .order('id', { ascending: true })
+      .range(from, from + categoryQueryPageSize - 1)
+
+    if (error) {
+      return createFailure(error.message)
+    }
+
+    const page = (data ?? []) as PaintProductionDateRow[]
+    if (page.length === 0) {
+      return createSuccess(rows)
+    }
+
+    rows.push(...page)
+  }
+}
+
 async function getAllCylinderRows(): ServiceResult<
   Record<string, string | number | null>[]
 > {
@@ -288,6 +318,25 @@ export async function getCategorySummaryItems(
 
     if (result.data === null) {
       return result
+    }
+
+    if (tableName === 'paints') {
+      const productionDatesResult = await getAllPaintProductionDates()
+
+      if (productionDatesResult.data === null) {
+        return productionDatesResult
+      }
+
+      const productionDates = new Map(
+        productionDatesResult.data.map((row) => [String(row.id), row.production_date]),
+      )
+
+      return createSuccess(
+        result.data.map((row) => withComputedStockStatus({
+          ...row,
+          production_date: productionDates.get(String(row.item_id)) ?? null,
+        })),
+      )
     }
 
     return createSuccess(
@@ -393,6 +442,25 @@ export async function getItemDetails(
 
     if (error) {
       return createFailure(error.message)
+    }
+
+    if (tableName === 'paints') {
+      const { data: paintDates, error: paintDatesError } = await supabaseClient!
+        .from('paints')
+        .select('production_date')
+        .eq('id', itemId)
+        .single()
+
+      if (paintDatesError || !paintDates) {
+        return createFailure(
+          paintDatesError?.message || 'تعذر تحميل تاريخ إنتاج الدهان',
+        )
+      }
+
+      return createSuccess(withComputedStockStatus({
+        ...(data as ItemDetails),
+        production_date: paintDates.production_date ?? null,
+      }))
     }
 
     return createSuccess(withComputedStockStatus(data as ItemDetails))

@@ -230,6 +230,30 @@ function setIfPresent(
   }
 }
 
+export function applyInventoryItemCreateMetadata(
+  payload: Record<string, JsonValue>,
+  tableName: string,
+  values: Record<string, JsonValue | undefined>,
+) {
+  if (tableName === 'paints') {
+    payload.production_date = toText(values.production_date) || null
+    payload.expire_date = toText(values.expire_date) || null
+  }
+
+  if (tableName === 'screws' || tableName === 'stock_screws') {
+    payload.din = toText(values.din) || null
+    payload.code_number = toText(values.code_number) || null
+  }
+
+  if (tableName === 'raw_materials') {
+    payload.code_number = toText(values.code_number) || null
+    payload.project = toText(values.project) || null
+    payload.material_source = toText(values.material_source) || null
+  }
+
+  return payload
+}
+
 function buildItemPayload(
   tableName: string,
   rows: readonly ParsedInventoryRow[],
@@ -842,20 +866,7 @@ export async function createInventoryItem(
       setIfPresent(payload, columnKey, values[columnKey])
     })
 
-    if (tableName === 'paints') {
-      payload.expire_date = toText(values.expire_date) || null
-    }
-
-    if (tableName === 'screws' || tableName === 'stock_screws') {
-      payload.din = toText(values.din) || null
-      payload.code_number = toText(values.code_number) || null
-    }
-
-    if (tableName === 'raw_materials') {
-      payload.code_number = toText(values.code_number) || null
-      payload.project = toText(values.project) || null
-      payload.material_source = toText(values.material_source) || null
-    }
+    applyInventoryItemCreateMetadata(payload, tableName, values)
 
     payload[itemNameField] = itemName
 

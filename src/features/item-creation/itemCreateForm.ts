@@ -18,6 +18,45 @@ export function createInitialItemCreateFormState(category: CategoryDefinition) {
   return nextState
 }
 
+export function prepareItemCreateValues(
+  category: CategoryDefinition,
+  form: ItemCreateFormState,
+) {
+  const preparedValues = Object.entries(form).reduce<Record<string, string | number | null>>(
+    (result, [fieldKey, value]) => {
+      const matchingField = category.createFields?.find(
+        (field) => (field.formKey ?? String(field.key)) === fieldKey,
+      )
+      const trimmedValue = value.trim()
+      if (trimmedValue && matchingField) {
+        result[String(matchingField.key)] = matchingField.inputType === 'number'
+          ? Number(trimmedValue)
+          : trimmedValue
+      }
+      return result
+    },
+    {},
+  )
+
+  if (category.table === 'paints') {
+    preparedValues.production_date = form.production_date?.trim() || null
+    preparedValues.expire_date = form.expire_date?.trim() || null
+  }
+
+  if (category.table === 'screws' || category.table === 'stock_screws') {
+    preparedValues.din = form.din?.trim() || null
+    preparedValues.code_number = form.codeNumber?.trim() || null
+  }
+
+  if (category.table === 'raw_materials') {
+    preparedValues.code_number = form.codeNumber?.trim() || null
+  }
+
+  preparedValues.supplier_name = form.supplierName?.trim() || null
+
+  return preparedValues
+}
+
 export function validateItemCreateForm(
   category: CategoryDefinition,
   form: ItemCreateFormState,

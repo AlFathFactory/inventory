@@ -16,4 +16,20 @@ describe('categoryConfig', () => {
       expect.arrayContaining(removedCategoryKeys),
     )
   })
+
+  it('configures production and expiry dates only for Paint creation', () => {
+    const paintDateFields = categoryConfig.paints.createFields
+      .filter((field) => field.inputType === 'date')
+      .map((field) => String(field.key))
+
+    expect(paintDateFields).toEqual([
+      'transaction_date',
+      'production_date',
+      'expire_date',
+    ])
+    expect(categoryConfig.paints.columns.production_date).toBe('تاريخ الإنتاج')
+    expect(categoryConfig.paints.columns.expire_date).toBe('تاريخ الصلاحية')
+    expect(categoryConfig.consumables.createFields.map((field) => String(field.key)))
+      .not.toContain('production_date')
+  })
 })

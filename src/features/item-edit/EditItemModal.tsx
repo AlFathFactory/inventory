@@ -7,19 +7,13 @@ import { updateCuttingDisc } from '../../services/cuttingDiscsService'
 import { useActiveProjects } from '../projects/projectQueries'
 import { saveOfflineOperation } from '../../services/offlineQueueService'
 import { PartyCombobox } from '../parties/PartyCombobox'
-
-type EditField = {
-  key: string
-  formKey?: string
-  label: string
-  type?: 'text' | 'number' | 'date' | 'textarea'
-  required?: boolean
-}
-
-type EditItemFormState = Record<string, string> & {
-  supplierId?: string
-  supplierName?: string
-}
+import {
+  buildEditItemPatch,
+  createInitialEditItemFormState,
+  getEditItemFields,
+  getInitialEditItemValue,
+  type EditItemFormState,
+} from './itemEditForm'
 
 const integerQuantityFields = new Set([
   'stock_balance',
@@ -29,79 +23,6 @@ const integerQuantityFields = new Set([
   'min_quantity',
 ])
 
-const supplierField: EditField = {
-  key: 'supplier_name',
-  formKey: 'supplierName',
-  label: 'اسم المورد',
-}
-
-const fieldsByTable: Record<string, EditField[]> = {
-  consumables: [
-    { key: 'project', label: 'اسم القسم', required: true },
-    { key: 'item_name', label: 'اسم الصنف', required: true },
-    { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-    { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
-    { key: 'notes', label: 'ملاحظات', type: 'textarea' },
-  ],
-  paints: [
-    { key: 'project', label: 'اسم القسم', required: true },
-    { key: 'item_name', label: 'اسم الصنف', required: true },
-    { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-    { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
-    { key: 'expire_date', label: 'تاريخ الانتهاء', type: 'date' },
-  ],
-  screws: [],
-  stock_screws: [],
-  raw_materials: [],
-  cylinders: [
-    { key: 'project', label: 'القسم' },
-    { key: 'type_name', label: 'نوع الاسطوانة', required: true },
-    { key: 'empty_count', label: 'فارغ', type: 'number' },
-    { key: 'full_count', label: 'ملي', type: 'number' },
-    { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
-    { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-    { key: 'notes', label: 'ملاحظات', type: 'textarea' },
-  ],
-  cutting_discs: [
-    { key: 'code', label: 'الكود' },
-    { key: 'type_name', label: 'النوع', required: true },
-    { key: 'received_by', label: 'المستلم', required: true },
-    { key: 'received_date', label: 'تاريخ الاستلام', type: 'date' },
-    { key: 'scrapped_date', label: 'تاريخ التكهين', type: 'date' },
-    { key: 'notes', label: 'ملاحظات', type: 'textarea' },
-  ],
-  long_welding_gloves: [
-    { key: 'type_name', label: 'النوع', required: true },
-    { key: 'received_by', label: 'المستلم', required: true },
-    { key: 'received_date', label: 'تاريخ الاستلام', type: 'date', required: true },
-    { key: 'notes', label: 'ملاحظات', type: 'textarea' },
-  ],
-}
-
-const screwFields: EditField[] = [
-  { key: 'project', label: 'اسم القسم', required: true },
-  { key: 'item_name', label: 'اسم الصنف', required: true },
-  { key: 'din', label: 'DIN' },
-  { key: 'code_number', formKey: 'codeNumber', label: 'رقم الكود / Code Number' },
-  { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-  { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
-]
-
-fieldsByTable.screws = screwFields
-fieldsByTable.stock_screws = screwFields
-fieldsByTable.raw_materials = [
-  { key: 'project', label: 'اسم القسم', required: true },
-  { key: 'item_name', label: 'اسم الصنف', required: true },
-  { key: 'code_number', label: 'رقم الكود' },
-  { key: 'transaction_date', label: 'تاريخ العملية', type: 'date' },
-  { key: 'min_quantity', label: 'الحد الأدنى', type: 'number' },
-  { key: 'weight', label: 'وزن', type: 'number' },
-  { key: 'length', label: 'LENGTH', type: 'number' },
-  { key: 'width', label: 'WIDTH', type: 'number' },
-  { key: 'th', label: 'TH', type: 'number' },
-  { key: 'material_source', label: 'مصدر الخامة' },
-]
-
 type Props = {
   category: CategoryDefinition
   itemId: string
@@ -110,35 +31,17 @@ type Props = {
   onSuccess: (balanceChanged: boolean, wasOffline?: boolean) => void | Promise<void>
 }
 
-function initialValue(item: ItemDetails, key: string) {
-  const value =
-    key === 'project'
-      ? item.project ?? item.project_name
-      : key === 'type_name'
-        ? item.type_name ?? item.item_name
-        : key === 'gas_balance'
-          ? item.gas_balance ?? item.stock_balance
-          : item[key]
-  return value === null || value === undefined ? '' : String(value)
-}
-
 export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }: Props) {
   const isCuttingDiscs = category.table === 'cutting_discs'
   const fields = useMemo(
-    () => [...(fieldsByTable[category.table] ?? []), supplierField],
+    () => getEditItemFields(category.table),
     [category.table],
   )
   const hasProjectField = fields.some((field) => field.key === 'project')
   const projectsQuery = useActiveProjects(hasProjectField)
   const activeProjects = projectsQuery.data ?? []
   const initialForm = useMemo(
-    () => ({
-      ...Object.fromEntries(fields.map((field) => [
-        field.formKey ?? field.key,
-        initialValue(itemData, field.key),
-      ])),
-      supplierId: '',
-    }),
+    () => createInitialEditItemFormState(fields, itemData),
     [fields, itemData],
   )
   const [form, setForm] = useState<EditItemFormState>(initialForm)
@@ -182,7 +85,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
       }
     })
     const supplierName = form.supplierName?.trim() ?? ''
-    const initialSupplierName = initialValue(itemData, 'supplier_name').trim()
+    const initialSupplierName = getInitialEditItemValue(itemData, 'supplier_name').trim()
     if (supplierName && supplierName !== initialSupplierName && !form.supplierId?.trim()) {
       nextErrors.supplierName = 'اختر المورد من القائمة أو أضفه كمورد جديد'
     }
@@ -191,10 +94,7 @@ export function EditItemModal({ category, itemId, itemData, onClose, onSuccess }
       return
     }
 
-    const patch = Object.fromEntries(fields.map((field) => {
-      const value = form[field.formKey ?? field.key]?.trim() ?? ''
-      return [field.key, field.type === 'number' ? (value === '' ? null : Number(value)) : value || null]
-    }))
+    const patch = buildEditItemPatch(fields, form)
     if (category.table === 'cylinders') {
       Object.assign(patch, {
         project: form.project?.trim() || null,

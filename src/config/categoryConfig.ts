@@ -39,7 +39,8 @@ const sharedInventoryColumns = {
 
 const paintColumns = {
   ...sharedInventoryColumns,
-  expire_date: 'تاريخ الانتهاء',
+  production_date: 'تاريخ الإنتاج',
+  expire_date: 'تاريخ الصلاحية',
 } as const
 
 const screwColumns = {
@@ -86,7 +87,7 @@ export const categoryConfig = {
     route: '/category/paints',
     aliases: ['الدهانات', 'دهانات'],
     columns: paintColumns,
-    optionalFields: ['expire_date'],
+    optionalFields: ['production_date', 'expire_date'],
     attributeFields: [],
     createFields: [
       { key: 'project', required: true },
@@ -94,6 +95,7 @@ export const categoryConfig = {
       { key: 'stock_balance', inputType: 'number', required: true },
       { key: 'transaction_date', inputType: 'date', required: true },
       { key: 'min_quantity', inputType: 'number' },
+      { key: 'production_date', inputType: 'date' },
       { key: 'expire_date', inputType: 'date' },
       { key: 'notes', inputType: 'textarea' },
     ],

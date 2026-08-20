@@ -137,8 +137,9 @@ async function performPreparation() {
     key: 'bootstrap', status: 'preparing', updatedAt: previousMetadata?.updatedAt ?? null, errorMessage: null,
   })
   try {
-    const [summaryRows, cuttingDiscs, weldingGloves, projects, employees, suppliers] = await Promise.all([
+    const [summaryRows, paints, cuttingDiscs, weldingGloves, projects, employees, suppliers] = await Promise.all([
       fetchAllRows('inventory_category_items_summary_view', 'item_id'),
+      fetchAllRows('paints', 'id'),
       fetchAllRows('cutting_discs', 'id'),
       fetchAllRows('long_welding_gloves', 'id'),
       fetchAllRows('projects', 'id'),
@@ -146,8 +147,17 @@ async function performPreparation() {
       fetchActiveParties('supplier'),
     ])
     const cachedAt = new Date().toISOString()
+    const paintProductionDates = new Map(
+      paints.map((row) => [String(row.id), row.production_date ?? null]),
+    )
+    const enrichedSummaryRows = summaryRows.map((row) => row.table_name === 'paints'
+      ? {
+          ...row,
+          production_date: paintProductionDates.get(String(row.item_id)) ?? null,
+        }
+      : row)
     const items = [
-      ...summaryRows.map((row) => toCachedItem(row)),
+      ...enrichedSummaryRows.map((row) => toCachedItem(row)),
       ...cuttingDiscs.map((row) => toCachedItem(row, 'cutting_discs')),
       ...weldingGloves.map((row) => toCachedItem(row, 'long_welding_gloves')),
     ].map((item) => ({ ...item, cachedAt }))

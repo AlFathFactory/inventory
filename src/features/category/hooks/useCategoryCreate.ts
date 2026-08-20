@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
   createInitialItemCreateFormState,
+  prepareItemCreateValues,
   type ItemCreateFormState,
   validateItemCreateForm,
 } from '../../item-creation/itemCreateForm'
@@ -86,36 +87,7 @@ export function useCategoryCreate({
     setIsSubmitting(true)
     setMessage(null)
     try {
-      const preparedValues = Object.entries(form).reduce<Record<string, string | number | null>>(
-        (result, [fieldKey, value]) => {
-          const matchingField = category.createFields?.find(
-            (field) => (field.formKey ?? String(field.key)) === fieldKey,
-          )
-          const trimmedValue = value.trim()
-          if (trimmedValue && matchingField) {
-            result[String(matchingField.key)] = matchingField.inputType === 'number'
-              ? Number(trimmedValue)
-              : trimmedValue
-          }
-          return result
-        },
-        {},
-      )
-
-      if (category.table === 'paints') {
-        preparedValues.expire_date = form.expire_date?.trim() || null
-      }
-
-      if (category.table === 'screws' || category.table === 'stock_screws') {
-        preparedValues.din = form.din?.trim() || null
-        preparedValues.code_number = form.codeNumber?.trim() || null
-      }
-
-      if (category.table === 'raw_materials') {
-        preparedValues.code_number = form.codeNumber?.trim() || null
-      }
-
-      preparedValues.supplier_name = form.supplierName?.trim() || null
+      const preparedValues = prepareItemCreateValues(category, form)
 
       if (!navigator.onLine) {
         const itemNameField = String(category.itemNameField ?? 'item_name')

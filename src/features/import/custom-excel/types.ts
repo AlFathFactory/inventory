@@ -23,6 +23,7 @@ export type CustomInventoryFields = {
   th?: number | null
   dimension_text?: string | null
   material_source?: string
+  production_date?: string | null
   expire_date?: string | null
   empty_count?: number | null
   full_count?: number | null
