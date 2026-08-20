@@ -6,7 +6,11 @@ type TopbarCopy = {
   subtitle: string
 }
 
-type TopbarProps = { onMenuClick: () => void }
+type TopbarProps = {
+  isSidebarOpen: boolean
+  onMenuClick: () => void
+  onSidebarToggle: () => void
+}
 
 function MenuIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -94,7 +98,7 @@ function getDynamicCategoryTopbarCopy(pathname: string): TopbarCopy | null {
     : { title: 'أصناف التصنيف الديناميكي', subtitle: 'إدارة الأصناف المرتبطة بهذا التصنيف' }
 }
 
-export function Topbar({ onMenuClick }: TopbarProps) {
+export function Topbar({ isSidebarOpen, onMenuClick, onSidebarToggle }: TopbarProps) {
   const location = useLocation()
   const copy =
     topbarCopyByPath[location.pathname] ??
@@ -106,8 +110,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header className="px-4 pt-4 sm:px-6 sm:pt-6 lg:px-8">
-      <div className="flex flex-col-reverse gap-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)] sm:flex-row sm:items-start sm:justify-between lg:h-[74px] lg:items-center lg:px-7">
-        <div className="text-right">
+      <div className="relative flex flex-col-reverse gap-4 rounded-[18px] border border-[var(--app-border)] bg-[var(--app-panel)] px-5 py-4 shadow-[var(--app-shadow)] sm:flex-row sm:items-start sm:justify-between lg:h-[74px] lg:items-center lg:px-7">
+        <div className="text-right lg:pr-14">
           <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-[24px]">
             {copy.title}
           </h1>
@@ -116,6 +120,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </p>
         </div>
         <button type="button" onClick={onMenuClick} className="flex h-10 w-10 shrink-0 items-center justify-center self-start rounded-xl border border-[var(--app-border)] text-slate-700 transition hover:bg-slate-50 lg:hidden" aria-label="Open navigation" aria-controls="mobile-navigation"><MenuIcon /></button>
+        <button
+          type="button"
+          onClick={onSidebarToggle}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--app-border)] text-slate-700 transition hover:bg-slate-50 lg:absolute lg:right-5 lg:top-1/2 lg:flex lg:-translate-y-1/2"
+          aria-label={isSidebarOpen ? 'Close navigation' : 'Open navigation'}
+          aria-controls="desktop-navigation"
+          aria-expanded={isSidebarOpen}
+          title={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+        >
+          <MenuIcon />
+        </button>
       </div>
     </header>
   )

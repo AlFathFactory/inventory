@@ -26,6 +26,7 @@ export function DashboardLayout() {
   const navigate = useNavigate()
   const navigation = useNavigation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   useEffect(() => { setIsDrawerOpen(false) }, [location.pathname])
 
@@ -69,9 +70,15 @@ export function DashboardLayout() {
       <BuildUpdateBanner />
       <OfflineStatusBanner />
       <div className="flex min-h-screen w-full flex-col lg:flex-row">
-        <div className="hidden lg:block"><Sidebar /></div>
+        <div id="desktop-navigation" className="hidden lg:block">
+          {isSidebarOpen ? <Sidebar /> : null}
+        </div>
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <Topbar onMenuClick={() => setIsDrawerOpen(true)} />
+          <Topbar
+            isSidebarOpen={isSidebarOpen}
+            onMenuClick={() => setIsDrawerOpen(true)}
+            onSidebarToggle={() => setIsSidebarOpen((isOpen) => !isOpen)}
+          />
           <main className="min-w-0 flex-1 px-4 pb-7 pt-6 sm:px-6 sm:pt-8 lg:px-8">
             {navigation.state === 'loading' ? <RouteLoadingState /> : <Outlet />}
           </main>
