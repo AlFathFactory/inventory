@@ -27,6 +27,8 @@ import {
   buildMovementTotals,
   getMonthValue,
   getOperationsDisplayDates,
+  matchesMatrixScrewFilters,
+  type MatrixScrewFilters,
   type MatrixOperationType,
 } from '../features/operations/operationsMatrix'
 import { useSearchParamsPagination } from '../hooks/useSearchParamsPagination'
@@ -40,6 +42,7 @@ import {
   getInventoryOperationsForDateRange,
   type InventoryOperationsGridMovement,
 } from '../services/operationsService'
+import { isScrewInventoryTable } from '../services/inventoryTablePolicy'
 import type { CategorySummaryItem, ItemDetails } from '../services/itemsService'
 import { getLocalDateString } from '../utils/dateUtils'
 import { includesSearchTerm, normalizeSearchTerm } from '../utils/searchUtils'
@@ -83,6 +86,8 @@ function toSummaryItem(row: DashboardInventoryRow): CategorySummaryItem {
     project: row.projectName,
     item_name: row.itemName,
     type_name: row.typeName,
+    din: row.din,
+    code_number: row.codeNumber,
     stock_balance: row.stockBalance,
     min_quantity: row.minQuantity,
     status: row.status,
@@ -168,6 +173,17 @@ export function OperationsPage() {
   const showAllRows = searchParams.get('showAll') === '1'
   const searchTerm = searchParams.get('search') ?? ''
   const categoryFilter = searchParams.get('category') ?? ''
+  const projectFilter = searchParams.get('project') ?? ''
+  const dinFilter = searchParams.get('din') ?? ''
+  const codeNumberFilter = searchParams.get('codeNumber') ?? ''
+  const screwFilters = useMemo<MatrixScrewFilters>(() => ({
+    din: dinFilter,
+    codeNumber: codeNumberFilter,
+  }), [codeNumberFilter, dinFilter])
+  const selectedCategory = categoryEntries.find(([key]) => key === categoryFilter)?.[1]
+  const showScrewDetails = selectedCategory
+    ? isScrewInventoryTable(selectedCategory.table)
+    : false
   const [actionFlow, setActionFlow] = useState<ActionFlow>(null)
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey | null>(null)
   const [message, setMessage] = useState<CategoryMessage>(null)
@@ -210,13 +226,34 @@ export function OperationsPage() {
     ),
     [dashboard.data.inventoryRows],
   )
+  const projectOptions = useMemo(
+    () => Array.from(new Set(
+      operationRows
+        .map((row) => row.projectName)
+        .filter((projectName): projectName is string => Boolean(projectName)),
+    )).sort((left, right) => left.localeCompare(right, 'ar')),
+    [operationRows],
+  )
   const normalizedSearch = normalizeSearchTerm(searchTerm)
   const filteredRows = useMemo(
     () => operationRows.filter((row) =>
       (!categoryFilter || row.categoryKey === categoryFilter) &&
+      (!projectFilter || row.projectName === projectFilter) &&
+      (!showScrewDetails || matchesMatrixScrewFilters(
+        row.din,
+        row.codeNumber,
+        screwFilters,
+      )) &&
       includesSearchTerm(row.searchText, normalizedSearch),
     ),
-    [categoryFilter, normalizedSearch, operationRows],
+    [
+      categoryFilter,
+      normalizedSearch,
+      operationRows,
+      projectFilter,
+      screwFilters,
+      showScrewDetails,
+    ],
   )
   const pagination = useSearchParamsPagination(filteredRows, { initialPageSize: 20 })
   const itemOptions = useMemo(
@@ -308,7 +345,7 @@ export function OperationsPage() {
   }
 
   function updateFilter(
-    name: 'search' | 'category' | 'month' | 'showAll',
+    name: 'search' | 'category' | 'project' | 'din' | 'codeNumber' | 'month' | 'showAll',
     value: string,
   ) {
     setSearchParams((currentParams) => {
@@ -393,15 +430,31 @@ export function OperationsPage() {
 
       <div className="overflow-hidden rounded-[26px] border border-[var(--app-border)] bg-white shadow-[var(--app-shadow)]">
         <div className="border-b border-[var(--app-border)] p-4 sm:p-5">
-          <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_190px_190px_auto] lg:items-end">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_180px_180px_180px_auto] xl:items-end">
             <label className="space-y-1.5">
               <span className="block text-xs font-bold text-slate-600">بحث سريع</span>
               <SearchInput
                 value={searchTerm}
                 onValueChange={(value) => updateFilter('search', value)}
-                placeholder="ابحث باسم الصنف أو الكود أو القسم..."
+                placeholder={showScrewDetails
+                  ? 'ابحث باسم الصنف أو القسم أو DIN أو رقم الكود...'
+                  : 'ابحث باسم الصنف أو الكود أو القسم...'}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
               />
+            </label>
+
+            <label className="space-y-1.5">
+              <span className="block text-xs font-bold text-slate-600">القسم</span>
+              <select
+                value={projectFilter}
+                onChange={(event) => updateFilter('project', event.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-500"
+              >
+                <option value="">كل الأقسام</option>
+                {projectOptions.map((projectName) => (
+                  <option key={projectName} value={projectName}>{projectName}</option>
+                ))}
+              </select>
             </label>
 
             <label className="space-y-1.5">
@@ -463,8 +516,11 @@ export function OperationsPage() {
           dates={dates}
           movementTotals={movementTotals}
           isLoading={isLoading}
+          showScrewDetails={showScrewDetails}
+          screwFilters={screwFilters}
+          onScrewFilterChange={updateFilter}
           virtualizeRows={showAllRows}
-          virtualizationResetKey={`${searchTerm}:${categoryFilter}`}
+          virtualizationResetKey={`${searchTerm}:${categoryFilter}:${projectFilter}:${screwFilters.din}:${screwFilters.codeNumber}`}
           onItemClick={(row) => {
             if (row.categoryKey === 'dynamic') return
             navigate(

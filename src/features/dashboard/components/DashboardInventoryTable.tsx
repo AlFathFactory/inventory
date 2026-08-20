@@ -40,16 +40,16 @@ const defaultColumns: DataTableColumn<DashboardInventoryRow>[] = [
     ),
   },
   {
-    id: 'categoryLabel',
-    header: 'المخزن',
-    renderCell: (row) => row.categoryLabel,
-  },
-  {
     id: 'itemName',
     header: 'الصنف',
     renderCell: (row) => (
       <p className="font-semibold text-slate-800">{row.itemName}</p>
     ),
+  },
+  {
+    id: 'categoryLabel',
+    header: 'المخزن',
+    renderCell: (row) => row.categoryLabel,
   },
   {
     id: 'projectName',

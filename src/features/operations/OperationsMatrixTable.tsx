@@ -3,7 +3,10 @@ import { categoryConfig } from '../../config/categoryConfig'
 import type { DashboardInventoryRow } from '../dashboard/types'
 import {
   getMatrixCellTotal,
+  getOperationsMatrixFrozenColumns,
+  type MatrixFrozenColumn,
   type MatrixOperationType,
+  type MatrixScrewFilters,
 } from './operationsMatrix'
 import { createDelayedAction } from '../../utils/delayedAction'
 
@@ -12,6 +15,12 @@ type OperationsMatrixTableProps = {
   dates: string[]
   movementTotals: ReadonlyMap<string, number>
   isLoading: boolean
+  showScrewDetails?: boolean
+  screwFilters?: MatrixScrewFilters
+  onScrewFilterChange?: (
+    filter: keyof MatrixScrewFilters,
+    value: string,
+  ) => void
   virtualizeRows?: boolean
   virtualizationResetKey?: string
   onItemClick: (row: DashboardInventoryRow) => void
@@ -29,6 +38,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 
 const matrixRowHeight = 62
 const virtualRowOverscan = 6
+const emptyScrewFilters: MatrixScrewFilters = { din: '', codeNumber: '' }
 
 const weekdayFormatter = new Intl.DateTimeFormat('ar-EG', {
   weekday: 'short',
@@ -38,6 +48,10 @@ function formatQuantity(value: number | null) {
   return value === null ? '—' : numberFormatter.format(value)
 }
 
+function formatText(value: string | null) {
+  return value || '—'
+}
+
 function getDateParts(dateValue: string) {
   const [year, month, day] = dateValue.split('-').map(Number)
   const date = new Date(year, month - 1, day)
@@ -45,6 +59,97 @@ function getDateParts(dateValue: string) {
     day: String(day).padStart(2, '0'),
     weekday: weekdayFormatter.format(date),
   }
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-4 w-4"
+      aria-hidden="true"
+    >
+      <path d="M3 4h14l-5.5 6.1v4.4l-3 1.5v-5.9L3 4Z" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function FrozenColumnHeader({
+  column,
+  filterValue,
+  isFilterOpen,
+  onFilterToggle,
+  onFilterChange,
+}: {
+  column: MatrixFrozenColumn
+  filterValue: string
+  isFilterOpen: boolean
+  onFilterToggle: () => void
+  onFilterChange?: (value: string) => void
+}) {
+  const isFilterable = column.key === 'din' || column.key === 'codeNumber'
+
+  return (
+    <div className={[
+      'relative flex items-center gap-1.5',
+      column.key === 'project' || column.key === 'item'
+        ? 'justify-start'
+        : 'justify-center',
+    ].join(' ')}>
+      <span>{column.label}</span>
+      {isFilterable && onFilterChange ? (
+        <button
+          type="button"
+          onClick={onFilterToggle}
+          aria-label={`تصفية حسب ${column.label}`}
+          aria-expanded={isFilterOpen}
+          className={[
+            'flex h-7 w-7 items-center justify-center rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-blue-300',
+            filterValue
+              ? 'border-blue-300 bg-blue-100 text-blue-700'
+              : 'border-white/25 bg-white/10 text-white hover:bg-white/20',
+          ].join(' ')}
+        >
+          <FilterIcon />
+        </button>
+      ) : null}
+
+      {isFilterable && isFilterOpen && onFilterChange ? (
+        <div
+          className="absolute right-1/2 top-full z-[60] mt-3 w-52 translate-x-1/2 rounded-xl border border-slate-200 bg-white p-2.5 text-slate-800 shadow-xl"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') onFilterToggle()
+          }}
+        >
+          <label className="block text-right text-[11px] font-bold text-slate-600">
+            بحث في {column.label}
+          </label>
+          <div className="mt-1.5 flex items-center gap-1.5" dir="ltr">
+            <input
+              type="search"
+              value={filterValue}
+              onChange={(event) => onFilterChange(event.target.value)}
+              placeholder={column.label}
+              autoFocus
+              className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 text-xs outline-none focus:border-blue-500"
+            />
+            {filterValue ? (
+              <button
+                type="button"
+                onClick={() => onFilterChange('')}
+                aria-label={`مسح تصفية ${column.label}`}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-sm text-slate-600 hover:bg-slate-200"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function OperationCell({
@@ -92,11 +197,103 @@ function OperationCell({
   )
 }
 
+function FrozenCell({
+  column,
+  right,
+  row,
+  rowNumber,
+  showScrewDetails,
+  onItemClick,
+  delayedItemPrefetch,
+}: {
+  column: MatrixFrozenColumn
+  right: number
+  row: DashboardInventoryRow
+  rowNumber: number
+  showScrewDetails: boolean
+  onItemClick: OperationsMatrixTableProps['onItemClick']
+  delayedItemPrefetch: ReturnType<typeof createDelayedAction<DashboardInventoryRow>>
+}) {
+  const sizeStyle = {
+    right,
+    width: column.width,
+    minWidth: column.width,
+    maxWidth: column.width,
+  }
+
+  if (column.key === 'item') {
+    return (
+      <td
+        className="sticky z-20 border-b border-l border-slate-200 bg-white p-1.5 text-right group-hover:bg-slate-50"
+        style={sizeStyle}
+      >
+        <button
+          type="button"
+          onClick={() => onItemClick(row)}
+          onMouseEnter={() => delayedItemPrefetch.schedule(row)}
+          onMouseLeave={delayedItemPrefetch.cancel}
+          onFocus={() => delayedItemPrefetch.runNow(row)}
+          aria-label={`فتح تفاصيل ${row.itemName}`}
+          className="flex w-full min-w-0 items-start gap-3 rounded-xl px-2.5 py-1.5 text-right transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <span className="mt-0.5 flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-100 px-1 text-[11px] font-bold text-slate-500">
+            {rowNumber}
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong className="block truncate font-bold text-slate-900 underline-offset-4 hover:text-blue-700 hover:underline">
+              {row.itemName}
+            </strong>
+            <span className="mt-0.5 block truncate text-xs text-slate-500">
+              {row.categoryLabel}
+              {!showScrewDetails && row.projectName ? ` · ${row.projectName}` : ''}
+            </span>
+          </span>
+          <span className="mt-1 text-blue-500" aria-hidden="true">←</span>
+        </button>
+      </td>
+    )
+  }
+
+  if (column.key === 'balance') {
+    return (
+      <td
+        className="sticky z-20 border-b border-l border-slate-200 bg-emerald-50 px-3 text-center font-bold text-emerald-900 group-hover:bg-emerald-100"
+        style={sizeStyle}
+      >
+        {formatQuantity(row.stockBalance)}
+      </td>
+    )
+  }
+
+  const value = column.key === 'project'
+    ? row.projectName
+    : column.key === 'din'
+      ? row.din
+      : row.codeNumber
+
+  return (
+    <td
+      className={[
+        'sticky z-20 border-b border-l border-slate-200 bg-white px-3 font-semibold text-slate-700 group-hover:bg-slate-50',
+        column.key === 'project' ? 'text-right' : 'text-center',
+      ].join(' ')}
+      style={sizeStyle}
+      dir={column.key === 'project' ? 'rtl' : 'ltr'}
+      title={formatText(value)}
+    >
+      <span className="block truncate">{formatText(value)}</span>
+    </td>
+  )
+}
+
 export function OperationsMatrixTable({
   rows,
   dates,
   movementTotals,
   isLoading,
+  showScrewDetails = false,
+  screwFilters = emptyScrewFilters,
+  onScrewFilterChange,
   virtualizeRows = false,
   virtualizationResetKey = '',
   onItemClick,
@@ -109,10 +306,24 @@ export function OperationsMatrixTable({
   const [scrollPosition, setScrollPosition] = useState(
     pendingScrollPosition.current,
   )
+  const [openScrewFilter, setOpenScrewFilter] = useState<
+    keyof MatrixScrewFilters | null
+  >(null)
   const delayedItemPrefetch = useMemo(
     () => createDelayedAction(onItemPrefetch, 250),
     [onItemPrefetch],
   )
+  const frozenColumns = getOperationsMatrixFrozenColumns(showScrewDetails)
+  const frozenColumnOffsets = frozenColumns.map((_, columnIndex) =>
+    frozenColumns
+      .slice(0, columnIndex)
+      .reduce((total, column) => total + column.width, 0),
+  )
+  const frozenColumnsWidth = frozenColumns.reduce(
+    (total, column) => total + column.width,
+    0,
+  )
+  const matrixColumnCount = frozenColumns.length + dates.length * 2
 
   useEffect(() => () => {
     if (scrollFrame.current !== null) {
@@ -121,6 +332,10 @@ export function OperationsMatrixTable({
   }, [])
 
   useEffect(() => () => delayedItemPrefetch.dispose(), [delayedItemPrefetch])
+
+  useEffect(() => {
+    if (!showScrewDetails) setOpenScrewFilter(null)
+  }, [showScrewDetails])
 
   useEffect(() => {
     if (!virtualizeRows) return
@@ -203,7 +418,7 @@ export function OperationsMatrixTable({
   return (
     <div
       ref={scrollContainer}
-      className="relative max-h-[64vh] overflow-auto"
+      className="relative max-h-[78vh] overflow-auto"
       onScroll={handleScroll}
     >
       {isLoading ? (
@@ -217,22 +432,49 @@ export function OperationsMatrixTable({
 
       <table
         className="w-full table-fixed border-separate border-spacing-0 text-sm"
-        style={{ minWidth: `${390 + dates.length * 164}px` }}
+        style={{ minWidth: `${frozenColumnsWidth + dates.length * 164}px` }}
       >
         <thead className="sticky top-0 z-30">
           <tr>
-            <th
-              rowSpan={2}
-              className="sticky right-0 z-40 w-[270px] border-b border-l border-slate-300 bg-slate-900 px-4 py-3 text-right font-bold text-white"
-            >
-              الصنف
-            </th>
-            <th
-              rowSpan={2}
-              className="sticky right-[270px] z-40 w-[120px] border-b border-l border-slate-300 bg-slate-900 px-3 py-3 text-center font-bold text-white"
-            >
-              الرصيد
-            </th>
+            {frozenColumns.map((column, columnIndex) => {
+              const filterKey = column.key === 'din' || column.key === 'codeNumber'
+                ? column.key
+                : null
+
+              return (
+                <th
+                  key={column.key}
+                  rowSpan={2}
+                  className={[
+                    'sticky z-40 border-b border-l border-slate-300 bg-slate-900 px-3 py-3 font-bold text-white',
+                    column.key === 'project' || column.key === 'item'
+                      ? 'text-right'
+                      : 'text-center',
+                  ].join(' ')}
+                  style={{
+                    right: frozenColumnOffsets[columnIndex],
+                    width: column.width,
+                    minWidth: column.width,
+                    maxWidth: column.width,
+                  }}
+                >
+                  <FrozenColumnHeader
+                    column={column}
+                    filterValue={filterKey ? screwFilters[filterKey] : ''}
+                    isFilterOpen={filterKey !== null && openScrewFilter === filterKey}
+                    onFilterToggle={() => {
+                      if (!filterKey) return
+                      setOpenScrewFilter((currentFilter) =>
+                        currentFilter === filterKey ? null : filterKey,
+                      )
+                    }}
+                    onFilterChange={filterKey && onScrewFilterChange
+                      ? (value) => onScrewFilterChange(filterKey, value)
+                      : undefined}
+                  />
+                </th>
+              )
+            })}
             {dates.map((date) => {
               const parts = getDateParts(date)
               return (
@@ -269,7 +511,7 @@ export function OperationsMatrixTable({
           {topSpacerHeight > 0 ? (
             <tr aria-hidden="true">
               <td
-                colSpan={2 + dates.length * 2}
+                colSpan={matrixColumnCount}
                 className="border-0 p-0"
                 style={{ height: `${topSpacerHeight}px` }}
               />
@@ -283,31 +525,18 @@ export function OperationsMatrixTable({
             const rowNumber = virtualRange.start + index + 1
             return (
               <tr key={row.id} className="group">
-                <td className="sticky right-0 z-20 w-[270px] border-b border-l border-slate-200 bg-white p-1.5 text-right group-hover:bg-slate-50">
-                  <button
-                    type="button"
-                    onClick={() => onItemClick(row)}
-                    onMouseEnter={() => delayedItemPrefetch.schedule(row)}
-                    onMouseLeave={delayedItemPrefetch.cancel}
-                    onFocus={() => delayedItemPrefetch.runNow(row)}
-                    aria-label={`فتح تفاصيل ${row.itemName}`}
-                    className="flex w-full min-w-0 items-start gap-3 rounded-xl px-2.5 py-1.5 text-right transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <span className="mt-0.5 flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-100 px-1 text-[11px] font-bold text-slate-500">
-                      {rowNumber}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <strong className="block truncate font-bold text-slate-900 underline-offset-4 hover:text-blue-700 hover:underline">{row.itemName}</strong>
-                      <span className="mt-0.5 block truncate text-xs text-slate-500">
-                        {row.categoryLabel}{row.projectName ? ` · ${row.projectName}` : ''}
-                      </span>
-                    </span>
-                    <span className="mt-1 text-blue-500" aria-hidden="true">←</span>
-                  </button>
-                </td>
-                <td className="sticky right-[270px] z-20 w-[120px] border-b border-l border-slate-200 bg-emerald-50 px-3 text-center font-bold text-emerald-900 group-hover:bg-emerald-100">
-                  {formatQuantity(row.stockBalance)}
-                </td>
+                {frozenColumns.map((column, columnIndex) => (
+                  <FrozenCell
+                    key={column.key}
+                    column={column}
+                    right={frozenColumnOffsets[columnIndex]}
+                    row={row}
+                    rowNumber={rowNumber}
+                    showScrewDetails={showScrewDetails}
+                    onItemClick={onItemClick}
+                    delayedItemPrefetch={delayedItemPrefetch}
+                  />
+                ))}
                 {dates.flatMap((date) => [
                   <OperationCell
                     key={`${row.id}-${date}-issue`}
@@ -344,7 +573,7 @@ export function OperationsMatrixTable({
           {bottomSpacerHeight > 0 ? (
             <tr aria-hidden="true">
               <td
-                colSpan={2 + dates.length * 2}
+                colSpan={matrixColumnCount}
                 className="border-0 p-0"
                 style={{ height: `${bottomSpacerHeight}px` }}
               />

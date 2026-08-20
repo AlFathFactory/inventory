@@ -3,6 +3,8 @@ import {
   buildMovementTotals,
   getMatrixCellTotal,
   getOperationsDisplayDates,
+  getOperationsMatrixFrozenColumns,
+  matchesMatrixScrewFilters,
 } from './operationsMatrix'
 
 describe('getOperationsDisplayDates', () => {
@@ -52,5 +54,36 @@ describe('buildMovementTotals', () => {
         'issue',
       ),
     ).toBe(10)
+  })
+})
+
+describe('getOperationsMatrixFrozenColumns', () => {
+  it('places the screw section first from the right, before the item name', () => {
+    expect(
+      getOperationsMatrixFrozenColumns(true).map((column) => column.key),
+    ).toEqual(['project', 'item', 'din', 'codeNumber', 'balance'])
+  })
+
+  it('keeps the compact columns for other inventory types', () => {
+    expect(
+      getOperationsMatrixFrozenColumns(false).map((column) => column.key),
+    ).toEqual(['item', 'balance'])
+  })
+})
+
+describe('matchesMatrixScrewFilters', () => {
+  it('applies DIN and code-number filters independently', () => {
+    expect(matchesMatrixScrewFilters('DIN 933', 'SC-1250', {
+      din: '933',
+      codeNumber: '',
+    })).toBe(true)
+    expect(matchesMatrixScrewFilters('DIN 933', 'SC-1250', {
+      din: '',
+      codeNumber: '1250',
+    })).toBe(true)
+    expect(matchesMatrixScrewFilters('DIN 933', 'SC-1250', {
+      din: '912',
+      codeNumber: '1250',
+    })).toBe(false)
   })
 })

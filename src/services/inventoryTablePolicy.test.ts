@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isCustodyInventoryTable,
   isInventoryTable,
+  isScrewInventoryTable,
   isStockInventoryTable,
 } from './inventoryTablePolicy'
 
@@ -16,5 +17,11 @@ describe('inventory table policy', () => {
     expect(isStockInventoryTable('cylinders')).toBe(true)
     expect(isStockInventoryTable('long_welding_gloves')).toBe(false)
     expect(isCustodyInventoryTable('long_welding_gloves')).toBe(true)
+  })
+
+  it('identifies both screw inventory tables', () => {
+    expect(isScrewInventoryTable('screws')).toBe(true)
+    expect(isScrewInventoryTable('stock_screws')).toBe(true)
+    expect(isScrewInventoryTable('raw_materials')).toBe(false)
   })
 })

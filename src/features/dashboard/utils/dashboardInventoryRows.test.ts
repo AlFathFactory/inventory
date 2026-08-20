@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { categoryConfig } from '../../../config/categoryConfig'
 import type { InventoryRow } from '../../../services/inventoryService'
-import { buildDynamicDashboardInventoryRows } from './dashboardInventoryRows'
+import {
+  buildDashboardInventoryRows,
+  buildDynamicDashboardInventoryRows,
+} from './dashboardInventoryRows'
 
 function makeDynamicRow(overrides: Partial<InventoryRow> = {}): InventoryRow {
   return {
@@ -61,5 +65,30 @@ describe('buildDynamicDashboardInventoryRows', () => {
     expect(row.searchText).toContain('مخزن اللحام')
     expect(row.searchText).toContain('dc001-001')
     expect(row.searchText).toContain('رول تغليف')
+  })
+})
+
+describe('buildDashboardInventoryRows', () => {
+  it('preserves screw metadata used by the operations matrix', () => {
+    const [row] = buildDashboardInventoryRows([{
+      categoryKey: 'screws',
+      category: categoryConfig.screws,
+      rows: [{
+        id: 'screw-1',
+        item_name: 'M12 × 50',
+        project: 'قسم التجميع',
+        din: 'DIN 933',
+        code_number: 'SC-1250',
+        stock_balance: 20,
+        min_quantity: 5,
+      }],
+    }])
+
+    expect(row.projectName).toBe('قسم التجميع')
+    expect(row.itemName).toBe('M12 × 50')
+    expect(row.din).toBe('DIN 933')
+    expect(row.codeNumber).toBe('SC-1250')
+    expect(row.searchText).toContain('din 933')
+    expect(row.searchText).toContain('sc-1250')
   })
 })

@@ -33,6 +33,8 @@ export type DashboardInventoryRow = {
   categoryLabel: string
   itemName: string
   projectName: string | null
+  din: string | null
+  codeNumber: string | null
   updatedAt: string | null
   dateValue: string | null
   dateLabel: string

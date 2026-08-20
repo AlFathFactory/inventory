@@ -128,7 +128,12 @@ export function buildDashboardInventoryRows(
           categoryId: null,
           categoryLabel: category.label,
           itemName,
-          projectName: extractStringValue(row.project) ?? extractStringValue(row.received_by),
+          projectName:
+            extractStringValue(row.project_name) ??
+            extractStringValue(row.project) ??
+            extractStringValue(row.received_by),
+          din: extractStringValue(row.din),
+          codeNumber: extractStringValue(row.code_number),
           updatedAt,
           dateValue,
           dateLabel: formatInventoryDate(row[category.dateField]),
@@ -194,6 +199,8 @@ export function buildDynamicDashboardInventoryRows(
       categoryLabel,
       itemName,
       projectName,
+      din: null,
+      codeNumber: null,
       updatedAt,
       dateValue,
       dateLabel: formatInventoryDate(row.transaction_date),

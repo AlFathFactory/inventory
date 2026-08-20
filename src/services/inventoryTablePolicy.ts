@@ -26,6 +26,11 @@ export type StockInventoryTable = typeof stockInventoryTables[number]
 export type CustodyInventoryTable = typeof custodyInventoryTables[number]
 export type InventoryTable = typeof inventoryTables[number]
 
+const screwInventoryTables = new Set<InventoryTable>([
+  'screws',
+  'stock_screws',
+])
+
 export function isStockInventoryTable(tableName: string): tableName is StockInventoryTable {
   return (stockInventoryTables as readonly string[]).includes(tableName)
 }
@@ -36,4 +41,8 @@ export function isCustodyInventoryTable(tableName: string): tableName is Custody
 
 export function isInventoryTable(tableName: string): tableName is InventoryTable {
   return isStockInventoryTable(tableName) || isCustodyInventoryTable(tableName)
+}
+
+export function isScrewInventoryTable(tableName: string) {
+  return isInventoryTable(tableName) && screwInventoryTables.has(tableName)
 }

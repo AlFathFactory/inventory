@@ -1,6 +1,46 @@
 import type { InventoryOperationsGridMovement } from '../../services/operationsService'
+import { includesSearchTerm, normalizeSearchTerm } from '../../utils/searchUtils'
 
 export type MatrixOperationType = 'add' | 'issue'
+
+export type MatrixScrewFilters = {
+  din: string
+  codeNumber: string
+}
+
+export type MatrixFrozenColumn = {
+  key: 'project' | 'item' | 'din' | 'codeNumber' | 'balance'
+  label: string
+  width: number
+}
+
+const defaultFrozenColumns: readonly MatrixFrozenColumn[] = [
+  { key: 'item', label: 'الصنف', width: 270 },
+  { key: 'balance', label: 'الرصيد', width: 120 },
+]
+
+const screwFrozenColumns: readonly MatrixFrozenColumn[] = [
+  { key: 'project', label: 'القسم', width: 180 },
+  { key: 'item', label: 'الصنف', width: 270 },
+  { key: 'din', label: 'DIN', width: 120 },
+  { key: 'codeNumber', label: 'رقم الكود', width: 150 },
+  { key: 'balance', label: 'الرصيد', width: 120 },
+]
+
+export function getOperationsMatrixFrozenColumns(showScrewDetails: boolean) {
+  return showScrewDetails ? screwFrozenColumns : defaultFrozenColumns
+}
+
+export function matchesMatrixScrewFilters(
+  din: string | null,
+  codeNumber: string | null,
+  filters: MatrixScrewFilters,
+) {
+  return (
+    includesSearchTerm(din, normalizeSearchTerm(filters.din)) &&
+    includesSearchTerm(codeNumber, normalizeSearchTerm(filters.codeNumber))
+  )
+}
 
 function toLocalDateValue(date: Date) {
   const year = date.getFullYear()
