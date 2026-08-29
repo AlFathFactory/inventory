@@ -11,6 +11,7 @@ vi.mock('./offlineBootstrapService', () => ({
 
 import {
   filterPartiesForSearch,
+  getCachedParties,
   searchAvailableParties,
   type Employee,
 } from './partiesService'
@@ -83,5 +84,19 @@ describe('offline party search compatibility', () => {
     await expect(searchAvailableParties('employee', '', false)).resolves.toEqual([
       expect.objectContaining({ id: 'employee-1', name: 'Cached Employee' }),
     ])
+  })
+
+  it('hydrates the complete active party list so dropdown searches stay local', async () => {
+    getCachedPartyRecords.mockResolvedValue(Array.from({ length: 25 }, (_, index) => ({
+      id: `employee-${index + 1}`,
+      kind: 'employee',
+      name: `Employee ${String(index + 1).padStart(2, '0')}`,
+      code: null,
+      detail: null,
+      phone: null,
+      isActive: true,
+    })))
+
+    await expect(getCachedParties('employee')).resolves.toHaveLength(25)
   })
 })

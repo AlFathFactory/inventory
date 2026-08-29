@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Navigate, Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom'
 import { Sidebar } from '../components/Sidebar'
 import { Topbar } from '../components/Topbar'
@@ -8,6 +9,7 @@ import { useAccess } from '../features/access/AccessContext'
 import { BuildUpdateBanner } from '../components/BuildUpdateBanner'
 import { useInventoryRealtime } from '../hooks/useInventoryRealtime'
 import { refreshCachedParties } from '../services/offlineBootstrapService'
+import { getCachedParties, partyKeys } from '../services/partiesService'
 
 function RouteLoadingState() {
   return (
@@ -22,6 +24,7 @@ function RouteLoadingState() {
 
 export function DashboardLayout() {
   useInventoryRealtime()
+  const queryClient = useQueryClient()
   const { user } = useAccess()
   const location = useLocation()
   const navigate = useNavigate()
@@ -30,13 +33,30 @@ export function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   useEffect(() => {
-    const refreshParties = () => {
-      if (navigator.onLine) void refreshCachedParties().catch(() => undefined)
+    let active = true
+    const hydratePartyQueries = async () => {
+      const [employees, suppliers] = await Promise.all([
+        getCachedParties('employee'),
+        getCachedParties('supplier'),
+      ])
+      if (!active) return
+      queryClient.setQueryData(partyKeys.list('employee'), employees)
+      queryClient.setQueryData(partyKeys.list('supplier'), suppliers)
     }
+    const refreshParties = () => {
+      if (!navigator.onLine) return
+      void refreshCachedParties()
+        .then(hydratePartyQueries)
+        .catch(() => undefined)
+    }
+    void hydratePartyQueries().catch(() => undefined)
     refreshParties()
     window.addEventListener('online', refreshParties)
-    return () => window.removeEventListener('online', refreshParties)
-  }, [])
+    return () => {
+      active = false
+      window.removeEventListener('online', refreshParties)
+    }
+  }, [queryClient])
 
   useEffect(() => { setIsDrawerOpen(false) }, [location.pathname])
 

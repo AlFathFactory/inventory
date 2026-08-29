@@ -80,7 +80,7 @@ export async function searchActiveParties(kind: PartyKind, search = ''): Promise
   ).slice(0, 20)
 }
 
-export async function searchCachedParties(kind: PartyKind, search = ''): Promise<Party[]> {
+export async function getCachedParties(kind: PartyKind): Promise<Party[]> {
   const records = await getCachedPartyRecords(kind)
   const parties = records.map((record) => kind === 'employee'
     ? {
@@ -99,11 +99,12 @@ export async function searchCachedParties(kind: PartyKind, search = ''): Promise
         phone: record.phone,
         is_active: record.isActive,
       } satisfies Supplier)
-  return filterPartiesForSearch(
-    kind,
-    parties.filter((party) => party.is_active),
-    search,
-  ).slice(0, 20)
+  return parties.filter((party) => party.is_active)
+}
+
+export async function searchCachedParties(kind: PartyKind, search = ''): Promise<Party[]> {
+  const parties = await getCachedParties(kind)
+  return filterPartiesForSearch(kind, parties, search).slice(0, 20)
 }
 
 export async function searchAvailableParties(

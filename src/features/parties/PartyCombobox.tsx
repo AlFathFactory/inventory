@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createParty, normalizePartyName, partyKeys, searchAvailableParties,
+  createParty, filterPartiesForSearch, getCachedParties, normalizePartyName, partyKeys,
   type Employee, type Party, type PartyKind,
 } from '../../services/partiesService'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
@@ -53,11 +53,15 @@ export function PartyCombobox({
   }, [])
 
   const query = useQuery({
-    queryKey: [...partyKeys.list(kind), search, connectionState],
-    queryFn: () => searchAvailableParties(kind, search, connectionState === 'online'),
+    queryKey: partyKeys.list(kind),
+    queryFn: () => getCachedParties(kind),
     enabled: open,
+    staleTime: Infinity,
   })
-  const options = query.data ?? []
+  const options = useMemo(
+    () => filterPartiesForSearch(kind, query.data ?? [], search).slice(0, 20),
+    [kind, query.data, search],
+  )
 
   function choose(party: Party) {
     setInput(party.name)
@@ -213,12 +217,15 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
   }, [])
 
   const query = useQuery({
-    queryKey: [...partyKeys.list('employee'), 'multi', search, connectionState],
-    queryFn: () => searchAvailableParties('employee', search, connectionState === 'online'),
+    queryKey: partyKeys.list('employee'),
+    queryFn: () => getCachedParties('employee'),
     enabled: open,
+    staleTime: Infinity,
   })
   const selectedIds = new Set(selected.map((employee) => employee.id))
-  const options = (query.data ?? []).filter((employee) => !selectedIds.has(employee.id))
+  const options = filterPartiesForSearch('employee', query.data ?? [], search)
+    .filter((employee) => !selectedIds.has(employee.id))
+    .slice(0, 20)
 
   function startCreate() {
     if (!canCreate) return
