@@ -16,6 +16,7 @@ import { isInventoryTable } from './inventoryTablePolicy'
 
 const pageSize = 1000
 let activePreparation: Promise<void> | null = null
+let activePartyRefresh: Promise<void> | null = null
 
 function nullableText(value: unknown) {
   return typeof value === 'string' && value.trim() ? value : null
@@ -116,6 +117,38 @@ function toCachedParty(
     isActive: raw.is_active !== false,
     cachedAt,
   }
+}
+
+export async function cachePartyRecords(
+  kind: CachedPartyKind,
+  rows: Record<string, unknown>[],
+) {
+  const cachedAt = new Date().toISOString()
+  const records = rows.map((row) => toCachedParty(row, kind, cachedAt))
+  if (records.length > 0) await offlineDb.cached_parties.bulkPut(records)
+}
+
+async function performPartyRefresh() {
+  await requireSupabaseReachability()
+  const [employees, suppliers] = await Promise.all([
+    fetchActiveParties('employee'),
+    fetchActiveParties('supplier'),
+  ])
+  const cachedAt = new Date().toISOString()
+  const records = [
+    ...employees.map((row) => toCachedParty(row, 'employee', cachedAt)),
+    ...suppliers.map((row) => toCachedParty(row, 'supplier', cachedAt)),
+  ]
+  await offlineDb.transaction('rw', offlineDb.cached_parties, async () => {
+    await offlineDb.cached_parties.clear()
+    if (records.length > 0) await offlineDb.cached_parties.bulkPut(records)
+  })
+}
+
+export function refreshCachedParties() {
+  if (activePartyRefresh) return activePartyRefresh
+  activePartyRefresh = performPartyRefresh().finally(() => { activePartyRefresh = null })
+  return activePartyRefresh
 }
 
 async function assertSnapshotCanBeReplaced() {

@@ -1,6 +1,6 @@
 import { getSupabaseConfigError, isSupabaseConfigured, supabaseClient } from '../lib/supabaseClient'
 import { matchesAnySearchValue, normalizeSearchTerm } from '../utils/searchUtils'
-import { getCachedPartyRecords } from './offlineBootstrapService'
+import { cachePartyRecords, getCachedPartyRecords } from './offlineBootstrapService'
 import { isTransportError } from './connectivityService'
 
 export type Employee = {
@@ -41,6 +41,10 @@ function client() {
   return supabaseClient
 }
 
+function cachePartiesBestEffort(kind: PartyKind, parties: Party[]) {
+  return cachePartyRecords(kind, parties).catch(() => undefined)
+}
+
 export function normalizePartyName(value: string) {
   return value.trim().replace(/\s+/g, ' ')
 }
@@ -67,7 +71,13 @@ export async function searchActiveParties(kind: PartyKind, search = ''): Promise
     .order('name')
     .limit(1000)
   if (error) throw new Error(error.message)
-  return filterPartiesForSearch(kind, (data ?? []) as Party[], search).slice(0, 20)
+  const parties = (data ?? []) as Party[]
+  await cachePartiesBestEffort(kind, parties)
+  return filterPartiesForSearch(
+    kind,
+    parties.filter((party) => party.is_active),
+    search,
+  ).slice(0, 20)
 }
 
 export async function searchCachedParties(kind: PartyKind, search = ''): Promise<Party[]> {
@@ -89,7 +99,11 @@ export async function searchCachedParties(kind: PartyKind, search = ''): Promise
         phone: record.phone,
         is_active: record.isActive,
       } satisfies Supplier)
-  return filterPartiesForSearch(kind, parties, search).slice(0, 20)
+  return filterPartiesForSearch(
+    kind,
+    parties.filter((party) => party.is_active),
+    search,
+  ).slice(0, 20)
 }
 
 export async function searchAvailableParties(kind: PartyKind, search = '') {
@@ -106,7 +120,9 @@ export async function getPartySummaries(kind: PartyKind): Promise<Party[]> {
   const view = kind === 'employee' ? 'employee_inventory_summary_v' : 'supplier_inventory_summary_v'
   const { data, error } = await client().from(view).select('*').order('name')
   if (error) throw new Error(error.message)
-  return (data ?? []) as Party[]
+  const parties = (data ?? []) as Party[]
+  await cachePartiesBestEffort(kind, parties)
+  return parties
 }
 
 export async function createParty(kind: PartyKind, values: Record<string, string>) {
@@ -131,7 +147,9 @@ export async function createParty(kind: PartyKind, values: Record<string, string
       ? data.supplier
       : data
   if (!record || typeof record !== 'object') throw new Error('لم تُرجع الخدمة بيانات السجل')
-  return record as Party
+  const party = record as Party
+  await cachePartiesBestEffort(kind, [party])
+  return party
 }
 
 export async function saveParty(kind: PartyKind, id: string, values: Record<string, unknown>) {
@@ -139,7 +157,9 @@ export async function saveParty(kind: PartyKind, id: string, values: Record<stri
     .from(kind === 'employee' ? 'employees' : 'suppliers')
     .update(values).eq('id', id).select('*').single()
   if (error) throw new Error(error.message)
-  return data as Party
+  const party = data as Party
+  await cachePartiesBestEffort(kind, [party])
+  return party
 }
 
 export async function getEmployeeActivity(employeeId: string) {

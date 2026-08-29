@@ -7,6 +7,7 @@ import { canAccessPath, isKnownApplicationPath } from '../config/accessControl'
 import { useAccess } from '../features/access/AccessContext'
 import { BuildUpdateBanner } from '../components/BuildUpdateBanner'
 import { useInventoryRealtime } from '../hooks/useInventoryRealtime'
+import { refreshCachedParties } from '../services/offlineBootstrapService'
 
 function RouteLoadingState() {
   return (
@@ -27,6 +28,15 @@ export function DashboardLayout() {
   const navigation = useNavigation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
+  useEffect(() => {
+    const refreshParties = () => {
+      if (navigator.onLine) void refreshCachedParties().catch(() => undefined)
+    }
+    refreshParties()
+    window.addEventListener('online', refreshParties)
+    return () => window.removeEventListener('online', refreshParties)
+  }, [])
 
   useEffect(() => { setIsDrawerOpen(false) }, [location.pathname])
 
