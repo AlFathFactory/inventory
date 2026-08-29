@@ -13,7 +13,8 @@ import {
 } from '../../../services/operationsService'
 import type { CategoryQuickAction, SelectedInventoryItem } from '../types'
 import { invalidateItemData } from '../../inventory/inventoryCache'
-import { itemQueryOptions } from '../../inventory/inventoryQueries'
+import { getProjectedCachedInventoryItem } from '../../inventory/inventoryQueries'
+import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
 import type { SetCategoryMessage } from './categoryHookTypes'
 
 const incompleteItemDataMessage =
@@ -28,7 +29,6 @@ export function useCategoryOperation({
 }) {
   const queryClient = useQueryClient()
   const [quickAction, setQuickAction] = useState<CategoryQuickAction>(null)
-  const [isPreparing, setIsPreparing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null)
   const [selectedItem, setSelectedItem] = useState<SelectedInventoryItem | null>(null)
@@ -87,31 +87,27 @@ export function useCategoryOperation({
     }
 
     setQuickAction(null)
-    setIsPreparing(true)
     setMessage(null)
-    const result = await (navigator.onLine
-      ? queryClient.fetchQuery(itemQueryOptions(item.tableName, String(item.itemId)))
-      : Promise.resolve(queryClient.getQueryData<ItemDetails>(
-          ['inventory', 'item', item.tableName, String(item.itemId)],
-        ) ?? row as ItemDetails))
-      .then((data) => ({ data, error: null }))
-      .catch((error: unknown) => ({
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to load item.',
-      }))
-    setIsPreparing(false)
-
-    if (result.error || !result.data) {
-      setMessage({ type: 'error', text: result.error || 'تعذر تحميل بيانات الصنف' })
-      return
+    const itemKey = inventoryKeys.item(item.tableName, String(item.itemId))
+    let operationItem = queryClient.getQueryData<ItemDetails>(itemKey)
+    if (!operationItem) {
+      try {
+        operationItem = await getProjectedCachedInventoryItem(
+          item.tableName,
+          String(item.itemId),
+        ) ?? row as ItemDetails
+      } catch {
+        operationItem = row as ItemDetails
+      }
     }
 
-    setItemDetails(result.data)
+    queryClient.setQueryData(itemKey, operationItem)
+    setItemDetails(operationItem)
     setSelectedItem(item)
     setSelectedItemId(String(item.itemId))
     setOperationType(nextType)
     setForm({
-      ...createInitialOperationFormState(result.data),
+      ...createInitialOperationFormState(operationItem),
       ...(initialOperationDate
         ? { operationDate: initialOperationDate }
         : {}),
@@ -206,7 +202,7 @@ export function useCategoryOperation({
     quickAction,
     openQuickAction,
     closeQuickAction: () => setQuickAction(null),
-    isPreparing,
+    isPreparing: false,
     isSubmitting,
     itemDetails,
     selectedItemId,

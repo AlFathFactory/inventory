@@ -233,32 +233,42 @@ export function prepareOfflineData() {
   return activePreparation
 }
 
+function mapCachedInventoryItem(record: CachedInventoryItem): CategorySummaryItem {
+  const stockStatus = getStockStatusFromValues(record.stockBalance, record.minQuantity)
+  return {
+    ...record.raw,
+    table_name: record.tableName,
+    item_id: record.itemId,
+    internal_code: record.internalCode,
+    item_name: record.itemName,
+    type_name: record.raw.type_name ?? record.itemName,
+    project_name: record.projectName,
+    project: record.raw.project ?? record.projectName,
+    material_source: record.materialSource,
+    stock_balance: record.stockBalance,
+    min_quantity: record.minQuantity,
+    supplier_name: record.supplierName,
+    item_key: record.raw.item_key as string | null ?? null,
+    status: stockStatus ? getStockStatusLabel(stockStatus) : null,
+    total_added: record.raw.total_added as number | null ?? null,
+    total_issued: record.raw.total_issued as number | null ?? null,
+    source_rows_count: record.raw.source_rows_count as number | null ?? 1,
+    updated_at: record.updatedAt,
+    created_at: record.raw.created_at as string | null ?? null,
+  } as CategorySummaryItem
+}
+
 export async function getCachedCategoryRows(tableName: string): Promise<CategorySummaryItem[]> {
   const records = await offlineDb.cached_inventory_items.where('tableName').equals(tableName).toArray()
-  return records.map((record) => {
-    const stockStatus = getStockStatusFromValues(record.stockBalance, record.minQuantity)
-    return {
-      ...record.raw,
-      table_name: record.tableName,
-      item_id: record.itemId,
-      internal_code: record.internalCode,
-      item_name: record.itemName,
-      type_name: record.raw.type_name ?? record.itemName,
-      project_name: record.projectName,
-      project: record.raw.project ?? record.projectName,
-      material_source: record.materialSource,
-      stock_balance: record.stockBalance,
-      min_quantity: record.minQuantity,
-      supplier_name: record.supplierName,
-      item_key: record.raw.item_key as string | null ?? null,
-      status: stockStatus ? getStockStatusLabel(stockStatus) : null,
-      total_added: record.raw.total_added as number | null ?? null,
-      total_issued: record.raw.total_issued as number | null ?? null,
-      source_rows_count: record.raw.source_rows_count as number | null ?? 1,
-      updated_at: record.updatedAt,
-      created_at: record.raw.created_at as string | null ?? null,
-    } as CategorySummaryItem
-  })
+  return records.map(mapCachedInventoryItem)
+}
+
+export async function getCachedInventoryItem(tableName: string, itemId: string) {
+  const record = await offlineDb.cached_inventory_items
+    .where('[tableName+itemId]')
+    .equals([tableName, itemId])
+    .first()
+  return record ? mapCachedInventoryItem(record) : null
 }
 
 export async function getCachedProjects(activeOnly = false): Promise<Project[]> {

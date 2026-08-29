@@ -8,7 +8,10 @@ import { canAccessPath, isKnownApplicationPath } from '../config/accessControl'
 import { useAccess } from '../features/access/AccessContext'
 import { BuildUpdateBanner } from '../components/BuildUpdateBanner'
 import { useInventoryRealtime } from '../hooks/useInventoryRealtime'
-import { refreshCachedParties } from '../services/offlineBootstrapService'
+import {
+  prepareOfflineData,
+  refreshCachedParties,
+} from '../services/offlineBootstrapService'
 import { getCachedParties, partyKeys } from '../services/partiesService'
 
 function RouteLoadingState() {
@@ -49,12 +52,19 @@ export function DashboardLayout() {
         .then(hydratePartyQueries)
         .catch(() => undefined)
     }
+    const refreshOfflineInventory = () => {
+      if (!navigator.onLine) return
+      void prepareOfflineData().catch(() => undefined)
+    }
     void hydratePartyQueries().catch(() => undefined)
     refreshParties()
+    refreshOfflineInventory()
     window.addEventListener('online', refreshParties)
+    window.addEventListener('online', refreshOfflineInventory)
     return () => {
       active = false
       window.removeEventListener('online', refreshParties)
+      window.removeEventListener('online', refreshOfflineInventory)
     }
   }, [queryClient])
 

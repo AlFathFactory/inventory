@@ -8,7 +8,10 @@ import {
 } from '../../services/itemsService'
 import { loadCategoryRows } from '../category/utils/categoryRows'
 import { inventoryKeys } from './inventoryQueryKeys'
-import { getCachedCategoryRows } from '../../services/offlineBootstrapService'
+import {
+  getCachedCategoryRows,
+  getCachedInventoryItem,
+} from '../../services/offlineBootstrapService'
 import { offlineDb } from '../../lib/offlineDb'
 import { projectOfflineChanges } from './offlineCache'
 import { isTransportError } from '../../services/connectivityService'
@@ -20,6 +23,19 @@ async function getProjectedCachedCategoryRows(tableName: string) {
     offlineDb.offline_operations.where('tableName').equals(tableName).toArray(),
   ])
   return projectOfflineChanges(rows, items, operations)
+}
+
+export async function getProjectedCachedInventoryItem(tableName: string, itemId: string) {
+  const [cachedItem, localItem, operations] = await Promise.all([
+    getCachedInventoryItem(tableName, itemId),
+    offlineDb.offline_items.get(itemId),
+    offlineDb.offline_operations.where('tableName').equals(tableName).filter((operation) => (
+      operation.itemId === itemId || operation.localItemId === itemId
+    )).toArray(),
+  ])
+  const localItems = localItem?.tableName === tableName ? [localItem] : []
+  return projectOfflineChanges(cachedItem ? [cachedItem] : [], localItems, operations)
+    .find((row) => String(row.item_id) === itemId) ?? null
 }
 
 function requireData<T>(result: { data: T | null; error: string | null }): T {
@@ -58,8 +74,7 @@ export function itemQueryOptions(tableName: string, itemId: string) {
           if (!isTransportError(error)) throw error
         }
       }
-      const item = (await getProjectedCachedCategoryRows(tableName))
-        .find((row) => String(row.item_id) === itemId)
+      const item = await getProjectedCachedInventoryItem(tableName, itemId)
       if (!item) throw new Error('الصنف غير موجود في البيانات المحلية')
       return item
     },
