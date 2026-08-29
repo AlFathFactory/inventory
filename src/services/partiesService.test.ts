@@ -70,4 +70,18 @@ describe('offline party search compatibility', () => {
       expect.objectContaining({ id: 'supplier-1', name: 'Supplier One' }),
     ])
   })
+
+  it('uses the offline cache when the browser has a network but Supabase is unreachable', async () => {
+    vi.stubGlobal('navigator', { onLine: true })
+    getCachedPartyRecords.mockResolvedValue([
+      {
+        id: 'employee-1', kind: 'employee', name: 'Cached Employee', code: null,
+        detail: null, phone: null, isActive: true,
+      },
+    ])
+
+    await expect(searchAvailableParties('employee', '', false)).resolves.toEqual([
+      expect.objectContaining({ id: 'employee-1', name: 'Cached Employee' }),
+    ])
+  })
 })

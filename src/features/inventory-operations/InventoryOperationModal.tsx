@@ -74,8 +74,8 @@ export function InventoryOperationModal({
   const attributeFields = category.attributeFields ?? []
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4">
-      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/35 px-4 py-4">
+      <div className="mx-auto my-[4vh] w-full max-w-2xl overflow-visible rounded-[32px] border border-[var(--app-border)] bg-[var(--app-panel)] p-6 shadow-2xl lg:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="text-right">
             <h3 className="text-[1.5rem] font-bold text-slate-900">

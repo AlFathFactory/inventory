@@ -106,8 +106,12 @@ export async function searchCachedParties(kind: PartyKind, search = ''): Promise
   ).slice(0, 20)
 }
 
-export async function searchAvailableParties(kind: PartyKind, search = '') {
-  if (!navigator.onLine) return searchCachedParties(kind, search)
+export async function searchAvailableParties(
+  kind: PartyKind,
+  search = '',
+  isServerAvailable = navigator.onLine,
+) {
+  if (!navigator.onLine || !isServerAvailable) return searchCachedParties(kind, search)
   try {
     return await searchActiveParties(kind, search)
   } catch (error) {

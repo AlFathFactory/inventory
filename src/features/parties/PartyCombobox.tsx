@@ -54,7 +54,7 @@ export function PartyCombobox({
 
   const query = useQuery({
     queryKey: [...partyKeys.list(kind), search, connectionState],
-    queryFn: () => searchAvailableParties(kind, search),
+    queryFn: () => searchAvailableParties(kind, search, connectionState === 'online'),
     enabled: open,
   })
   const options = query.data ?? []
@@ -214,7 +214,7 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
 
   const query = useQuery({
     queryKey: [...partyKeys.list('employee'), 'multi', search, connectionState],
-    queryFn: () => searchAvailableParties('employee', search),
+    queryFn: () => searchAvailableParties('employee', search, connectionState === 'online'),
     enabled: open,
   })
   const selectedIds = new Set(selected.map((employee) => employee.id))
