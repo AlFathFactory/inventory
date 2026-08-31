@@ -22,6 +22,7 @@ import {
   buildMonthlyMovementSummaries,
   getDateTimestamp,
   getInclusiveDateEndTimestamp,
+  getLatestMovementId,
 } from '../itemDetailsUtils'
 import type { ItemDetailsMessage, ItemMovementsDateFilterValue } from '../types'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
@@ -338,7 +339,7 @@ export function useItemDetailsPage(
     isLoading: itemQuery.isPending || movementsQuery.isPending,
     isSubmitting,
     deletingMovementId,
-    latestMovementId: movements[0] ? String(movements[0].id) : undefined,
+    latestMovementId: getLatestMovementId(movements),
     movementToDelete,
     movementToReturn,
     returnAllocations,

@@ -46,6 +46,27 @@ export function formatMovementDate(value: string | null | undefined) {
   return `${day}/${month}/${date.getFullYear()}`
 }
 
+function getMovementCreatedAtTimestamp(movement: ItemMovement) {
+  const timestamp = movement.created_at ? Date.parse(movement.created_at) : Number.NaN
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp
+}
+
+export function getLatestMovementId(movements: ItemMovement[]) {
+  const latestMovement = movements.reduce<ItemMovement | undefined>((latest, movement) => {
+    if (!latest) return movement
+
+    const movementTimestamp = getMovementCreatedAtTimestamp(movement)
+    const latestTimestamp = getMovementCreatedAtTimestamp(latest)
+    if (movementTimestamp !== latestTimestamp) {
+      return movementTimestamp > latestTimestamp ? movement : latest
+    }
+
+    return String(movement.id) > String(latest.id) ? movement : latest
+  }, undefined)
+
+  return latestMovement ? String(latestMovement.id) : undefined
+}
+
 export function buildMonthlyMovementSummaries(
   movements: ItemMovement[],
 ): MonthlyMovementSummary[] {

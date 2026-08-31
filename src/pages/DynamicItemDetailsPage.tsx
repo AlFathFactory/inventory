@@ -23,6 +23,7 @@ import {
 import { DynamicResourceNotFoundError } from '../features/dynamic-categories/dynamicCategoryService'
 import { getDynamicCategoryItemsRoute } from '../features/dynamic-categories/dynamicCategoryRoutes'
 import type { DynamicItemEditInput } from '../features/dynamic-categories/types'
+import { getLatestMovementId } from '../features/item-details/itemDetailsUtils'
 import {
   applyDynamicItemStockOperation,
   returnDynamicItemStock,
@@ -293,7 +294,7 @@ export function DynamicItemDetailsPage() {
         {movementsQuery.isPending ? <div className="mt-6 space-y-3">{[0, 1, 2].map((row) => <div key={row} className="h-16 animate-pulse rounded-2xl bg-slate-50" />)}</div> : null}
         {movementsQuery.isError ? <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-6 text-center text-sm text-red-700">{errorMessage(movementsQuery.error)}<button type="button" onClick={() => void movementsQuery.refetch()} className="mr-3 font-bold underline">إعادة المحاولة</button></div> : null}
         {!movementsQuery.isPending && !movementsQuery.isError && (movementsQuery.data?.length ?? 0) === 0 ? <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm font-semibold text-slate-600">لا توجد حركات مسجلة لهذا الصنف.</div> : null}
-        {(movementsQuery.data?.length ?? 0) > 0 ? <MovementsTable movements={movementsQuery.data ?? []} latestMovementId={String(movementsQuery.data?.[0]?.id ?? '')} actionsDisabled={operationsDisabled || isSubmittingReturn || isDeletingMovement} onReturn={openReturn} onDelete={setDeleteMovement} /> : null}
+        {(movementsQuery.data?.length ?? 0) > 0 ? <MovementsTable movements={movementsQuery.data ?? []} latestMovementId={getLatestMovementId(movementsQuery.data ?? []) ?? ''} actionsDisabled={operationsDisabled || isSubmittingReturn || isDeletingMovement} onReturn={openReturn} onDelete={setDeleteMovement} /> : null}
       </div>
 
       {isEditOpen ? <DynamicItemFormDialog mode="edit" categoryId={categoryId} item={item} isSaving={updateMutation.isPending} error={formError} onClose={() => { if (!updateMutation.isPending) setIsEditOpen(false) }} onSubmit={editItem} /> : null}
