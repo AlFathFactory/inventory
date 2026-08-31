@@ -3,6 +3,7 @@ import { liveQuery } from 'dexie'
 import { offlineDb, type OfflineItem, type OfflineOperation, type OfflineStatus } from '../lib/offlineDb'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import {
+  discardOfflineItem,
   discardOfflineOperation,
   dismissConflictingOperation,
   retryFailedItem,
@@ -175,6 +176,20 @@ export function SyncCenterPage() {
     await discardOfflineOperation(operation.id)
   }
 
+  async function discardItem(item: OfflineItem) {
+    const dependentCount = operations.filter((operation) => (
+      operation.localItemId === item.localId && operation.status !== 'synced'
+    )).length
+    const dependentMessage = dependentCount > 0
+      ? ` وسيتم حذف ${dependentCount} عملية محلية مرتبطة به من قائمة المزامنة.`
+      : ''
+    if (!window.confirm(`سيتم حذف الصنف المحلي المتعذر فقط${dependentMessage} لن يتم حذف الصنف أو تغيير الرصيد على الخادم. هل تريد المتابعة؟`)) return
+    const result = await discardOfflineItem(item.localId)
+    if (!result.discarded) {
+      setActionError('تعذر حذف الصنف لأنه قيد المزامنة الآن. انتظر انتهاء المزامنة ثم أعد المحاولة.')
+    }
+  }
+
   async function discardConflict(operation: OfflineOperation) {
     if (!window.confirm('سيتم تجاهل التعديل المحلي والإبقاء على نسخة الخادم. هل تريد المتابعة؟')) return
     await dismissConflictingOperation(operation.id)
@@ -228,7 +243,8 @@ export function SyncCenterPage() {
         <div className="mt-4 space-y-3">{operations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات محلية.</p> : filteredOperations.length === 0 ? <p className="rounded-2xl bg-slate-50 p-5 text-center text-sm text-slate-500">لا توجد عمليات بهذه الحالة.</p> : operationsPagination.paginatedItems.map((operation) => {
           const itemName = String(operation.payload.itemName ?? operation.itemId ?? operation.localItemId ?? 'غير محدد')
           const date = String(operation.payload.operationDate ?? operation.createdAt)
-          return <article key={operation.id} className="rounded-2xl border border-[var(--app-border)] p-4"><div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center"><div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4"><div><span className="block text-xs text-slate-500">النوع</span><strong>{operationLabels[operation.operationType]}</strong></div><div><span className="block text-xs text-slate-500">الصنف</span><strong>{itemName}</strong></div><div><span className="block text-xs text-slate-500">الكمية</span><strong>{operation.quantity ?? '—'}</strong></div><div><span className="block text-xs text-slate-500">التاريخ</span><strong>{new Date(date).toLocaleDateString('ar-EG')}</strong></div></div><div className="flex flex-wrap items-center gap-2 sm:justify-end"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusUi[operation.status].className}`}>{statusUi[operation.status].label}</span>{operation.status === 'failed' || operation.status === 'conflict' ? <button type="button" disabled={isSyncing} onClick={() => void retryOperation(operation)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">إعادة للمعلّق</button> : null}{operation.status === 'conflict' ? <button type="button" onClick={() => void discardConflict(operation)} className="rounded-xl border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800">تجاهل التعديل</button> : null}{operation.status === 'needs_attention' ? <button type="button" onClick={() => void discardOperation(operation)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700">حذف التغيير المحلي</button> : null}</div></div>{operation.errorMessage ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{friendlyError(operation.errorMessage)}</p> : null}{operation.status === 'needs_attention' ? <PartyResolution operation={operation} /> : null}{operation.syncedAt ? <p className="mt-2 text-xs text-slate-400">تمت في {new Date(operation.syncedAt).toLocaleString('ar-EG')}</p> : null}</article>
+          const canDiscard = operation.status === 'failed' || operation.status === 'needs_attention' || operation.status === 'blocked'
+          return <article key={operation.id} className="rounded-2xl border border-[var(--app-border)] p-4"><div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center"><div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4"><div><span className="block text-xs text-slate-500">النوع</span><strong>{operationLabels[operation.operationType]}</strong></div><div><span className="block text-xs text-slate-500">الصنف</span><strong>{itemName}</strong></div><div><span className="block text-xs text-slate-500">الكمية</span><strong>{operation.quantity ?? '—'}</strong></div><div><span className="block text-xs text-slate-500">التاريخ</span><strong>{new Date(date).toLocaleDateString('ar-EG')}</strong></div></div><div className="flex flex-wrap items-center gap-2 sm:justify-end"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusUi[operation.status].className}`}>{statusUi[operation.status].label}</span>{operation.status === 'failed' || operation.status === 'conflict' ? <button type="button" disabled={isSyncing} onClick={() => void retryOperation(operation)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">إعادة للمعلّق</button> : null}{operation.status === 'conflict' ? <button type="button" onClick={() => void discardConflict(operation)} className="rounded-xl border border-amber-200 px-3 py-2 text-xs font-bold text-amber-800">تجاهل التعديل</button> : null}{canDiscard ? <button type="button" disabled={isSyncing} onClick={() => void discardOperation(operation)} className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 disabled:opacity-50">حذف من المزامنة</button> : null}</div></div>{operation.errorMessage ? <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{friendlyError(operation.errorMessage)}</p> : null}{operation.status === 'needs_attention' ? <PartyResolution operation={operation} /> : null}{operation.syncedAt ? <p className="mt-2 text-xs text-slate-400">تمت في {new Date(operation.syncedAt).toLocaleString('ar-EG')}</p> : null}</article>
         })}</div>
         {filteredOperations.length > 0 ? <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--app-border)]">
           <TablePagination
@@ -244,7 +260,7 @@ export function SyncCenterPage() {
         </div> : null}
       </div>
 
-      {items.some((item) => item.status === 'failed') ? <div className="rounded-3xl border border-red-100 bg-white p-5"><h3 className="font-bold text-red-700">أصناف تعذر رفعها</h3>{items.filter((item) => item.status === 'failed').map((item) => <div key={item.localId} className="mt-3 flex flex-col gap-3 rounded-2xl bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong>{item.itemName}</strong><p className="text-xs text-red-700">{friendlyError(item.errorMessage)}</p></div><button type="button" onClick={() => void retryFailedItem(item.localId)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-red-700">إعادة للمعلّق</button></div>)}</div> : null}
+      {items.some((item) => item.status === 'failed') ? <div className="rounded-3xl border border-red-100 bg-white p-5"><h3 className="font-bold text-red-700">أصناف تعذر رفعها</h3>{items.filter((item) => item.status === 'failed').map((item) => <div key={item.localId} className="mt-3 flex flex-col gap-3 rounded-2xl bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"><div><strong>{item.itemName}</strong><p className="text-xs text-red-700">{friendlyError(item.errorMessage)}</p></div><div className="flex flex-wrap gap-2"><button type="button" disabled={isSyncing} onClick={() => void retryFailedItem(item.localId)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">إعادة للمعلّق</button><button type="button" disabled={isSyncing} onClick={() => void discardItem(item)} className="rounded-xl border border-red-300 bg-red-700 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">حذف من المزامنة</button></div></div>)}</div> : null}
     </section>
   )
 }

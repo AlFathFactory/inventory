@@ -87,6 +87,38 @@ export async function discardOfflineOperation(id: string) {
   })
 }
 
+export async function discardOfflineItem(localId: string) {
+  return offlineDb.transaction(
+    'rw',
+    offlineDb.offline_items,
+    offlineDb.offline_operations,
+    async () => {
+      const item = await offlineDb.offline_items.get(localId)
+      if (!item || item.status === 'syncing' || item.status === 'synced') {
+        return { discarded: false, discardedOperationCount: 0 }
+      }
+
+      const dependentOperations = await offlineDb.offline_operations
+        .where('localItemId')
+        .equals(localId)
+        .toArray()
+      if (dependentOperations.some((operation) => operation.status === 'syncing')) {
+        return { discarded: false, discardedOperationCount: 0 }
+      }
+
+      const operationIds = dependentOperations
+        .filter((operation) => operation.status !== 'synced')
+        .map((operation) => operation.id)
+      await offlineDb.offline_operations.bulkDelete(operationIds)
+      await offlineDb.offline_items.delete(localId)
+      return {
+        discarded: true,
+        discardedOperationCount: operationIds.length,
+      }
+    },
+  )
+}
+
 export async function recoverInterruptedSyncs() {
   await offlineDb.transaction('rw', offlineDb.offline_items, offlineDb.offline_operations, async () => {
     await offlineDb.offline_items.where('status').equals('syncing').modify({ status: 'pending' })
