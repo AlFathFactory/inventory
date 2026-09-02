@@ -17,6 +17,7 @@ import { invalidateItemData } from '../../inventory/inventoryCache'
 import {
   itemQueryOptions,
   movementsQueryOptions,
+  rawMaterialProjectHistoryQueryOptions,
 } from '../../inventory/inventoryQueries'
 import {
   buildMonthlyMovementSummaries,
@@ -34,6 +35,9 @@ import {
   getIssueEmployeeAllocations,
   type IssueEmployeeAllocation,
 } from '../../../services/partiesService'
+import {
+  applyRawMaterialOperationWithProject,
+} from '../../../services/rawMaterialsService'
 
 const emptyMovements: ItemMovement[] = []
 
@@ -53,6 +57,10 @@ export function useItemDetailsPage(
     ...movementsQueryOptions(tableName, normalizedItemId),
     enabled: Boolean(tableName && normalizedItemId),
   })
+  const rawMaterialHistoryQuery = useQuery({
+    ...rawMaterialProjectHistoryQueryOptions(normalizedItemId),
+    enabled: tableName === 'raw_materials' && Boolean(normalizedItemId),
+  })
   const details = itemQuery.data ?? null
   const movements = movementsQuery.data ?? emptyMovements
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,6 +68,7 @@ export function useItemDetailsPage(
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
   const [form, setForm] = useState<OperationFormState>(createInitialOperationFormState(null))
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const operationRequestInFlight = useRef(false)
   const [movementDateFilter, setMovementDateFilter] =
     useState<ItemMovementsDateFilterValue>({ fromDate: '', toDate: '' })
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -141,7 +150,13 @@ export function useItemDetailsPage(
   }
 
   async function submitOperation() {
-    if (!category || !itemId || !details || !operationType) return
+    if (
+      !category ||
+      !itemId ||
+      !details ||
+      !operationType ||
+      operationRequestInFlight.current
+    ) return
 
     setMessage(null)
     const operationTableName = String(details.table_name ?? '').trim()
@@ -156,14 +171,20 @@ export function useItemDetailsPage(
       return
     }
 
-    const validation = validateOperationForm({ details, form, operationType })
+    const validation = validateOperationForm({
+      details,
+      form,
+      operationType,
+      tableName: category.table,
+    })
     setFormErrors(validation.errors)
     if (!validation.isValid) return
 
+    operationRequestInFlight.current = true
     setIsSubmitting(true)
     try {
       const isOffline = !navigator.onLine
-      await applyInventoryOperation({
+      const commonOperation = {
         tableName: operationTableName,
         categoryName: details.category_name || category.label,
         itemId: operationItemId,
@@ -200,7 +221,32 @@ export function useItemDetailsPage(
         requestId: form.requestId,
         notes: form.notes.trim() || undefined,
         localItemId: details.offline_state === 'local' ? String(operationItemId) : null,
-      })
+      }
+
+      if (category.table === 'raw_materials' && operationType !== 'adjust') {
+        await applyRawMaterialOperationWithProject({
+          itemId: String(operationItemId),
+          operationType,
+          quantity: Number(form.quantity),
+          projectId: form.projectId ?? '',
+          operationDate: form.operationDate,
+          supplierId: operationType === 'add' ? form.supplierId : null,
+          receivedBy: operationType === 'add' ? form.receivedBy : null,
+          purchaseOrderNumber: operationType === 'add'
+            ? form.purchaseOrderNumber
+            : null,
+          employeeId: operationType === 'issue' ? form.employeeId : null,
+          employeeIds: operationType === 'issue' && form.recipientMode === 'multiple'
+            ? form.employeeIds?.map((employee) => employee.id)
+            : undefined,
+          itemCode: details.code_number?.trim() || null,
+          notes: form.notes,
+          createdBy: user?.name || 'user',
+          requestId: form.requestId ?? '',
+        })
+      } else {
+        await applyInventoryOperation(commonOperation)
+      }
       if (isOffline) {
         const currentBalance = Number(details.stock_balance ?? details.gas_balance ?? 0)
         const quantity = Number(form.quantity)
@@ -233,6 +279,7 @@ export function useItemDetailsPage(
         text: error instanceof Error ? error.message : 'تعذر تنفيذ العملية',
       })
     } finally {
+      operationRequestInFlight.current = false
       setIsSubmitting(false)
     }
   }
@@ -331,6 +378,11 @@ export function useItemDetailsPage(
 
   return {
     details,
+    rawMaterialProjectHistory: rawMaterialHistoryQuery.data ?? [],
+    isRawMaterialProjectHistoryLoading: rawMaterialHistoryQuery.isPending,
+    rawMaterialProjectHistoryError: rawMaterialHistoryQuery.error instanceof Error
+      ? rawMaterialHistoryQuery.error.message
+      : null,
     filteredMovements,
     filteredMovementTotals,
     form,

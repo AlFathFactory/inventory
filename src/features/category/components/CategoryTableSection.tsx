@@ -55,9 +55,11 @@ export function CategoryTableSection({
           ? 'ابحث بالكود أو النوع أو المستلم أو الملاحظات'
           : isCustodyCategory
           ? 'ابحث بالكود أو النوع أو المستلم أو المصدر'
-          : 'ابحث بكود الصنف أو اسم الصنف أو القسم أو المورد أو المصدر أو الكود الخارجي أو DIN'}
+          : category.table === 'raw_materials'
+            ? 'ابحث بكود الصنف أو رقم الكود أو نوع الخامة أو الأبعاد أو المصدر'
+            : 'ابحث بكود الصنف أو اسم الصنف أو القسم أو المورد أو المصدر أو الكود الخارجي أو DIN'}
       >
-        {!isCustodyCategory ? (
+        {!isCustodyCategory && category.table !== 'raw_materials' ? (
           <label className="min-w-[200px] flex-[0_1_240px] space-y-2">
             <span className="block text-sm font-medium text-slate-700">القسم</span>
             <select value={selectedProjectName} onChange={(event) => onProjectChange(event.target.value)} className="w-full rounded-2xl border border-[var(--app-border)] bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-slate-400">

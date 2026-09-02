@@ -6,6 +6,7 @@ import {
   type OperationFormState,
 } from './operationForm'
 import { MultiEmployeeCombobox, PartyCombobox } from '../parties/PartyCombobox'
+import { useActiveProjects } from '../projects/projectQueries'
 
 type InventoryOperationItemData = Record<string, unknown> & {
   item_name?: string | null
@@ -64,6 +65,11 @@ export function InventoryOperationModal({
   operationTitle,
   adjustQuantityLabel,
 }: InventoryOperationModalProps) {
+  const isRawMaterialOperation =
+    category.table === 'raw_materials' &&
+    (operationType === 'add' || operationType === 'issue')
+  const projectsQuery = useActiveProjects(isRawMaterialOperation)
+
   if (!operationType) {
     return null
   }
@@ -72,6 +78,13 @@ export function InventoryOperationModal({
   const itemName = getDisplayText(itemData[itemNameField] as string | number | null | undefined)
   const projectName = getDisplayText(itemData.project_name ?? itemData.project)
   const attributeFields = category.attributeFields ?? []
+  const rawMaterialAttributeFields = category.table === 'raw_materials'
+    ? attributeFields.filter((field) => String(field) !== 'th')
+    : attributeFields
+  const dimensionValue = getDisplayText(
+    itemData.th as string | number | null | undefined ??
+    itemData.dimension_text as string | number | null | undefined,
+  )
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/35 px-4 py-4">
@@ -104,7 +117,7 @@ export function InventoryOperationModal({
             <div className="text-xs text-slate-500">رقم الصنف</div>
             <div className="mt-1 font-semibold text-slate-900">{itemId}</div>
           </div>
-          {attributeFields.map((field) => (
+          {rawMaterialAttributeFields.map((field) => (
             <div
               key={String(field)}
               className="rounded-[22px] bg-slate-50 px-4 py-3 text-right"
@@ -119,15 +132,54 @@ export function InventoryOperationModal({
               </div>
             </div>
           ))}
+          {category.table === 'raw_materials' ? (
+            <div className="rounded-[22px] bg-slate-50 px-4 py-3 text-right">
+              <div className="text-xs text-slate-500">السُمك / الأبعاد</div>
+              <div className="mt-1 font-semibold text-slate-900">{dimensionValue}</div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
-          <div className="space-y-2 text-right">
-            <span className="block text-sm font-semibold text-slate-700">اسم القسم</span>
-            <div className="flex h-[46px] w-full items-center rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 text-sm font-semibold text-slate-800">
-              {projectName}
+          {isRawMaterialOperation ? (
+            <label className="space-y-2 text-right">
+              <span className="block text-sm font-semibold text-slate-700">المشروع *</span>
+              <select
+                value={form.projectId ?? ''}
+                disabled={isSubmitting || projectsQuery.isPending}
+                onChange={(event) => {
+                  const selectedProject = (projectsQuery.data ?? []).find(
+                    (project) => String(project.id) === event.target.value,
+                  )
+                  onFieldChange('projectId', event.target.value || null)
+                  onFieldChange('projectName', selectedProject?.name ?? '')
+                }}
+                className={fieldClassName(Boolean(formErrors.projectId))}
+              >
+                <option value="">
+                  {projectsQuery.isPending ? 'جاري تحميل المشروعات...' : 'اختر المشروع'}
+                </option>
+                {(projectsQuery.data ?? []).map((project) => (
+                  <option key={String(project.id)} value={String(project.id)}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              {formErrors.projectId ? (
+                <p className="text-xs text-red-600">{formErrors.projectId}</p>
+              ) : null}
+              {projectsQuery.error instanceof Error ? (
+                <p className="text-xs text-red-600">تعذر تحميل المشروعات النشطة</p>
+              ) : null}
+            </label>
+          ) : (
+            <div className="space-y-2 text-right">
+              <span className="block text-sm font-semibold text-slate-700">اسم القسم</span>
+              <div className="flex h-[46px] w-full items-center rounded-2xl border border-[var(--app-border)] bg-slate-50 px-4 text-sm font-semibold text-slate-800">
+                {projectName}
+              </div>
             </div>
-          </div>
+          )}
 
           <label className="space-y-2 text-right">
             <span className="block text-sm font-semibold text-slate-700">
@@ -183,6 +235,20 @@ export function InventoryOperationModal({
                   onFieldChange('supplierId', party.id)
                   onFieldChange('supplierName', party.name)
                 }}
+              />
+            </label>
+          ) : null}
+
+          {operationType === 'add' && category.table === 'raw_materials' ? (
+            <label className="space-y-2 text-right">
+              <span className="block text-sm font-semibold text-slate-700">تم الاستلام بواسطة</span>
+              <input
+                type="text"
+                value={form.receivedBy}
+                disabled={isSubmitting}
+                onChange={(event) => onFieldChange('receivedBy', event.target.value)}
+                className={fieldClassName()}
+                placeholder="اختياري"
               />
             </label>
           ) : null}

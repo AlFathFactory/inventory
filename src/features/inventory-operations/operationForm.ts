@@ -4,7 +4,10 @@ import { getLocalDateString } from '../../utils/dateUtils'
 export type OperationFormState = {
   quantity: string
   operationDate: string
+  projectId?: string | null
+  projectName: string
   supplierName: string
+  receivedBy: string
   purchaseOrderNumber: string
   issuedTo: string
   employeeId?: string | null
@@ -96,7 +99,10 @@ export function createInitialOperationFormState(
   return {
     quantity: '',
     operationDate: getTodayValue(),
+    projectId: null,
+    projectName: '',
     supplierName: '',
+    receivedBy: '',
     purchaseOrderNumber: '',
     issuedTo: '',
     employeeId: null,
@@ -112,10 +118,12 @@ export function validateOperationForm({
   details,
   form,
   operationType,
+  tableName,
 }: {
   details: ItemSnapshot | null
   form: OperationFormState
   operationType: InventoryOperationType | null
+  tableName?: string
 }) {
   if (!operationType || !details) {
     return {
@@ -135,15 +143,36 @@ export function validateOperationForm({
     nextErrors.operationDate = 'التاريخ مطلوب'
   }
 
-  if (operationType === 'add' && !form.supplierId && !form.supplierName.trim()) {
-    nextErrors.supplierName = 'اسم المورد مطلوب'
+  const isRawMaterialOperation =
+    tableName === 'raw_materials' &&
+    (operationType === 'add' || operationType === 'issue')
+
+  if (isRawMaterialOperation && !form.projectId) {
+    nextErrors.projectId = 'المشروع مطلوب'
+  }
+
+  if (operationType === 'add' && (
+    isRawMaterialOperation
+      ? !form.supplierId
+      : !form.supplierId && !form.supplierName.trim()
+  )) {
+    nextErrors.supplierName = isRawMaterialOperation
+      ? 'المورد مطلوب لعملية الإضافة'
+      : 'اسم المورد مطلوب'
   }
 
   if (operationType === 'issue') {
     if (form.recipientMode === 'multiple' && (form.employeeIds?.length ?? 0) < 2) {
       nextErrors.issuedTo = 'اختر موظفين على الأقل للصرف الجماعي'
-    } else if (form.recipientMode !== 'multiple' && !form.employeeId && !form.issuedTo.trim()) {
-      nextErrors.issuedTo = 'اسم المستلم مطلوب'
+    } else if (
+      form.recipientMode !== 'multiple' &&
+      (isRawMaterialOperation
+        ? !form.employeeId
+        : !form.employeeId && !form.issuedTo.trim())
+    ) {
+      nextErrors.issuedTo = isRawMaterialOperation
+        ? 'الموظف مطلوب لعملية الصرف'
+        : 'اسم المستلم مطلوب'
     }
 
     if (Number.isFinite(quantity) && quantity > currentBalance) {

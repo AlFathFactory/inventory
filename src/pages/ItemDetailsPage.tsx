@@ -16,6 +16,7 @@ import { custodyItemQueryOptions } from '../features/inventory/inventoryQueries'
 import { ToastOnChange } from '../components/ToastProvider'
 import { DeleteMovementDialog } from '../features/item-details/components/DeleteMovementDialog'
 import { ReturnMovementDialog } from '../features/item-details/components/ReturnMovementDialog'
+import { RawMaterialProjectHistorySection } from '../features/item-details/components/RawMaterialProjectHistorySection'
 
 function displayValue(value: string | number | null | undefined) {
   return value === null || value === undefined || value === '' ? '—' : String(value)
@@ -179,6 +180,13 @@ export function ItemDetailsPage() {
                 ? 'رجوع للتقارير'
                 : undefined}
           />
+          {category.table === 'raw_materials' ? (
+            <RawMaterialProjectHistorySection
+              rows={page.rawMaterialProjectHistory}
+              isLoading={page.isRawMaterialProjectHistoryLoading}
+              error={page.rawMaterialProjectHistoryError}
+            />
+          ) : null}
           <ItemMovementsSection
             category={category}
             internalCode={page.details.internal_code}

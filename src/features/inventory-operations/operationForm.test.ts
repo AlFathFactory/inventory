@@ -31,7 +31,7 @@ describe('validateOperationQuantity', () => {
     expect(validateOperationQuantity(value, 'adjust')).not.toBeNull()
   })
 
-  it('does not require or accept a manually entered project', () => {
+  it('does not require a project for non-raw-material operations', () => {
     const form = {
       ...createInitialOperationFormState({ project_name: null, stock_balance: 10 }),
       quantity: '1',
@@ -42,8 +42,43 @@ describe('validateOperationQuantity', () => {
       details: { project_name: null, stock_balance: 10 },
       form,
       operationType: 'add',
+      tableName: 'consumables',
     })).toEqual({ isValid: true, errors: {} })
-    expect('projectName' in form).toBe(false)
+  })
+
+  it('requires a project id and active supplier selection for raw-material additions', () => {
+    const form = {
+      ...createInitialOperationFormState({ stock_balance: 10 }),
+      quantity: '1',
+      supplierName: 'مورد مكتوب فقط',
+    }
+
+    const result = validateOperationForm({
+      details: { stock_balance: 10 },
+      form,
+      operationType: 'add',
+      tableName: 'raw_materials',
+    })
+
+    expect(result.errors.projectId).toBe('المشروع مطلوب')
+    expect(result.errors.supplierName).toBe('المورد مطلوب لعملية الإضافة')
+  })
+
+  it('accepts a project-aware raw-material issue with one selected employee', () => {
+    const form = {
+      ...createInitialOperationFormState({ stock_balance: 10 }),
+      quantity: '4',
+      projectId: 'project-1',
+      employeeId: 'employee-1',
+      issuedTo: 'موظف أول',
+    }
+
+    expect(validateOperationForm({
+      details: { stock_balance: 10 },
+      form,
+      operationType: 'issue',
+      tableName: 'raw_materials',
+    })).toEqual({ isValid: true, errors: {} })
   })
 
   it('requires at least two employees for a group issue', () => {

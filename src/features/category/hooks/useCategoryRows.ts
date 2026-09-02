@@ -18,7 +18,9 @@ export function useCategoryRows(category: CategoryDefinition | null) {
   const { isOnline } = useNetworkStatus()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchTerm = searchParams.get('search') ?? ''
-  const selectedProjectName = searchParams.get('project') ?? ''
+  const selectedProjectName = category?.table === 'raw_materials'
+    ? ''
+    : searchParams.get('project') ?? ''
   const [offlineItems, setOfflineItems] = useState<OfflineItem[]>([])
   const [offlineOperations, setOfflineOperations] = useState<OfflineOperation[]>([])
   const query = useQuery({

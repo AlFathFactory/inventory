@@ -51,9 +51,11 @@ export function ItemDetailsOverview({
               شاشة تفاصيل الصنف وسجل الحركات الكامل لهذا القسم.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className={`grid gap-3 ${category.table === 'raw_materials' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
             <Info label="اسم القسم" value={details.category_name || category.label} />
-            <Info label="اسم القسم" value={getDisplayText(details.project_name)} />
+            {category.table !== 'raw_materials' ? (
+              <Info label="اسم القسم" value={getDisplayText(details.project_name)} />
+            ) : null}
             <Info label="اسم المورد" value={getDisplayText(details.supplier_name)} />
           </div>
         </div>
@@ -76,13 +78,15 @@ export function ItemDetailsOverview({
 
       {category.table === 'raw_materials' ? (
         <div className="mt-4 grid overflow-hidden rounded-2xl border border-[var(--app-border)] sm:grid-cols-2 xl:grid-cols-6">
-          {(category.attributeFields ?? []).map((field) => (
-            <CompactStat
-              key={String(field)}
-              label={category.columns[field] ?? String(field)}
-              value={getDisplayText((details as Record<string, string | number | null | undefined>)[String(field)])}
-            />
-          ))}
+          <CompactStat label="رقم الكود" value={getDisplayText(details.code_number)} />
+          <CompactStat label="الطول" value={getDisplayText(details.length)} />
+          <CompactStat label="العرض" value={getDisplayText(details.width)} />
+          <CompactStat
+            label="السُمك / الأبعاد"
+            value={getDisplayText(details.th ?? details.dimension_text)}
+          />
+          <CompactStat label="الوزن" value={getDisplayText(details.weight)} />
+          <CompactStat label="مصدر الخامة" value={getDisplayText(details.material_source)} />
         </div>
       ) : null}
 

@@ -194,12 +194,12 @@ function buildCategoryTableColumns({
         category.table === 'cylinders' ? row.type_name ?? row.item_name : row.item_name,
       ),
     },
-    {
+    ...(category.table !== 'raw_materials' ? [{
       id: 'project_name',
       header: 'القسم',
       cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
       renderCell: (row: CategorySummaryItem) => getDisplayValue(row.project_name ?? row.project),
-    },
+    }] : []),
     ...(category.table === 'screws' || category.table === 'stock_screws' ? [
       {
         id: 'din',
@@ -253,7 +253,11 @@ function buildCategoryTableColumns({
       { id: 'weight', header: 'وزن', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.weight) },
       { id: 'length', header: 'LENGTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.length) },
       { id: 'width', header: 'WIDTH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.width) },
-      { id: 'th', header: 'TH', renderCell: (row: CategorySummaryItem) => getDisplayValue(row.th) },
+      {
+        id: 'dimension',
+        header: 'السُمك / الأبعاد',
+        renderCell: (row: CategorySummaryItem) => getDisplayValue(row.th ?? row.dimension_text),
+      },
     ] : []),
     ...(category.table === 'paints' ? [
       {
@@ -303,9 +307,7 @@ function buildCategoryTableColumns({
         </div>
       ),
     },
-  ].filter((column) => (
-    category.table !== 'raw_materials' || column.id !== 'internal_code'
-  )).map((column) => ({
+  ].map((column) => ({
     headerClassName: 'px-4 py-3 text-slate-700',
     cellClassName: 'whitespace-nowrap px-4 py-3 text-slate-600',
     ...column,

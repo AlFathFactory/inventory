@@ -28,6 +28,7 @@ export type CategorySummaryItem = {
   length?: number | string | null
   width?: number | string | null
   th?: number | string | null
+  dimension_text?: string | null
   material_source?: string | null
   supplier_name?: string | null
   din?: string | null
@@ -208,6 +209,11 @@ type PaintProductionDateRow = {
   production_date: string | null
 }
 
+type RawMaterialDimensionRow = {
+  id: string | number
+  dimension_text: string | null
+}
+
 async function getAllPaintProductionDates(): ServiceResult<PaintProductionDateRow[]> {
   const rows: PaintProductionDateRow[] = []
 
@@ -228,6 +234,25 @@ async function getAllPaintProductionDates(): ServiceResult<PaintProductionDateRo
       return createSuccess(rows)
     }
 
+    rows.push(...page)
+  }
+}
+
+async function getAllRawMaterialDimensions(): ServiceResult<RawMaterialDimensionRow[]> {
+  const rows: RawMaterialDimensionRow[] = []
+
+  while (true) {
+    const from = rows.length
+    const { data, error } = await supabaseClient!
+      .from('raw_materials')
+      .select('id, dimension_text')
+      .order('id', { ascending: true })
+      .range(from, from + categoryQueryPageSize - 1)
+
+    if (error) return createFailure(error.message)
+
+    const page = (data ?? []) as RawMaterialDimensionRow[]
+    if (page.length === 0) return createSuccess(rows)
     rows.push(...page)
   }
 }
@@ -335,6 +360,22 @@ export async function getCategorySummaryItems(
         result.data.map((row) => withComputedStockStatus({
           ...row,
           production_date: productionDates.get(String(row.item_id)) ?? null,
+        })),
+      )
+    }
+
+    if (tableName === 'raw_materials') {
+      const dimensionsResult = await getAllRawMaterialDimensions()
+      if (dimensionsResult.data === null) return dimensionsResult
+
+      const dimensions = new Map(
+        dimensionsResult.data.map((row) => [String(row.id), row.dimension_text]),
+      )
+
+      return createSuccess(
+        result.data.map((row) => withComputedStockStatus({
+          ...row,
+          dimension_text: dimensions.get(String(row.item_id)) ?? null,
         })),
       )
     }
@@ -460,6 +501,24 @@ export async function getItemDetails(
       return createSuccess(withComputedStockStatus({
         ...(data as ItemDetails),
         production_date: paintDates.production_date ?? null,
+      }))
+    }
+
+
+    if (tableName === 'raw_materials') {
+      const { data: dimension, error: dimensionError } = await supabaseClient!
+        .from('raw_materials')
+        .select('dimension_text')
+        .eq('id', itemId)
+        .single()
+
+      if (dimensionError || !dimension) {
+        return createFailure(dimensionError?.message || 'تعذر تحميل أبعاد الخامة')
+      }
+
+      return createSuccess(withComputedStockStatus({
+        ...(data as ItemDetails),
+        dimension_text: dimension.dimension_text ?? null,
       }))
     }
 

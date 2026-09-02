@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
 import {
@@ -16,6 +16,7 @@ import { invalidateItemData } from '../../inventory/inventoryCache'
 import { getProjectedCachedInventoryItem } from '../../inventory/inventoryQueries'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
 import type { SetCategoryMessage } from './categoryHookTypes'
+import { applyRawMaterialOperationWithProject } from '../../../services/rawMaterialsService'
 
 const incompleteItemDataMessage =
   'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى'
@@ -36,6 +37,7 @@ export function useCategoryOperation({
   const [operationType, setOperationType] = useState<InventoryOperationType | null>(null)
   const [form, setForm] = useState<OperationFormState>(createInitialOperationFormState(null))
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const operationRequestInFlight = useRef(false)
 
   function updateField<TKey extends keyof OperationFormState>(
     field: TKey,
@@ -116,7 +118,12 @@ export function useCategoryOperation({
   }
 
   async function submit() {
-    if (!category || !itemDetails || !operationType) return
+    if (
+      !category ||
+      !itemDetails ||
+      !operationType ||
+      operationRequestInFlight.current
+    ) return
 
     setMessage(null)
     if (!selectedItem?.tableName || !selectedItem.itemId) {
@@ -124,16 +131,22 @@ export function useCategoryOperation({
       return
     }
 
-    const validationResult = validateOperationForm({ details: itemDetails, form, operationType })
+    const validationResult = validateOperationForm({
+      details: itemDetails,
+      form,
+      operationType,
+      tableName: category.table,
+    })
     if (!validationResult.isValid) {
       setFormErrors(validationResult.errors)
       return
     }
 
+    operationRequestInFlight.current = true
     setIsSubmitting(true)
     try {
       const isOffline = !navigator.onLine
-      await applyInventoryOperation({
+      const commonOperation = {
         tableName: selectedItem.tableName,
         categoryName: selectedItem.categoryName,
         itemId: selectedItem.itemId,
@@ -168,7 +181,31 @@ export function useCategoryOperation({
         localItemId: selectedItem.offline_state === 'local'
           ? String(selectedItem.itemId)
           : null,
-      })
+      }
+
+      if (category.table === 'raw_materials' && operationType !== 'adjust') {
+        await applyRawMaterialOperationWithProject({
+          itemId: String(selectedItem.itemId),
+          operationType,
+          quantity: Number(form.quantity),
+          projectId: form.projectId ?? '',
+          operationDate: form.operationDate,
+          supplierId: operationType === 'add' ? form.supplierId : null,
+          receivedBy: operationType === 'add' ? form.receivedBy : null,
+          purchaseOrderNumber: operationType === 'add'
+            ? form.purchaseOrderNumber
+            : null,
+          employeeId: operationType === 'issue' ? form.employeeId : null,
+          employeeIds: operationType === 'issue' && form.recipientMode === 'multiple'
+            ? form.employeeIds?.map((employee) => employee.id)
+            : undefined,
+          itemCode: itemDetails.code_number?.trim() || null,
+          notes: form.notes,
+          requestId: form.requestId ?? '',
+        })
+      } else {
+        await applyInventoryOperation(commonOperation)
+      }
 
       if (!isOffline) {
         await invalidateItemData(queryClient, selectedItem.tableName, String(selectedItem.itemId))
@@ -194,6 +231,7 @@ export function useCategoryOperation({
         text: submitError instanceof Error ? submitError.message : 'تعذر تنفيذ العملية',
       })
     } finally {
+      operationRequestInFlight.current = false
       setIsSubmitting(false)
     }
   }
