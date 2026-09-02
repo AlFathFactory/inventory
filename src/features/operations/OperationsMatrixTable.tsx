@@ -16,6 +16,7 @@ type OperationsMatrixTableProps = {
   movementTotals: ReadonlyMap<string, number>
   isLoading: boolean
   showScrewDetails?: boolean
+  showRawMaterialDetails?: boolean
   screwFilters?: MatrixScrewFilters
   onScrewFilterChange?: (
     filter: keyof MatrixScrewFilters,
@@ -48,8 +49,8 @@ function formatQuantity(value: number | null) {
   return value === null ? '—' : numberFormatter.format(value)
 }
 
-function formatText(value: string | null) {
-  return value || '—'
+function formatText(value: string | number | null) {
+  return value === null || value === '' ? '—' : String(value)
 }
 
 function getDateParts(dateValue: string) {
@@ -203,6 +204,7 @@ function FrozenCell({
   row,
   rowNumber,
   showScrewDetails,
+  showRawMaterialDetails,
   onItemClick,
   delayedItemPrefetch,
 }: {
@@ -211,6 +213,7 @@ function FrozenCell({
   row: DashboardInventoryRow
   rowNumber: number
   showScrewDetails: boolean
+  showRawMaterialDetails: boolean
   onItemClick: OperationsMatrixTableProps['onItemClick']
   delayedItemPrefetch: ReturnType<typeof createDelayedAction<DashboardInventoryRow>>
 }) {
@@ -245,7 +248,9 @@ function FrozenCell({
             </strong>
             <span className="mt-0.5 block truncate text-xs text-slate-500">
               {row.categoryLabel}
-              {!showScrewDetails && row.projectName ? ` · ${row.projectName}` : ''}
+              {!showScrewDetails && !showRawMaterialDetails && row.projectName
+                ? ` · ${row.projectName}`
+                : ''}
             </span>
           </span>
           <span className="mt-1 text-blue-500" aria-hidden="true">←</span>
@@ -269,7 +274,15 @@ function FrozenCell({
     ? row.projectName
     : column.key === 'din'
       ? row.din
-      : row.codeNumber
+      : column.key === 'codeNumber'
+        ? row.codeNumber
+        : column.key === 'length'
+          ? row.length
+          : column.key === 'width'
+            ? row.width
+            : column.key === 'dimension'
+              ? row.thickness ?? row.dimensionText
+              : row.weight
 
   return (
     <td
@@ -292,6 +305,7 @@ export function OperationsMatrixTable({
   movementTotals,
   isLoading,
   showScrewDetails = false,
+  showRawMaterialDetails = false,
   screwFilters = emptyScrewFilters,
   onScrewFilterChange,
   virtualizeRows = false,
@@ -313,7 +327,10 @@ export function OperationsMatrixTable({
     () => createDelayedAction(onItemPrefetch, 250),
     [onItemPrefetch],
   )
-  const frozenColumns = getOperationsMatrixFrozenColumns(showScrewDetails)
+  const frozenColumns = getOperationsMatrixFrozenColumns(
+    showScrewDetails,
+    showRawMaterialDetails,
+  )
   const frozenColumnOffsets = frozenColumns.map((_, columnIndex) =>
     frozenColumns
       .slice(0, columnIndex)
@@ -556,6 +573,7 @@ export function OperationsMatrixTable({
                     row={row}
                     rowNumber={rowNumber}
                     showScrewDetails={showScrewDetails}
+                    showRawMaterialDetails={showRawMaterialDetails}
                     onItemClick={onItemClick}
                     delayedItemPrefetch={delayedItemPrefetch}
                   />

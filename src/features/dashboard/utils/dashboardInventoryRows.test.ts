@@ -91,4 +91,31 @@ describe('buildDashboardInventoryRows', () => {
     expect(row.searchText).toContain('din 933')
     expect(row.searchText).toContain('sc-1250')
   })
+
+  it('preserves raw-material dimensions used by the operations matrix', () => {
+    const [row] = buildDashboardInventoryRows([{
+      categoryKey: 'raw_materials',
+      category: categoryConfig.raw_materials,
+      rows: [{
+        id: 'raw-1',
+        item_name: 'BOX',
+        code_number: 'D9',
+        length: 6000,
+        width: 50,
+        th: null,
+        dimension_text: '50 * 2.5',
+        weight: 22,
+        stock_balance: 2,
+        min_quantity: 0,
+      }],
+    }])
+
+    expect(row.codeNumber).toBe('D9')
+    expect(row.itemName).toBe('BOX')
+    expect(row.length).toBe(6000)
+    expect(row.width).toBe(50)
+    expect(row.thickness).toBeNull()
+    expect(row.dimensionText).toBe('50 * 2.5')
+    expect(row.weight).toBe(22)
+  })
 })

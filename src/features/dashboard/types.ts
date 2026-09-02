@@ -35,6 +35,11 @@ export type DashboardInventoryRow = {
   projectName: string | null
   din: string | null
   codeNumber: string | null
+  length: number | string | null
+  width: number | string | null
+  thickness: number | string | null
+  dimensionText: string | null
+  weight: number | string | null
   updatedAt: string | null
   dateValue: string | null
   dateLabel: string

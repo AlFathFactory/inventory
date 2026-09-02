@@ -88,6 +88,11 @@ function toSummaryItem(row: DashboardInventoryRow): CategorySummaryItem {
     type_name: row.typeName,
     din: row.din,
     code_number: row.codeNumber,
+    length: row.length,
+    width: row.width,
+    th: row.thickness,
+    dimension_text: row.dimensionText,
+    weight: row.weight,
     stock_balance: row.stockBalance,
     min_quantity: row.minQuantity,
     status: row.status,
@@ -184,6 +189,7 @@ export function OperationsPage() {
   const showScrewDetails = selectedCategory
     ? isScrewInventoryTable(selectedCategory.table)
     : false
+  const showRawMaterialDetails = selectedCategory?.table === 'raw_materials'
   const [actionFlow, setActionFlow] = useState<ActionFlow>(null)
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey | null>(null)
   const [message, setMessage] = useState<CategoryMessage>(null)
@@ -438,6 +444,8 @@ export function OperationsPage() {
                 onValueChange={(value) => updateFilter('search', value)}
                 placeholder={showScrewDetails
                   ? 'ابحث باسم الصنف أو القسم أو DIN أو رقم الكود...'
+                  : showRawMaterialDetails
+                    ? 'ابحث برقم الكود أو الصنف أو الأبعاد أو الوزن...'
                   : 'ابحث باسم الصنف أو الكود أو القسم...'}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white"
               />
@@ -517,6 +525,7 @@ export function OperationsPage() {
           movementTotals={movementTotals}
           isLoading={isLoading}
           showScrewDetails={showScrewDetails}
+          showRawMaterialDetails={showRawMaterialDetails}
           screwFilters={screwFilters}
           onScrewFilterChange={updateFilter}
           virtualizeRows={showAllRows}

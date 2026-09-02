@@ -69,6 +69,20 @@ describe('getOperationsMatrixFrozenColumns', () => {
       getOperationsMatrixFrozenColumns(false).map((column) => column.key),
     ).toEqual(['item', 'balance'])
   })
+
+  it('shows raw-material identity and dimensions before the balance', () => {
+    expect(
+      getOperationsMatrixFrozenColumns(false, true).map((column) => column.key),
+    ).toEqual([
+      'codeNumber',
+      'item',
+      'length',
+      'width',
+      'dimension',
+      'weight',
+      'balance',
+    ])
+  })
 })
 
 describe('matchesMatrixScrewFilters', () => {

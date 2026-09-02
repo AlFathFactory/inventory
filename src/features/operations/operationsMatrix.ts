@@ -9,7 +9,16 @@ export type MatrixScrewFilters = {
 }
 
 export type MatrixFrozenColumn = {
-  key: 'project' | 'item' | 'din' | 'codeNumber' | 'balance'
+  key:
+    | 'project'
+    | 'item'
+    | 'din'
+    | 'codeNumber'
+    | 'length'
+    | 'width'
+    | 'dimension'
+    | 'weight'
+    | 'balance'
   label: string
   width: number
 }
@@ -27,7 +36,21 @@ const screwFrozenColumns: readonly MatrixFrozenColumn[] = [
   { key: 'balance', label: 'الرصيد', width: 120 },
 ]
 
-export function getOperationsMatrixFrozenColumns(showScrewDetails: boolean) {
+const rawMaterialFrozenColumns: readonly MatrixFrozenColumn[] = [
+  { key: 'codeNumber', label: 'رقم الكود', width: 130 },
+  { key: 'item', label: 'صنف', width: 220 },
+  { key: 'length', label: 'LENGTH', width: 120 },
+  { key: 'width', label: 'WIDTH', width: 120 },
+  { key: 'dimension', label: 'السُمك / الأبعاد', width: 160 },
+  { key: 'weight', label: 'وزن', width: 120 },
+  { key: 'balance', label: 'الرصيد', width: 120 },
+]
+
+export function getOperationsMatrixFrozenColumns(
+  showScrewDetails: boolean,
+  showRawMaterialDetails = false,
+) {
+  if (showRawMaterialDetails) return rawMaterialFrozenColumns
   return showScrewDetails ? screwFrozenColumns : defaultFrozenColumns
 }
 
