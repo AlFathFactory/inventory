@@ -17,7 +17,6 @@ import { invalidateItemData } from '../../inventory/inventoryCache'
 import {
   itemQueryOptions,
   movementsQueryOptions,
-  rawMaterialProjectHistoryQueryOptions,
 } from '../../inventory/inventoryQueries'
 import {
   buildMonthlyMovementSummaries,
@@ -56,10 +55,6 @@ export function useItemDetailsPage(
   const movementsQuery = useQuery({
     ...movementsQueryOptions(tableName, normalizedItemId),
     enabled: Boolean(tableName && normalizedItemId),
-  })
-  const rawMaterialHistoryQuery = useQuery({
-    ...rawMaterialProjectHistoryQueryOptions(normalizedItemId),
-    enabled: tableName === 'raw_materials' && Boolean(normalizedItemId),
   })
   const details = itemQuery.data ?? null
   const movements = movementsQuery.data ?? emptyMovements
@@ -378,11 +373,6 @@ export function useItemDetailsPage(
 
   return {
     details,
-    rawMaterialProjectHistory: rawMaterialHistoryQuery.data ?? [],
-    isRawMaterialProjectHistoryLoading: rawMaterialHistoryQuery.isPending,
-    rawMaterialProjectHistoryError: rawMaterialHistoryQuery.error instanceof Error
-      ? rawMaterialHistoryQuery.error.message
-      : null,
     filteredMovements,
     filteredMovementTotals,
     form,

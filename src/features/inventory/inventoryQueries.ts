@@ -15,7 +15,6 @@ import {
 import { offlineDb } from '../../lib/offlineDb'
 import { projectOfflineChanges } from './offlineCache'
 import { isTransportError } from '../../services/connectivityService'
-import { getRawMaterialProjectHistory } from '../../services/rawMaterialsService'
 
 async function getProjectedCachedCategoryRows(tableName: string) {
   const [rows, items, operations] = await Promise.all([
@@ -90,22 +89,6 @@ export function movementsQueryOptions(tableName: string, itemId: string) {
       if (!navigator.onLine) return []
       try {
         return requireData(await getItemMovements(tableName, itemId))
-      } catch (error) {
-        if (isTransportError(error)) return []
-        throw error
-      }
-    },
-  })
-}
-
-export function rawMaterialProjectHistoryQueryOptions(itemId: string) {
-  return queryOptions({
-    queryKey: inventoryKeys.rawMaterialProjectHistory(itemId),
-    networkMode: 'always',
-    queryFn: async () => {
-      if (!navigator.onLine) return []
-      try {
-        return await getRawMaterialProjectHistory(itemId)
       } catch (error) {
         if (isTransportError(error)) return []
         throw error

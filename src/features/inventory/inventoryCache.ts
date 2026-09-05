@@ -52,11 +52,6 @@ export async function invalidateItemData(
     invalidateCategoryData(queryClient, tableName),
     queryClient.invalidateQueries({ queryKey: inventoryKeys.item(tableName, itemId) }),
     queryClient.invalidateQueries({ queryKey: inventoryKeys.movements(tableName, itemId) }),
-    ...(tableName === 'raw_materials'
-      ? [queryClient.invalidateQueries({
-          queryKey: inventoryKeys.rawMaterialProjectHistory(itemId),
-        })]
-      : []),
     queryClient.invalidateQueries({ queryKey: reportKeys.all }),
     queryClient.invalidateQueries({ queryKey: partyKeys.all }),
     ...(isCustodyTable(tableName)

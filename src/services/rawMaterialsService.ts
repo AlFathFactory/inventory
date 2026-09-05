@@ -21,12 +21,6 @@ export type RawMaterialOperationInput = {
   requestId: string
 }
 
-export type RawMaterialProjectHistoryTotal = {
-  projectId: string
-  projectName: string
-  quantity: number
-}
-
 function getClientOrThrow() {
   if (!isSupabaseConfigured || !supabaseClient) {
     throw new Error(getSupabaseConfigError())
@@ -153,60 +147,4 @@ export async function applyRawMaterialOperationWithProject(
   }
 
   return data
-}
-
-export async function getRawMaterialProjectHistory(
-  rawMaterialId: string,
-): Promise<RawMaterialProjectHistoryTotal[]> {
-  const client = getClientOrThrow()
-  const { data, error } = await client
-    .from('raw_material_project_issue_history')
-    .select('*')
-    .eq('raw_material_id', rawMaterialId)
-
-  if (error) {
-    throw new Error('تعذر تحميل الصرف التاريخي للمشروعات')
-  }
-
-  const historyRows = (data ?? []) as Array<Record<string, unknown>>
-  const projectIds = [...new Set(historyRows
-    .map((row) => String(row.project_id ?? ''))
-    .filter(Boolean))]
-
-  const projectNames = new Map<string, string>()
-  if (projectIds.length > 0) {
-    const { data: projects, error: projectsError } = await client
-      .from('projects')
-      .select('id,name')
-      .in('id', projectIds)
-
-    if (projectsError) {
-      throw new Error('تعذر تحميل أسماء مشروعات الصرف التاريخي')
-    }
-
-    for (const project of projects ?? []) {
-      projectNames.set(String(project.id), String(project.name ?? ''))
-    }
-  }
-
-  const totals = new Map<string, RawMaterialProjectHistoryTotal>()
-  for (const row of historyRows) {
-    const projectId = String(row.project_id ?? '')
-    const quantity = Number(row.quantity ?? row.issued_quantity ?? 0)
-    if (!projectId || !Number.isFinite(quantity)) continue
-
-    const current = totals.get(projectId)
-    totals.set(projectId, {
-      projectId,
-      projectName:
-        projectNames.get(projectId) ||
-        String(row.project_name_snapshot ?? '') ||
-        String(row.project_name ?? row.project ?? 'مشروع غير معروف'),
-      quantity: (current?.quantity ?? 0) + quantity,
-    })
-  }
-
-  return [...totals.values()].sort((left, right) =>
-    left.projectName.localeCompare(right.projectName, 'ar'),
-  )
 }

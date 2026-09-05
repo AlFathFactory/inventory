@@ -9,8 +9,6 @@ export const inventoryKeys = {
     ['inventory', 'item', tableName, itemId] as const,
   movements: (tableName: string, itemId: string) =>
     ['inventory', 'movements', tableName, itemId] as const,
-  rawMaterialProjectHistory: (itemId: string) =>
-    ['inventory', 'raw-material-project-history', itemId] as const,
   custody: (tableName: CustodyTableName) =>
     ['inventory', 'custody', tableName] as const,
   custodyItem: (tableName: CustodyTableName, itemId: string) =>
