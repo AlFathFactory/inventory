@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  addEmployeeCustodyItem,
+  addEmployeeCustodyItems,
   employeeCustodyKeys,
   getEmployeeCustodyItems,
   scrapEmployeeCustodyItem,
 } from '../employeeCustodyService'
+import type { AddEmployeeCustodyInput } from '../types'
 
 export function useEmployeeCustody(employeeId: string) {
   return useQuery({
@@ -17,10 +18,15 @@ export function useEmployeeCustody(employeeId: string) {
 export function useAddEmployeeCustody(employeeId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: addEmployeeCustodyItem,
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: employeeCustodyKeys.employee(employeeId),
-    }),
+    mutationFn: (items: AddEmployeeCustodyInput[]) => addEmployeeCustodyItems(items),
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: employeeCustodyKeys.employee(employeeId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: employeeCustodyKeys.issueCandidates(employeeId),
+      }),
+    ]),
   })
 }
 

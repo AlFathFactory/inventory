@@ -14,11 +14,11 @@ function extraDetails(item: CustodyInventoryItem) {
 }
 
 export function CustodyManualItemTab({
-  selected,
-  onSelect,
+  selectedIds,
+  onToggle,
 }: {
-  selected: CustodyInventoryItem | null
-  onSelect: (item: CustodyInventoryItem) => void
+  selectedIds: ReadonlySet<string>
+  onToggle: (item: CustodyInventoryItem, checked: boolean) => void
 }) {
   const [search, setSearch] = useState('')
   const query = useCustodyInventoryCatalog()
@@ -54,23 +54,26 @@ export function CustodyManualItemTab({
       ) : rows.length === 0 ? (
         <p className="mt-4 rounded-2xl bg-slate-50 p-8 text-center text-sm text-slate-500">لا توجد أصناف مطابقة للبحث</p>
       ) : (
-        <div className="mt-4 max-h-[34vh] space-y-2 overflow-y-auto pe-1" role="radiogroup" aria-label="أصناف المخزون">
+        <div className="mt-4 max-h-[34vh] space-y-2 overflow-y-auto pe-1" role="group" aria-label="أصناف المخزون">
           {rows.map((item) => {
             const identity = `${item.tableName}:${item.itemId}`
-            const isSelected = selected != null && `${selected.tableName}:${selected.itemId}` === identity
+            const isSelected = selectedIds.has(identity)
             const details = extraDetails(item)
             return (
-              <button
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
+              <label
                 key={identity}
-                onClick={() => onSelect(item)}
-                className={`w-full rounded-2xl border p-3 text-right transition ${
+                className={`flex w-full cursor-pointer items-start gap-3 rounded-2xl border p-3 text-right transition ${
                   isSelected ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(event) => onToggle(item, event.target.checked)}
+                  className="mt-1 h-5 w-5 shrink-0 accent-blue-600"
+                  aria-label={`تحديد ${item.itemName}`}
+                />
+                <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900">{item.itemName}</div>
                     <div className="mt-1 text-xs text-slate-500">
@@ -82,7 +85,7 @@ export function CustodyManualItemTab({
                     <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">الرصيد: {item.currentStock}</span>
                   ) : null}
                 </div>
-              </button>
+              </label>
             )
           })}
         </div>

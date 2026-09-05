@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useToast } from '../../../components/ToastProvider'
 import { useScrapEmployeeCustody } from '../hooks/useEmployeeCustody'
 import type { EmployeeCustodyRecord } from '../types'
@@ -14,11 +14,13 @@ export function ScrapCustodyModal({
 }) {
   const { showToast } = useToast()
   const mutation = useScrapEmployeeCustody(employeeId)
+  const savingRef = useRef(false)
   const [scrappedDate, setScrappedDate] = useState('')
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
 
   async function save() {
+    if (savingRef.current || mutation.isPending) return
     setError('')
     if (!scrappedDate) {
       setError('تاريخ التكهين مطلوب')
@@ -32,6 +34,7 @@ export function ScrapCustodyModal({
       setError('تاريخ التكهين لا يمكن أن يكون قبل تاريخ الاستلام')
       return
     }
+    savingRef.current = true
     try {
       await mutation.mutateAsync({
         custodyId: custody.id,
@@ -42,6 +45,8 @@ export function ScrapCustodyModal({
       onClose()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تكهين العهدة')
+    } finally {
+      savingRef.current = false
     }
   }
 

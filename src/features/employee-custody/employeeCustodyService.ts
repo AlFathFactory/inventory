@@ -217,6 +217,22 @@ export async function addEmployeeCustodyItem(input: AddEmployeeCustodyInput) {
   return data
 }
 
+export async function addEmployeeCustodyItems(
+  items: AddEmployeeCustodyInput[],
+  addOne: (input: AddEmployeeCustodyInput) => Promise<unknown> = addEmployeeCustodyItem,
+) {
+  const results = await Promise.allSettled(items.map((item) => addOne(item)))
+  const failures = results.flatMap((result, index) => result.status === 'rejected'
+    ? [{
+        index,
+        message: result.reason instanceof Error
+          ? result.reason.message
+          : 'تعذر تسجيل العهدة',
+      }]
+    : [])
+  return { savedCount: items.length - failures.length, failures }
+}
+
 export async function scrapEmployeeCustodyItem(input: ScrapEmployeeCustodyInput) {
   const { data, error } = await client().rpc('mark_employee_custody_scrapped_rpc', {
     p_custody_id: input.custodyId,

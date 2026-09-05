@@ -11,12 +11,12 @@ function formatDate(value: string) {
 
 export function CustodyIssueCandidatesTab({
   employeeId,
-  selected,
-  onSelect,
+  selectedIds,
+  onToggle,
 }: {
   employeeId: string
-  selected: CustodyIssueCandidate | null
-  onSelect: (candidate: CustodyIssueCandidate) => void
+  selectedIds: ReadonlySet<string>
+  onToggle: (candidate: CustodyIssueCandidate, checked: boolean) => void
 }) {
   const [search, setSearch] = useState('')
   const query = useEmployeeCustodyIssueCandidates(employeeId)
@@ -55,23 +55,27 @@ export function CustodyIssueCandidatesTab({
           {search ? 'لا توجد حركات صرف مطابقة للبحث' : 'لا توجد حركات صرف متاحة لتحديدها كعهدة'}
         </p>
       ) : (
-        <div className="mt-4 max-h-[42vh] space-y-3 overflow-y-auto pe-1" role="radiogroup" aria-label="حركات الصرف المتاحة">
+        <div className="mt-4 max-h-[42vh] space-y-3 overflow-y-auto pe-1" role="group" aria-label="حركات الصرف المتاحة">
           {rows.map((candidate) => {
-            const isSelected = selected?.operationId === candidate.operationId
+            const isSelected = selectedIds.has(candidate.operationId)
             return (
-              <button
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
+              <label
                 key={candidate.operationId}
-                onClick={() => onSelect(candidate)}
-                className={`w-full rounded-2xl border p-4 text-right transition ${
+                className={`flex w-full cursor-pointer items-start gap-3 rounded-2xl border p-4 text-right transition ${
                   isSelected
                     ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
                     : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(event) => onToggle(candidate, event.target.checked)}
+                  className="mt-1 h-5 w-5 shrink-0 accent-blue-600"
+                  aria-label={`تحديد ${candidate.itemName}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-bold text-slate-900">{candidate.itemName}</div>
                     <div className="mt-1 text-xs text-slate-500">
@@ -81,21 +85,22 @@ export function CustodyIssueCandidatesTab({
                   <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                     الكمية: {candidate.quantity}
                   </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-600">
+                    <span>تاريخ الصرف: <strong>{formatDate(candidate.operationDate)}</strong></span>
+                    <span>المرتجع: <strong>{candidate.returnedQuantity}</strong></span>
+                    {candidate.returnStatus ? <span>الحالة: <strong>{candidate.returnStatus}</strong></span> : null}
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-600">
-                  <span>تاريخ الصرف: <strong>{formatDate(candidate.operationDate)}</strong></span>
-                  <span>المرتجع: <strong>{candidate.returnedQuantity}</strong></span>
-                  {candidate.returnStatus ? <span>الحالة: <strong>{candidate.returnStatus}</strong></span> : null}
-                </div>
-              </button>
+              </label>
             )
           })}
         </div>
       )}
 
-      {selected ? (
+      {selectedIds.size > 0 ? (
         <p className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">
-          تاريخ الاستلام مأخوذ من حركة الصرف: <strong>{formatDate(selected.operationDate)}</strong>
+          سيتم أخذ تاريخ استلام كل صنف من تاريخ حركة الصرف الخاصة به.
         </p>
       ) : null}
     </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useToast } from '../../../components/ToastProvider'
 import { useAddEmployeeCustody } from '../hooks/useEmployeeCustody'
 import type { CustodyInventoryItem, CustodyIssueCandidate } from '../types'
@@ -16,76 +16,100 @@ export function AddEmployeeCustodyModal({
 }) {
   const { showToast } = useToast()
   const mutation = useAddEmployeeCustody(employeeId)
+  const savingRef = useRef(false)
   const [mode, setMode] = useState<AddMode>('issue')
-  const [selectedIssue, setSelectedIssue] = useState<CustodyIssueCandidate | null>(null)
-  const [selectedItem, setSelectedItem] = useState<CustodyInventoryItem | null>(null)
+  const [selectedIssues, setSelectedIssues] = useState<CustodyIssueCandidate[]>([])
+  const [selectedItems, setSelectedItems] = useState<CustodyInventoryItem[]>([])
   const [receivedDate, setReceivedDate] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [notes, setNotes] = useState('')
   const [validationError, setValidationError] = useState('')
+  const selectedIssueIds = new Set(selectedIssues.map((issue) => issue.operationId))
+  const selectedItemIds = new Set(selectedItems.map((item) => `${item.tableName}:${item.itemId}`))
+  const selectedCount = selectedIssues.length + selectedItems.length
+
+  function toggleIssue(candidate: CustodyIssueCandidate, checked: boolean) {
+    setSelectedIssues((current) => checked
+      ? current.some((item) => item.operationId === candidate.operationId) ? current : [...current, candidate]
+      : current.filter((item) => item.operationId !== candidate.operationId))
+  }
+
+  function toggleItem(item: CustodyInventoryItem, checked: boolean) {
+    const identity = `${item.tableName}:${item.itemId}`
+    setSelectedItems((current) => checked
+      ? current.some((candidate) => `${candidate.tableName}:${candidate.itemId}` === identity) ? current : [...current, item]
+      : current.filter((candidate) => `${candidate.tableName}:${candidate.itemId}` !== identity))
+  }
 
   async function save() {
+    if (savingRef.current || mutation.isPending) return
     setValidationError('')
+    if (selectedCount === 0) {
+      setValidationError('اختر صنفًا واحدًا على الأقل لتسجيله كعهدة')
+      return
+    }
     const parsedQuantity = Number(quantity)
     if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
       setValidationError('يجب أن تكون الكمية أكبر من صفر')
       return
     }
 
-    if (mode === 'issue') {
-      if (!selectedIssue) {
-        setValidationError('اختر حركة صرف لتسجيلها كعهدة')
-        return
-      }
-      if (!selectedIssue.operationDate) {
-        setValidationError('حركة الصرف لا تحتوي على تاريخ استلام صالح')
-        return
-      }
-      const meaningfulQuantity = Math.max(selectedIssue.quantity - selectedIssue.returnedQuantity, 0)
-      if (meaningfulQuantity > 0 && parsedQuantity > meaningfulQuantity) {
-        setValidationError(`الكمية لا يمكن أن تتجاوز المتاح من حركة الصرف (${meaningfulQuantity})`)
-        return
-      }
-      try {
-        await mutation.mutateAsync({
-          employeeId,
-          tableName: selectedIssue.tableName,
-          itemId: selectedIssue.itemId,
-          sourceIssueOperationId: selectedIssue.operationId,
-          receivedDate: selectedIssue.operationDate,
-          quantity: parsedQuantity,
-          notes,
-        })
-        showToast('تم تسجيل العهدة بنجاح')
-        onClose()
-      } catch (error) {
-        setValidationError(error instanceof Error ? error.message : 'تعذر تسجيل العهدة')
-      }
+    const issueWithoutDate = selectedIssues.find((issue) => !issue.operationDate)
+    if (issueWithoutDate) {
+      setValidationError(`حركة صرف الصنف «${issueWithoutDate.itemName}» لا تحتوي على تاريخ استلام صالح`)
       return
     }
-
-    if (!selectedItem) {
-      setValidationError('الصنف مطلوب')
+    const issueAboveAvailable = selectedIssues.find((issue) => {
+      const meaningfulQuantity = Math.max(issue.quantity - issue.returnedQuantity, 0)
+      return issue.quantity > 0 && parsedQuantity > meaningfulQuantity
+    })
+    if (issueAboveAvailable) {
+      const meaningfulQuantity = Math.max(issueAboveAvailable.quantity - issueAboveAvailable.returnedQuantity, 0)
+      setValidationError(`كمية «${issueAboveAvailable.itemName}» لا يمكن أن تتجاوز المتاح من حركة الصرف (${meaningfulQuantity})`)
       return
     }
-    if (!receivedDate) {
+    if (selectedItems.length > 0 && !receivedDate) {
       setValidationError('تاريخ الاستلام مطلوب')
       return
     }
-    try {
-      await mutation.mutateAsync({
+
+    const inputs = [
+      ...selectedIssues.map((issue) => ({
         employeeId,
-        tableName: selectedItem.tableName,
-        itemId: selectedItem.itemId,
+        tableName: issue.tableName,
+        itemId: issue.itemId,
+        sourceIssueOperationId: issue.operationId,
+        receivedDate: issue.operationDate,
+        quantity: parsedQuantity,
+        notes,
+      })),
+      ...selectedItems.map((item) => ({
+        employeeId,
+        tableName: item.tableName,
+        itemId: item.itemId,
         sourceIssueOperationId: null,
         receivedDate,
         quantity: parsedQuantity,
         notes,
-      })
-      showToast('تم تسجيل العهدة بنجاح')
-      onClose()
+      })),
+    ]
+
+    savingRef.current = true
+    try {
+      const result = await mutation.mutateAsync(inputs)
+      if (result.failures.length === 0) {
+        showToast(`تم تسجيل ${result.savedCount} من عناصر العهدة بنجاح`)
+        onClose()
+      } else if (result.savedCount > 0) {
+        showToast(`تم تسجيل ${result.savedCount} وتعذر تسجيل ${result.failures.length} من عناصر العهدة`, 'error')
+        onClose()
+      } else {
+        setValidationError(result.failures[0]?.message ?? 'تعذر تسجيل العهدة')
+      }
     } catch (error) {
       setValidationError(error instanceof Error ? error.message : 'تعذر تسجيل العهدة')
+    } finally {
+      savingRef.current = false
     }
   }
 
@@ -117,11 +141,16 @@ export function AddEmployeeCustodyModal({
           </button>
         </div>
 
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <span>العناصر المحددة: <strong>{selectedCount}</strong></span>
+          <span className="text-xs">من الصرف: {selectedIssues.length} • يدوي: {selectedItems.length}</span>
+        </div>
+
         <div className="mt-5">
           {mode === 'issue' ? (
-            <CustodyIssueCandidatesTab employeeId={employeeId} selected={selectedIssue} onSelect={setSelectedIssue} />
+            <CustodyIssueCandidatesTab employeeId={employeeId} selectedIds={selectedIssueIds} onToggle={toggleIssue} />
           ) : (
-            <CustodyManualItemTab selected={selectedItem} onSelect={setSelectedItem} />
+            <CustodyManualItemTab selectedIds={selectedItemIds} onToggle={toggleItem} />
           )}
         </div>
 
@@ -138,7 +167,7 @@ export function AddEmployeeCustodyModal({
             </label>
           ) : null}
           <label className="text-sm font-bold text-slate-700">
-            الكمية
+            الكمية لكل صنف
             <input
               type="number"
               min="0.000001"
@@ -162,8 +191,8 @@ export function AddEmployeeCustodyModal({
         {validationError ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{validationError}</p> : null}
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" disabled={mutation.isPending} onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 disabled:opacity-50">إلغاء</button>
-          <button type="button" disabled={mutation.isPending} onClick={() => void save()} className="rounded-xl bg-blue-600 px-5 py-2.5 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
-            {mutation.isPending ? 'جارٍ تسجيل العهدة...' : 'تسجيل العهدة'}
+          <button type="button" disabled={mutation.isPending || selectedCount === 0} onClick={() => void save()} className="rounded-xl bg-blue-600 px-5 py-2.5 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+            {mutation.isPending ? 'جارٍ تسجيل العهدة...' : `تسجيل العهدة (${selectedCount})`}
           </button>
         </div>
       </div>
