@@ -3,12 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   allocateGroupIssue, createParty, getEmployeeActivity, getIssueEmployeeAllocations,
   filterPartiesForSearch, getPartySummaries, getSupplierActivity, partyKeys, saveParty,
-  type IssueEmployeeAllocation, type Party, type PartyKind,
+  type Employee, type IssueEmployeeAllocation, type Party, type PartyKind,
 } from '../services/partiesService'
 import { inventoryKeys } from '../features/inventory/inventoryQueryKeys'
 import { reportKeys } from '../features/reports/reportQueries'
 import { usePagination } from '../hooks/usePagination'
 import { TablePagination } from '../components/TablePagination'
+import { EmployeeCustodyPage } from '../features/employee-custody/components/EmployeeCustodyPage'
 
 const number = (row: Party, ...keys: string[]) => Number(keys.map((key) => row[key]).find((value) => value != null) ?? 0)
 const text = (row: Party, ...keys: string[]) => String(keys.map((key) => row[key]).find((value) => value != null && value !== '') ?? '—')
@@ -141,6 +142,7 @@ function AllocationDialog({ operationId, operationQuantity, onClose, onSaved }: 
 function Details({ kind, party, onClose }: { kind: PartyKind; party: Party; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [distribution, setDistribution] = useState<{ id: string; quantity: number } | null>(null)
+  const [custodyOpen, setCustodyOpen] = useState(false)
   const activity = useQuery({
     queryKey: partyKeys.activity(kind, party.id),
     queryFn: () => kind === 'employee' ? getEmployeeActivity(party.id) : getSupplierActivity(party.id),
@@ -148,9 +150,14 @@ function Details({ kind, party, onClose }: { kind: PartyKind; party: Party; onCl
   return (
     <div className="fixed inset-0 z-[80] overflow-y-auto bg-slate-950/45 p-4" dir="rtl">
       <div className="mx-auto my-6 max-w-6xl rounded-[28px] bg-white p-6 shadow-2xl">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div><h2 className="text-2xl font-bold">{party.name}</h2><p className="mt-1 text-sm text-slate-500">{text(party, kind === 'employee' ? 'department' : 'contact_person')} • {text(party, 'phone')}</p></div>
-          <button onClick={onClose} className="rounded-full bg-slate-100 px-4 py-2">إغلاق</button>
+          <div className="flex gap-2">
+            {kind === 'employee' ? (
+              <button onClick={() => setCustodyOpen(true)} className="flex-1 rounded-xl bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700 sm:flex-none">عرض العهدة</button>
+            ) : null}
+            <button onClick={onClose} className="rounded-xl bg-slate-100 px-4 py-2">إغلاق</button>
+          </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {(kind === 'employee'
@@ -190,6 +197,9 @@ function Details({ kind, party, onClose }: { kind: PartyKind; party: Party; onCl
             void queryClient.invalidateQueries({ queryKey: reportKeys.all })
           }}
         />
+      ) : null}
+      {custodyOpen && kind === 'employee' ? (
+        <EmployeeCustodyPage employee={party as Employee} onClose={() => setCustodyOpen(false)} />
       ) : null}
     </div>
   )
