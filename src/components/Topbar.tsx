@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { categoryConfig, type CategoryKey } from '../config/categoryConfig'
+import { DesktopSyncStatus } from '../features/desktop-sync/DesktopSyncStatus'
 
 type TopbarCopy = {
   title: string
@@ -119,7 +120,10 @@ export function Topbar({ isSidebarOpen, onMenuClick, onSidebarToggle }: TopbarPr
             {copy.subtitle}
           </p>
         </div>
-        <button type="button" onClick={onMenuClick} className="flex h-10 w-10 shrink-0 items-center justify-center self-start rounded-xl border border-[var(--app-border)] text-slate-700 transition hover:bg-slate-50 lg:hidden" aria-label="Open navigation" aria-controls="mobile-navigation"><MenuIcon /></button>
+        <div className="flex items-center gap-3 self-start sm:self-auto lg:pl-14">
+          <DesktopSyncStatus />
+          <button type="button" onClick={onMenuClick} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--app-border)] text-slate-700 transition hover:bg-slate-50 lg:hidden" aria-label="Open navigation" aria-controls="mobile-navigation"><MenuIcon /></button>
+        </div>
         <button
           type="button"
           onClick={onSidebarToggle}
