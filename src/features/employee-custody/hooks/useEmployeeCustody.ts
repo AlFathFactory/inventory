@@ -6,11 +6,20 @@ import {
   scrapEmployeeCustodyItem,
 } from '../employeeCustodyService'
 import type { AddEmployeeCustodyInput } from '../types'
+import { getCustodyRepository } from '../../../repositories'
+import { readForRuntime } from '../../../repositories/readStrategy'
 
 export function useEmployeeCustody(employeeId: string) {
   return useQuery({
     queryKey: employeeCustodyKeys.employee(employeeId),
-    queryFn: () => getEmployeeCustodyItems(employeeId),
+    queryFn: () => readForRuntime({
+      desktop: async () => {
+        const result = await (await getCustodyRepository()).listEmployeeCustodyItems(employeeId)
+        if (result.error !== null) throw new Error(result.error)
+        return result.data
+      },
+      web: () => getEmployeeCustodyItems(employeeId),
+    }),
     enabled: Boolean(employeeId),
   })
 }

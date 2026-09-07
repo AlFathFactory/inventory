@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  createParty, filterPartiesForSearch, getCachedParties, normalizePartyName, partyKeys,
+  createParty, filterPartiesForSearch, normalizePartyName, partyKeys,
   type Employee, type Party, type PartyKind,
 } from '../../services/partiesService'
+import { partyListQueryOptions } from './partyQueries'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 
 type Props = {
@@ -53,8 +54,7 @@ export function PartyCombobox({
   }, [])
 
   const query = useQuery({
-    queryKey: partyKeys.list(kind),
-    queryFn: () => getCachedParties(kind),
+    ...partyListQueryOptions(kind),
     enabled: open,
     staleTime: Infinity,
   })
@@ -217,8 +217,7 @@ export function MultiEmployeeCombobox({ selected, disabled, error, onChange }: M
   }, [])
 
   const query = useQuery({
-    queryKey: partyKeys.list('employee'),
-    queryFn: () => getCachedParties('employee'),
+    ...partyListQueryOptions('employee'),
     enabled: open,
     staleTime: Infinity,
   })
