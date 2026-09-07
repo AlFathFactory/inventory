@@ -1,4 +1,5 @@
 mod db;
+mod sync;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -8,6 +9,7 @@ pub fn run() {
         .add_migrations(db::DATABASE_URL, db::migrations())
         .build(),
     )
+    .invoke_handler(tauri::generate_handler![sync::apply_sync_transaction])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

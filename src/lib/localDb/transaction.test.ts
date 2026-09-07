@@ -1,75 +1,58 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { getLocalDbMock, executeMock } = vi.hoisted(() => ({
-  getLocalDbMock: vi.fn(),
-  executeMock: vi.fn(),
+const invokeMock = vi.fn()
+
+vi.mock('../../config/platform', () => ({
+  isDesktopRuntime: vi.fn(),
+}))
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: invokeMock,
 }))
 
-vi.mock('./connection', () => ({ getLocalDb: getLocalDbMock }))
-
-import { withTransaction } from './transaction'
-
-function statements() {
-  return executeMock.mock.calls.map(([sql]) => sql as string)
+const PLAN = {
+  upserts: [{ table: 'projects', columns: ['id', 'name'], rows: [['p1', 'n']] }],
+  deletedOperationIds: ['op-1'],
 }
 
-describe('withTransaction', () => {
-  beforeEach(() => {
-    executeMock.mockReset()
-    getLocalDbMock.mockReset()
-    executeMock.mockResolvedValue({ rowsAffected: 0 })
-    getLocalDbMock.mockResolvedValue({ execute: executeMock })
+describe('applySyncTransaction', () => {
+  afterEach(() => {
+    vi.resetModules()
+    vi.clearAllMocks()
   })
 
-  it('commits when the work resolves', async () => {
-    const result = await withTransaction(async () => 'done')
+  it('throws on the web runtime without invoking the command', async () => {
+    const { isDesktopRuntime } = await import('../../config/platform')
+    vi.mocked(isDesktopRuntime).mockReturnValue(false)
 
-    expect(result).toBe('done')
-    expect(statements()).toEqual(['BEGIN IMMEDIATE', 'COMMIT'])
+    const { applySyncTransaction } = await import('./transaction')
+
+    await expect(applySyncTransaction(PLAN)).rejects.toThrow(/desktop runtime/i)
+    expect(invokeMock).not.toHaveBeenCalled()
   })
 
-  it('rolls back and rethrows when the work fails', async () => {
-    const failure = new Error('constraint violated')
+  it('delegates the whole plan to Rust in a single call', async () => {
+    const { isDesktopRuntime } = await import('../../config/platform')
+    vi.mocked(isDesktopRuntime).mockReturnValue(true)
+    invokeMock.mockResolvedValue({ upsertedRows: 1, deletedRows: 1 })
 
-    await expect(withTransaction(async () => { throw failure })).rejects.toBe(failure)
-    expect(statements()).toEqual(['BEGIN IMMEDIATE', 'ROLLBACK'])
-    expect(statements()).not.toContain('COMMIT')
+    const { applySyncTransaction } = await import('./transaction')
+    const report = await applySyncTransaction(PLAN)
+
+    // One atomic hand-off: no JS-side BEGIN/COMMIT that could interleave.
+    expect(invokeMock).toHaveBeenCalledOnce()
+    expect(invokeMock).toHaveBeenCalledWith('apply_sync_transaction', { plan: PLAN })
+    expect(report).toEqual({ upsertedRows: 1, deletedRows: 1 })
   })
 
-  it('propagates the original error even if the rollback fails', async () => {
-    const failure = new Error('original')
-    executeMock.mockImplementation((sql: string) => {
-      if (sql === 'ROLLBACK') return Promise.reject(new Error('rollback failed'))
-      return Promise.resolve({ rowsAffected: 0 })
-    })
+  it('propagates a rejected transaction so the caller can mark it failed', async () => {
+    const { isDesktopRuntime } = await import('../../config/platform')
+    vi.mocked(isDesktopRuntime).mockReturnValue(true)
+    invokeMock.mockRejectedValue('upsert into `projects` failed: no such column')
 
-    await expect(withTransaction(async () => { throw failure })).rejects.toBe(failure)
-  })
+    const { applySyncTransaction } = await import('./transaction')
 
-  it('serializes overlapping transactions', async () => {
-    const order: string[] = []
-    let releaseFirst: () => void = () => {}
-    const firstStarted = new Promise<void>((resolve) => {
-      releaseFirst = resolve
-    })
-
-    const first = withTransaction(async () => {
-      order.push('first:start')
-      await firstStarted
-      order.push('first:end')
-    })
-    const second = withTransaction(async () => {
-      order.push('second:start')
-    })
-
-    releaseFirst()
-    await Promise.all([first, second])
-
-    expect(order).toEqual(['first:start', 'first:end', 'second:start'])
-  })
-
-  it('keeps running after a failed transaction', async () => {
-    await expect(withTransaction(async () => { throw new Error('boom') })).rejects.toThrow('boom')
-    await expect(withTransaction(async () => 'ok')).resolves.toBe('ok')
+    await expect(applySyncTransaction(PLAN)).rejects.toBe(
+      'upsert into `projects` failed: no such column',
+    )
   })
 })

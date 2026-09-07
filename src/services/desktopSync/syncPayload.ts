@@ -1,9 +1,10 @@
+import type { SyncBindValue } from '../../lib/localDb/transaction'
 import { SYNC_TABLE_COLUMNS, SYNC_TABLE_NAMES, type SyncTableName } from './syncTables'
 
 /** Payload contract version returned by `get_inventory_sync_delta_rpc`. */
 export const SUPPORTED_SYNC_PAYLOAD_VERSION = 3
 
-export type SyncBindValue = string | number | null
+export type { SyncBindValue } from '../../lib/localDb/transaction'
 
 export interface SyncSnapshot {
   nextCursor: string

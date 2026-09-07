@@ -1,44 +1,40 @@
-import type Database from '@tauri-apps/plugin-sql'
-import { getLocalDb } from './connection'
+import { isDesktopRuntime } from '../../config/platform'
 
-/**
- * Serializes transactions in this process. The SQL plugin runs statements
- * against a connection pool, so `BEGIN`/`COMMIT` are only guaranteed to
- * share a connection while no other query is in flight. Queueing here keeps
- * the local database single-writer, and `BEGIN IMMEDIATE` makes any lock
- * contention fail fast instead of committing a partial write.
- */
-let queue: Promise<unknown> = Promise.resolve()
+/** A value SQLite can bind directly. */
+export type SyncBindValue = string | number | null
 
-async function runExclusive<T>(run: () => Promise<T>): Promise<T> {
-  const result = queue.then(run, run)
-  queue = result.catch(() => undefined)
-  return result
+export interface SyncUpsertPlan {
+  table: string
+  columns: string[]
+  rows: SyncBindValue[][]
+}
+
+export interface SyncWritePlan {
+  upserts: SyncUpsertPlan[]
+  /** `inventory_operations.id` values removed by tombstones. */
+  deletedOperationIds: string[]
+}
+
+export interface SyncApplyReport {
+  upsertedRows: number
+  deletedRows: number
 }
 
 /**
- * Runs `work` inside one SQLite transaction: commits when it resolves,
- * rolls back when it rejects. The original error is always propagated,
- * even if the rollback itself fails.
+ * Applies a write plan inside one Rust-owned SQLite transaction.
+ *
+ * The transaction boundary deliberately lives in Rust: the SQL plugin runs
+ * each JS statement on a pooled connection, so `BEGIN`/`COMMIT` issued from
+ * here could straddle connections. Rust takes a single connection for the
+ * whole write and rolls back on any error.
+ *
+ * Only a structured plan crosses the boundary — never SQL text — so no
+ * caller can run arbitrary statements through this API.
  */
-export async function withTransaction<T>(
-  work: (db: Database) => Promise<T>,
-): Promise<T> {
-  return runExclusive(async () => {
-    const db = await getLocalDb()
-    await db.execute('BEGIN IMMEDIATE')
-    let result: T
-    try {
-      result = await work(db)
-    } catch (error) {
-      try {
-        await db.execute('ROLLBACK')
-      } catch {
-        // Surface the failure that actually caused the rollback.
-      }
-      throw error
-    }
-    await db.execute('COMMIT')
-    return result
-  })
+export async function applySyncTransaction(plan: SyncWritePlan): Promise<SyncApplyReport> {
+  if (!isDesktopRuntime()) {
+    throw new Error('Local database transactions are only available in the desktop runtime.')
+  }
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<SyncApplyReport>('apply_sync_transaction', { plan })
 }
