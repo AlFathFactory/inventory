@@ -1,5 +1,7 @@
 import type {
   CategorySummaryItem,
+  CustodyRecord,
+  CustodyTableName,
   ItemDetails,
   ItemMovement,
 } from '../services/itemsService'
@@ -33,6 +35,11 @@ export function repositoryFailure<TData = never>(error: string): RepositoryResul
 export interface InventoryReadRepository {
   listCategoryRows(tableName: string): Promise<RepositoryResult<CategorySummaryItem[]>>
   getItemDetails(tableName: string, itemId: string): Promise<RepositoryResult<ItemDetails | null>>
+  /** Single custody-category record (cutting discs / long welding gloves). */
+  getCustodyRecord(
+    tableName: CustodyTableName,
+    recordId: string,
+  ): Promise<RepositoryResult<CustodyRecord | null>>
 }
 
 /** Stock movement history for one item. */

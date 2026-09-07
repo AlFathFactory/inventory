@@ -1,5 +1,5 @@
 import { loadCategoryRowsForTable } from '../features/category/utils/categoryRows'
-import { getItemDetails, getItemMovements } from '../services/itemsService'
+import { getCustodyRecord, getItemDetails, getItemMovements } from '../services/itemsService'
 import { getActiveProjects, getProjects } from '../services/projectsService'
 import { searchActiveParties } from '../services/partiesService'
 import { getEmployeeCustodyItems } from '../features/employee-custody/employeeCustodyService'
@@ -32,6 +32,7 @@ const inventory: InventoryReadRepository = {
     return error === null ? repositoryOk(data) : repositoryFailure(error)
   },
   getItemDetails: (tableName, itemId) => getItemDetails(tableName, itemId),
+  getCustodyRecord: (tableName, recordId) => getCustodyRecord(tableName, recordId),
 }
 
 const movements: MovementsReadRepository = {

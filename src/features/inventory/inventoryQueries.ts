@@ -5,6 +5,7 @@ import {
   getItemDetails,
   getItemMovements,
   type CategorySummaryItem,
+  type CustodyRecord,
   type CustodyTableName,
   type ItemDetails,
   type ItemMovement,
@@ -137,18 +138,27 @@ export function custodyItemQueryOptions(
   return queryOptions({
     queryKey: inventoryKeys.custodyItem(tableName, itemId),
     networkMode: 'always',
-    queryFn: async () => {
-      if (navigator.onLine) {
-        try {
-          return requireData(await getCustodyRecord(tableName, itemId))
-        } catch (error) {
-          if (!isTransportError(error)) throw error
+    queryFn: () => readForRuntime<CustodyRecord | CategorySummaryItem>({
+      desktop: async () => {
+        const repository = await getInventoryRepository()
+        const result = await repository.getCustodyRecord(tableName, itemId)
+        if (result.error !== null) throw new Error(result.error)
+        if (result.data === null) throw new Error('سجل العهدة غير موجود في البيانات المحلية')
+        return result.data
+      },
+      web: async () => {
+        if (navigator.onLine) {
+          try {
+            return requireData(await getCustodyRecord(tableName, itemId))
+          } catch (error) {
+            if (!isTransportError(error)) throw error
+          }
         }
-      }
-      const item = (await getProjectedCachedCategoryRows(tableName))
-        .find((row) => String(row.item_id) === itemId)
-      if (!item) throw new Error('سجل العهدة غير موجود في البيانات المحلية')
-      return item
-    },
+        const item = (await getProjectedCachedCategoryRows(tableName))
+          .find((row) => String(row.item_id) === itemId)
+        if (!item) throw new Error('سجل العهدة غير موجود في البيانات المحلية')
+        return item
+      },
+    }),
   })
 }

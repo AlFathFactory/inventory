@@ -23,6 +23,13 @@ import {
   toCylinderSummaryItem,
 } from './local/categorySummaryProjection'
 import {
+  buildCustodyCategoryListSql,
+  buildCustodyRecordSql,
+  isCustodyCategoryTable,
+  toCustodyCategorySummaryItem,
+  toCustodyRecord,
+} from './local/custodyCategoryProjection'
+import {
   buildAllocationsSql,
   collectIssueIds,
   ITEM_MOVEMENTS_SQL,
@@ -53,10 +60,10 @@ function assertReadableTable(tableName: string) {
   }
 }
 
-/** Category lists additionally need a summary projection for the table. */
+/** Category lists additionally need a projection for the table. */
 function assertSummaryTable(tableName: string) {
   assertReadableTable(tableName)
-  if (!hasCategorySummaryProjection(tableName)) {
+  if (!hasCategorySummaryProjection(tableName) && !isCustodyCategoryTable(tableName)) {
     throw new Error(`لا يوجد ملخص أصناف محلي للجدول "${tableName}"`)
   }
 }
@@ -88,6 +95,12 @@ const inventory: InventoryReadRepository = {
     return guard(async () => {
       assertSummaryTable(tableName)
 
+      // Custody categories have no summary view behind them on web either.
+      if (isCustodyCategoryTable(tableName)) {
+        const rows = await selectRows(buildCustodyCategoryListSql(tableName))
+        return rows.map((row) => toCustodyCategorySummaryItem(row, tableName))
+      }
+
       // Cylinders come straight off their own table on web too, so the same
       // mapper is reused instead of the summary projection.
       if (tableName === CYLINDERS_TABLE) {
@@ -112,6 +125,14 @@ const inventory: InventoryReadRepository = {
       const rows = await selectRows(buildItemDetailsSql(tableName), [itemId])
       return rows[0] ? toCategorySummaryItem(rows[0], tableName) : null
     }, 'تعذر تحميل تفاصيل الصنف محليًا')
+  },
+
+  getCustodyRecord(tableName, recordId) {
+    return guard(async () => {
+      assertReadableTable(tableName)
+      const rows = await selectRows(buildCustodyRecordSql(tableName), [recordId])
+      return rows[0] ? toCustodyRecord(rows[0], tableName) : null
+    }, 'تعذر تحميل تفاصيل سجل العهدة محليًا')
   },
 }
 

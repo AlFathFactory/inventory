@@ -82,6 +82,20 @@ export const SYNC_TABLE_COLUMNS = {
     'id', 'employee_id', 'table_name', 'item_id', 'source_issue_operation_id', 'quantity',
     'received_date', 'scrapped_date', 'scrap_reason', 'notes', 'created_at', 'updated_at',
   ],
+  // Custody categories. The RPC emits `to_jsonb(t)` for both, so every column
+  // is available; the two tables are genuinely asymmetric — cutting_discs has
+  // `code`/`scrapped_date` and no archive flag, gloves have
+  // `quantity`/`is_archived` and neither.
+  cutting_discs: [
+    'id', 'code', 'type_name', 'received_by', 'received_date', 'scrapped_date',
+    'source_file', 'source_sheet', 'created_at', 'updated_at', 'notes', 'internal_code',
+    'supplier_name',
+  ],
+  long_welding_gloves: [
+    'id', 'type_name', 'received_by', 'received_date', 'source_file', 'source_sheet',
+    'created_at', 'updated_at', 'quantity', 'notes', 'is_archived', 'internal_code',
+    'supplier_name',
+  ],
 } as const satisfies Record<string, readonly string[]>
 
 export type SyncTableName = keyof typeof SYNC_TABLE_COLUMNS

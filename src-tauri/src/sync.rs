@@ -20,7 +20,7 @@ use tauri_plugin_sql::{DbInstances, DbPool};
 const MAX_BIND_PARAMS: usize = 900;
 
 /// Tables the sync pipeline may write. Anything else is rejected.
-const ALLOWED_TABLES: [&str; 15] = [
+const ALLOWED_TABLES: [&str; 17] = [
     "categories",
     "consumables",
     "paints",
@@ -36,6 +36,8 @@ const ALLOWED_TABLES: [&str; 15] = [
     "inventory_operation_employee_allocations",
     "inventory_operation_deletions",
     "employee_custody_items",
+    "cutting_discs",
+    "long_welding_gloves",
 ];
 
 /// Tombstones remove rows from this table only.

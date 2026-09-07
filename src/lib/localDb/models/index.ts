@@ -19,5 +19,6 @@ export type {
   LocalInventoryOperationDeletion,
 } from './operation'
 export type { LocalEmployeeCustodyItem } from './custody'
+export type { LocalCuttingDisc, LocalLongWeldingGlove } from './custodyCategory'
 export { SYNC_STATUSES } from './syncState'
 export type { SyncStatus, SyncState } from './syncState'

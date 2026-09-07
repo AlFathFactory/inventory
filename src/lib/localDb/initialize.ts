@@ -3,7 +3,7 @@ import { getLocalDb } from './connection'
 import { METADATA_KEYS } from './metadataKeys'
 import { setMetadataValue } from './metadataRepository'
 
-const SCHEMA_VERSION = '2'
+const SCHEMA_VERSION = '3'
 
 /**
  * Opens the desktop local database once at app startup, applying any

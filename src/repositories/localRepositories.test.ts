@@ -105,6 +105,55 @@ describe('localReadRepositories', () => {
       expect(selectMock).not.toHaveBeenCalled()
     })
 
+    it('reads cutting discs locally instead of reporting them unavailable', async () => {
+      selectMock.mockResolvedValue([{ id: 'cd1', type_name: 'صاروخ', code: 'C-1' }])
+
+      const result = await localReadRepositories.inventory.listCategoryRows('cutting_discs')
+
+      expect(result.error).toBeNull()
+      expect(lastSql()).toBe('SELECT * FROM cutting_discs ORDER BY received_date DESC')
+      expect(result.data?.[0]).toMatchObject({
+        table_name: 'cutting_discs',
+        category_name: 'صواريخ',
+        item_id: 'cd1',
+        item_name: 'صاروخ',
+        code: 'C-1',
+        source_rows_count: 1,
+      })
+    })
+
+    it('reads long welding gloves locally, filtering archived rows', async () => {
+      selectMock.mockResolvedValue([{ id: 'g1', type_name: 'جوانتي' }])
+
+      const result = await localReadRepositories.inventory.listCategoryRows('long_welding_gloves')
+
+      expect(result.error).toBeNull()
+      expect(lastSql()).toBe(
+        'SELECT * FROM long_welding_gloves WHERE COALESCE(is_archived, 0) = 0 ' +
+        'ORDER BY received_date DESC',
+      )
+      expect(result.data?.[0]).toMatchObject({
+        table_name: 'long_welding_gloves',
+        category_name: 'جوانتي لحام طويل',
+        item_name: 'جوانتي',
+      })
+    })
+
+    it('reads a single custody record by primary key', async () => {
+      selectMock.mockResolvedValue([{ id: 'cd1', type_name: 'صاروخ', scrapped_date: '2026-01-01' }])
+
+      const result = await localReadRepositories.inventory.getCustodyRecord('cutting_discs', 'cd1')
+
+      expect(lastSql()).toBe('SELECT * FROM cutting_discs WHERE id = $1 LIMIT 1')
+      expect(selectMock.mock.calls.at(-1)?.[1]).toEqual(['cd1'])
+      expect(result.data).toMatchObject({ id: 'cd1', scrapped_date: '2026-01-01' })
+    })
+
+    it('returns null for a custody record missing locally', async () => {
+      expect(await localReadRepositories.inventory.getCustodyRecord('cutting_discs', 'nope'))
+        .toEqual({ data: null, error: null })
+    })
+
     it('looks up item details by primary key', async () => {
       selectMock.mockResolvedValue([{ item_id: 'i1', item_name: 'صنف' }])
 

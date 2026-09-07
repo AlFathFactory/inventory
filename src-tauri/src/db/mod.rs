@@ -28,6 +28,12 @@ pub fn migrations() -> Vec<Migration> {
             ),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "create_custody_category_tables",
+            sql: include_str!("migrations/v3_custody_categories.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -62,10 +68,54 @@ mod tests {
         "issue_operation_id",
     ];
 
+    /// Added in v3; kept separate from SYNCED_TABLES so the v2 assertions
+    /// keep pinning the already-released migration exactly as it shipped.
+    const V3_TABLES: [&str; 2] = ["cutting_discs", "long_welding_gloves"];
+
     #[test]
     fn versions_are_ordered_and_unique() {
         let versions: Vec<i64> = migrations().iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec![1, 2]);
+        assert_eq!(versions, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn v3_creates_the_custody_category_tables_with_text_primary_keys() {
+        let v3 = &migrations()[2];
+        for table in V3_TABLES {
+            let needle =
+                format!("CREATE TABLE IF NOT EXISTS {table} (\n    id TEXT PRIMARY KEY NOT NULL,");
+            assert!(
+                v3.sql.contains(&needle),
+                "expected migration v3 to create `{table}` with a TEXT primary key `id`"
+            );
+        }
+    }
+
+    #[test]
+    fn v3_indexes_the_sync_cursor_and_list_ordering_columns() {
+        let v3 = &migrations()[2];
+        for table in V3_TABLES {
+            for column in ["updated_at", "received_date"] {
+                let needle = format!("ON {table} ({column})");
+                assert!(
+                    v3.sql.contains(&needle),
+                    "expected migration v3 to index `{table}.{column}`"
+                );
+            }
+        }
+    }
+
+    /// v3 must only add tables; re-editing v1/v2 would break upgrades for
+    /// databases that already ran them.
+    #[test]
+    fn v3_only_creates_new_objects() {
+        let v3 = &migrations()[2];
+        for forbidden in ["DROP ", "ALTER ", "DELETE ", "UPDATE "] {
+            assert!(
+                !v3.sql.to_uppercase().contains(forbidden),
+                "migration v3 must not contain `{forbidden}`"
+            );
+        }
     }
 
     #[test]
