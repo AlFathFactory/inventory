@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { isDesktopRuntime } from '../config/platform'
 import { useToast } from '../components/ToastProvider'
 import { useAccess } from '../features/access/AccessContext'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
@@ -26,12 +27,14 @@ import type { DynamicItemEditInput } from '../features/dynamic-categories/types'
 import { getLatestMovementId } from '../features/item-details/itemDetailsUtils'
 import {
   applyDynamicItemStockOperation,
-  returnDynamicItemStock,
 } from '../features/dynamic-categories/dynamicItemOperationService'
+import { type InventoryOperationType } from '../services/operationsService'
 import {
-  deleteInventoryOperation,
-  type InventoryOperationType,
-} from '../services/operationsService'
+  isPendingInventoryWrite,
+  requireAcceptedInventoryWrite,
+  writeInventoryDelete,
+  writeInventoryReturn,
+} from '../services/inventoryWrite'
 import type { ItemMovement } from '../services/itemsService'
 
 const arabicNumber = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 3 })
@@ -70,11 +73,16 @@ export function DynamicItemDetailsPage() {
   const [returnError, setReturnError] = useState<string | null>(null)
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false)
   const [deleteMovement, setDeleteMovement] = useState<ItemMovement | null>(null)
+  const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null)
   const [isDeletingMovement, setIsDeletingMovement] = useState(false)
   const category = categoryQuery.data
   const item = itemQuery.data
   const isReadOnly = Boolean(category?.is_archived)
+  const isDesktop = isDesktopRuntime()
   const operationsDisabled = isReadOnly || Boolean(item?.is_archived) || !isOnline
+  const movementActionsDisabled = isReadOnly
+    || Boolean(item?.is_archived)
+    || (!isOnline && !isDesktop)
 
   async function editItem(input: DynamicItemEditInput) {
     if (!item) return
@@ -155,7 +163,7 @@ export function DynamicItemDetailsPage() {
 
   function openReturn(movement: ItemMovement) {
     if (movement.operation_type !== 'issue' || movement.remainingReturnableQuantity <= 0) return
-    if (!isOnline) {
+    if (!isOnline && !isDesktop) {
       showToast('يجب الاتصال بالإنترنت لتسجيل المرتجع.', 'error')
       return
     }
@@ -169,7 +177,7 @@ export function DynamicItemDetailsPage() {
     setIsSubmittingReturn(true)
     setReturnError(null)
     try {
-      await returnDynamicItemStock({
+      const result = requireAcceptedInventoryWrite(await writeInventoryReturn({
         issueOperationId: String(returnMovement.id),
         quantity: Number(form.quantity),
         operationDate: form.operationDate,
@@ -178,11 +186,16 @@ export function DynamicItemDetailsPage() {
         createdBy: user?.name || 'user',
         requestId: returnRequestId,
         employeeId: form.employeeId || null,
-      })
-      await invalidateDynamicItemStockData(queryClient, categoryId, itemId)
+      }))
+      const isPending = isPendingInventoryWrite(result)
+      if (!isPending) {
+        await invalidateDynamicItemStockData(queryClient, categoryId, itemId)
+      }
       setReturnMovement(null)
       setReturnRequestId(null)
-      showToast('تم تسجيل المرتجع وتحديث الرصيد بنجاح.')
+      showToast(isPending
+        ? 'تم وضع المرتجع في قائمة انتظار المزامنة وهو معلّق حتى قبول الخادم.'
+        : 'تم تسجيل المرتجع وتحديث الرصيد بنجاح.')
     } catch (error) {
       setReturnError(errorMessage(error))
       showToast(errorMessage(error), 'error')
@@ -195,10 +208,20 @@ export function DynamicItemDetailsPage() {
     if (!deleteMovement || isDeletingMovement) return
     setIsDeletingMovement(true)
     try {
-      await deleteInventoryOperation(String(deleteMovement.id), user?.name || 'user')
-      await invalidateDynamicItemStockData(queryClient, categoryId, itemId)
+      const result = requireAcceptedInventoryWrite(await writeInventoryDelete({
+        operationId: String(deleteMovement.id),
+        deletedBy: user?.name || 'user',
+        requestId: deleteRequestId ?? undefined,
+      }))
+      const isPending = isPendingInventoryWrite(result)
+      if (!isPending) {
+        await invalidateDynamicItemStockData(queryClient, categoryId, itemId)
+      }
       setDeleteMovement(null)
-      showToast('تم حذف أحدث حركة واسترجاع الرصيد السابق بنجاح.')
+      setDeleteRequestId(null)
+      showToast(isPending
+        ? 'تم وضع طلب حذف الحركة في قائمة انتظار المزامنة وهو معلّق حتى قبول الخادم.'
+        : 'تم حذف أحدث حركة واسترجاع الرصيد السابق بنجاح.')
     } catch (error) {
       showToast(errorMessage(error), 'error')
     } finally {
@@ -294,13 +317,13 @@ export function DynamicItemDetailsPage() {
         {movementsQuery.isPending ? <div className="mt-6 space-y-3">{[0, 1, 2].map((row) => <div key={row} className="h-16 animate-pulse rounded-2xl bg-slate-50" />)}</div> : null}
         {movementsQuery.isError ? <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-6 text-center text-sm text-red-700">{errorMessage(movementsQuery.error)}<button type="button" onClick={() => void movementsQuery.refetch()} className="mr-3 font-bold underline">إعادة المحاولة</button></div> : null}
         {!movementsQuery.isPending && !movementsQuery.isError && (movementsQuery.data?.length ?? 0) === 0 ? <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center text-sm font-semibold text-slate-600">لا توجد حركات مسجلة لهذا الصنف.</div> : null}
-        {(movementsQuery.data?.length ?? 0) > 0 ? <MovementsTable movements={movementsQuery.data ?? []} latestMovementId={getLatestMovementId(movementsQuery.data ?? []) ?? ''} actionsDisabled={operationsDisabled || isSubmittingReturn || isDeletingMovement} onReturn={openReturn} onDelete={setDeleteMovement} /> : null}
+        {(movementsQuery.data?.length ?? 0) > 0 ? <MovementsTable movements={movementsQuery.data ?? []} latestMovementId={getLatestMovementId(movementsQuery.data ?? []) ?? ''} actionsDisabled={movementActionsDisabled || isSubmittingReturn || isDeletingMovement} onReturn={openReturn} onDelete={(movement) => { setDeleteRequestId(crypto.randomUUID()); setDeleteMovement(movement) }} /> : null}
       </div>
 
       {isEditOpen ? <DynamicItemFormDialog mode="edit" categoryId={categoryId} item={item} isSaving={updateMutation.isPending} error={formError} onClose={() => { if (!updateMutation.isPending) setIsEditOpen(false) }} onSubmit={editItem} /> : null}
       {operationType ? <DynamicItemOperationDialog category={category} item={item} operationType={operationType} isSubmitting={isSubmittingOperation} error={operationError} onClose={() => { if (!isSubmittingOperation) setOperationType(null) }} onSubmit={submitOperation} /> : null}
       {returnMovement ? <><ReturnMovementDialog movement={returnMovement} internalCode={item.internal_code} categoryLabel={category.name} isSubmitting={isSubmittingReturn} allocations={(returnMovement.employeeAllocations ?? []).map((allocation, index) => ({ ...allocation, id: `${returnMovement.id}-${allocation.employee_id}-${index}`, issue_operation_id: String(returnMovement.id) }))} onCancel={() => { if (!isSubmittingReturn) { setReturnMovement(null); setReturnRequestId(null) } }} onSubmit={(form) => void submitReturn(form)} />{returnError ? <div role="alert" className="fixed bottom-5 left-1/2 z-[100] w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-700 shadow-xl">{returnError}</div> : null}</> : null}
-      {deleteMovement ? <DeleteMovementDialog movement={deleteMovement} isDeleting={isDeletingMovement} onCancel={() => { if (!isDeletingMovement) setDeleteMovement(null) }} onConfirm={() => void confirmDeleteMovement()} /> : null}
+      {deleteMovement ? <DeleteMovementDialog movement={deleteMovement} isDeleting={isDeletingMovement} onCancel={() => { if (!isDeletingMovement) { setDeleteMovement(null); setDeleteRequestId(null) } }} onConfirm={() => void confirmDeleteMovement()} /> : null}
     </section>
   )
 }

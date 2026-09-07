@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CategoryDefinition } from '../../../config/categoryConfig'
+import { isDesktopRuntime } from '../../../config/platform'
 import {
   createInitialOperationFormState,
   getNumericValue,
@@ -13,7 +14,9 @@ import { type InventoryOperationType } from '../../../services/operationsService
 import {
   isPendingInventoryWrite,
   requireAcceptedInventoryWrite,
+  writeInventoryDelete,
   writeInventoryOperation,
+  writeInventoryReturn,
   type InventoryWriteResult,
 } from '../../../services/inventoryWrite'
 import { invalidateItemData } from '../../inventory/inventoryCache'
@@ -29,8 +32,6 @@ import {
 } from '../itemDetailsUtils'
 import type { ItemDetailsMessage, ItemMovementsDateFilterValue } from '../types'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
-import { deleteInventoryOperation } from '../../../services/operationsService'
-import { returnInventoryItem } from '../../../services/operationsService'
 import { useAccess } from '../../access/AccessContext'
 import type { ReturnMovementForm } from '../components/ReturnMovementDialog'
 import {
@@ -73,10 +74,12 @@ export function useItemDetailsPage(
   const [movementToDelete, setMovementToDelete] = useState<ItemMovement | null>(null)
   const [deletingMovementId, setDeletingMovementId] = useState<string | null>(null)
   const deleteRequestInFlight = useRef(false)
+  const deleteCommandId = useRef<string | null>(null)
   const [movementToReturn, setMovementToReturn] = useState<ItemMovement | null>(null)
   const [returnAllocations, setReturnAllocations] = useState<IssueEmployeeAllocation[]>([])
   const [returningMovementId, setReturningMovementId] = useState<string | null>(null)
   const returnRequestInFlight = useRef(false)
+  const returnCommandId = useRef<string | null>(null)
 
   const loadItemData = useCallback(async () => {
     if (!category || !itemId) return
@@ -315,10 +318,23 @@ export function useItemDetailsPage(
     setDeletingMovementId(operationId)
     setMessage(null)
     try {
-      await deleteInventoryOperation(operationId, user?.name || 'user')
+      const result = requireAcceptedInventoryWrite(await writeInventoryDelete({
+        operationId,
+        deletedBy: user?.name || 'user',
+        requestId: deleteCommandId.current ?? undefined,
+      }))
+      const isPending = isPendingInventoryWrite(result)
       setMovementToDelete(null)
-      await invalidateItemData(queryClient, category.table, itemId)
-      setMessage({ type: 'success', text: 'تم حذف حركة المخزون واسترجاع الرصيد السابق بنجاح.' })
+      deleteCommandId.current = null
+      if (!isPending) {
+        await invalidateItemData(queryClient, category.table, itemId)
+      }
+      setMessage({
+        type: 'success',
+        text: isPending
+          ? 'تم وضع طلب حذف الحركة في قائمة انتظار المزامنة وهو معلّق حتى قبول الخادم.'
+          : 'تم حذف حركة المخزون واسترجاع الرصيد السابق بنجاح.',
+      })
     } catch (error) {
       setMessage({
         type: 'error',
@@ -345,21 +361,28 @@ export function useItemDetailsPage(
     setReturningMovementId(operationId)
     setMessage(null)
     try {
-      await returnInventoryItem({
+      const result = requireAcceptedInventoryWrite(await writeInventoryReturn({
         issueOperationId: operationId,
         quantity: Number(returnForm.quantity),
         operationDate: returnForm.operationDate,
         receivedBy: returnForm.receivedBy,
         notes: returnForm.notes,
         createdBy: user?.name || 'user',
-        requestId: crypto.randomUUID(),
+        requestId: returnCommandId.current ?? undefined,
         employeeId: returnForm.employeeId || null,
-      })
+      }))
+      const isPending = isPendingInventoryWrite(result)
       setMovementToReturn(null)
-      await invalidateItemData(queryClient, category.table, itemId)
+      setReturnAllocations([])
+      returnCommandId.current = null
+      if (!isPending) {
+        await invalidateItemData(queryClient, category.table, itemId)
+      }
       setMessage({
         type: 'success',
-        text: 'تم إرجاع الكمية إلى المخزون بنجاح',
+        text: isPending
+          ? 'تم وضع المرتجع في قائمة انتظار المزامنة وهو معلّق حتى قبول الخادم.'
+          : 'تم إرجاع الكمية إلى المخزون بنجاح',
       })
     } catch (error) {
       setMessage({
@@ -411,11 +434,15 @@ export function useItemDetailsPage(
     submitOperation,
     openDeleteMovementDialog: (movement: ItemMovement) => {
       if (deletingMovementId !== null) return
+      deleteCommandId.current = crypto.randomUUID()
       setMovementToDelete(movement)
       setMessage(null)
     },
     closeDeleteMovementDialog: () => {
-      if (deletingMovementId === null) setMovementToDelete(null)
+      if (deletingMovementId === null) {
+        deleteCommandId.current = null
+        setMovementToDelete(null)
+      }
     },
     confirmDeleteMovement,
     openReturnMovementDialog: async (movement: ItemMovement) => {
@@ -426,7 +453,14 @@ export function useItemDetailsPage(
       ) return
       setMessage(null)
       try {
-        const allocations = await getIssueEmployeeAllocations(String(movement.id))
+        const allocations = isDesktopRuntime()
+          ? (movement.employeeAllocations ?? []).map((allocation, index) => ({
+              ...allocation,
+              id: `${movement.id}-${allocation.employee_id}-${index}`,
+              issue_operation_id: String(movement.id),
+            }))
+          : await getIssueEmployeeAllocations(String(movement.id))
+        returnCommandId.current = crypto.randomUUID()
         setReturnAllocations(allocations)
         setMovementToReturn(movement)
       } catch (error) {
@@ -438,6 +472,7 @@ export function useItemDetailsPage(
     },
     closeReturnMovementDialog: () => {
       if (returningMovementId === null) {
+        returnCommandId.current = null
         setMovementToReturn(null)
         setReturnAllocations([])
       }

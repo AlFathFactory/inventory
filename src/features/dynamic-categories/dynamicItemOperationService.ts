@@ -1,10 +1,11 @@
 import {
   applyInventoryOperation,
-  returnInventoryItem,
   type ApplyInventoryOperationParams,
   type InventoryOperationType,
   type ReturnInventoryOperationParams,
 } from '../../services/operationsService'
+import { isDesktopRuntime } from '../../config/platform'
+import { writeInventoryReturn } from '../../services/inventoryWrite'
 import type { DynamicCategory, DynamicCategoryItem } from './types'
 
 export type DynamicStockOperationInput = {
@@ -83,9 +84,9 @@ export async function applyDynamicItemStockOperation(
 
 export async function returnDynamicItemStock(
   input: DynamicReturnInput,
-  executor: ReturnExecutor = returnInventoryItem,
+  executor: ReturnExecutor = writeInventoryReturn,
 ) {
-  requireOnline()
+  if (!isDesktopRuntime()) requireOnline()
   const requestId = requireRequestId(input.requestId)
   return executor({
     issueOperationId: input.issueOperationId,

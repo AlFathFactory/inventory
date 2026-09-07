@@ -41,7 +41,9 @@ function setup(overrides: Partial<InventoryWriteDependencies> = {}) {
   const dependencies: InventoryWriteDependencies = {
     isDesktop: vi.fn(() => true),
     createCommandId: vi.fn(() => 'generated-command'),
-    writeDirect: vi.fn(async () => ({ status: 'success' })),
+    writeInventoryDirect: vi.fn(async () => ({ status: 'success' })),
+    writeReturnDirect: vi.fn(async () => ({ status: 'success' })),
+    writeDeleteDirect: vi.fn(async () => ({ status: 'deleted' })),
     enqueue: vi.fn(async (input) => {
       stored = queuedCommand(input)
       return stored
@@ -62,7 +64,7 @@ describe('inventory write routing', () => {
 
     const result = await service.write(addInput)
 
-    expect(dependencies.writeDirect).toHaveBeenCalledWith(addInput)
+    expect(dependencies.writeInventoryDirect).toHaveBeenCalledWith(addInput)
     expect(dependencies.enqueue).not.toHaveBeenCalled()
     expect(dependencies.replay).not.toHaveBeenCalled()
     expect(result).toEqual({ status: 'synced', commandId: 'add-command', runtime: 'web' })
@@ -71,7 +73,7 @@ describe('inventory write routing', () => {
   it('preserves the existing web-offline direct executor behavior', async () => {
     const { dependencies, service } = setup({
       isDesktop: () => false,
-      writeDirect: vi.fn(async () => ({ ok: true, offline: true })),
+      writeInventoryDirect: vi.fn(async () => ({ ok: true, offline: true })),
     })
 
     const result = await service.write(addInput)
@@ -107,7 +109,7 @@ describe('inventory write routing', () => {
       }),
     }))
     expect(dependencies.replay).not.toHaveBeenCalled()
-    expect(dependencies.writeDirect).not.toHaveBeenCalled()
+    expect(dependencies.writeInventoryDirect).not.toHaveBeenCalled()
     expect(result.status).toBe('queued')
   })
 
@@ -171,7 +173,7 @@ describe('inventory write routing', () => {
 
     expect(dependencies.replay).toHaveBeenCalledTimes(1)
     expect(dependencies.getQueuedCommand).toHaveBeenCalledWith('add-command')
-    expect(dependencies.writeDirect).not.toHaveBeenCalled()
+    expect(dependencies.writeInventoryDirect).not.toHaveBeenCalled()
     expect(result.status).toBe('synced')
   })
 
@@ -239,5 +241,147 @@ describe('inventory write routing', () => {
       expect.objectContaining({ status: 'queued', commandId: 'add-command' }),
       expect.objectContaining({ status: 'queued', commandId: 'add-command' }),
     ])
+  })
+
+  it('keeps web return and delete on their existing direct executors', async () => {
+    const { dependencies, service } = setup({ isDesktop: () => false })
+
+    const returnResult = await service.writeReturn({
+      issueOperationId: 'issue-1',
+      quantity: 2,
+      operationDate: '2026-09-08',
+      requestId: 'web-return',
+    })
+    const deleteResult = await service.writeDelete({
+      operationId: 'operation-1',
+      deletedBy: 'web-user',
+      requestId: 'web-delete',
+    })
+
+    expect(dependencies.writeReturnDirect).toHaveBeenCalledWith({
+      issueOperationId: 'issue-1',
+      quantity: 2,
+      operationDate: '2026-09-08',
+      requestId: 'web-return',
+    })
+    expect(dependencies.writeDeleteDirect).toHaveBeenCalledWith('operation-1', 'web-user')
+    expect(dependencies.enqueue).not.toHaveBeenCalled()
+    expect(dependencies.replay).not.toHaveBeenCalled()
+    expect(returnResult.status).toBe('synced')
+    expect(deleteResult.status).toBe('synced')
+  })
+
+  it('queues return and delete commands without direct desktop RPC calls', async () => {
+    const { dependencies, service } = setup()
+
+    await service.writeReturn({
+      issueOperationId: 'issue-1',
+      employeeId: 'employee-1',
+      quantity: 2,
+      operationDate: '2026-09-08',
+      notes: 'return note',
+      receivedBy: 'receiver',
+      requestId: 'desktop-return',
+    })
+    await service.writeDelete({
+      operationId: 'operation-1',
+      deletedBy: 'desktop-user',
+      requestId: 'desktop-delete',
+    })
+
+    expect(dependencies.enqueue).toHaveBeenNthCalledWith(1, {
+      commandId: 'desktop-return',
+      commandType: 'return',
+      contractVersion: 1,
+      payload: {
+        issue_operation_id: 'issue-1',
+        employee_id: 'employee-1',
+        quantity: 2,
+        operation_date: '2026-09-08',
+        notes: 'return note',
+        received_by: 'receiver',
+      },
+    })
+    expect(dependencies.enqueue).toHaveBeenNthCalledWith(2, {
+      commandId: 'desktop-delete',
+      commandType: 'delete_operation',
+      contractVersion: 1,
+      payload: { operation_id: 'operation-1' },
+    })
+    expect(dependencies.writeReturnDirect).not.toHaveBeenCalled()
+    expect(dependencies.writeDeleteDirect).not.toHaveBeenCalled()
+  })
+
+  it('replays return online and maps its persisted conflict', async () => {
+    let stored: OfflineCommand | null = null
+    const { dependencies, service } = setup({
+      enqueue: vi.fn(async (input) => {
+        stored = queuedCommand(input)
+        return stored
+      }),
+      isOnline: vi.fn(async () => true),
+      replay: vi.fn(async () => {
+        if (stored) {
+          stored = {
+            ...stored,
+            status: 'conflict',
+            attempts: 1,
+            lastError: JSON.stringify({
+              code: 'return_conflict',
+              message: 'The remaining returnable quantity changed.',
+              sqlstate: 'P0001',
+              retryable: false,
+              requires_user_action: true,
+            }),
+          }
+        }
+      }),
+      getQueuedCommand: vi.fn(async () => stored),
+    })
+
+    const result = await service.writeReturn({
+      issueOperationId: 'issue-1',
+      quantity: 2,
+      operationDate: '2026-09-08',
+      requestId: 'return-conflict',
+    })
+
+    expect(dependencies.replay).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({
+      status: 'conflict',
+      commandId: 'return-conflict',
+      error: {
+        code: 'return_conflict',
+        retryable: false,
+        requiresUserAction: true,
+      },
+    })
+  })
+
+  it('keeps duplicate return command ids idempotent while in flight', async () => {
+    let finishEnqueue: ((command: OfflineCommand) => void) | undefined
+    const enqueue = vi.fn((input: EnqueueCommandInput) => new Promise<OfflineCommand>((resolve) => {
+      finishEnqueue = resolve
+      void input
+    }))
+    const { service } = setup({ enqueue })
+    const input = {
+      issueOperationId: 'issue-1',
+      quantity: 1,
+      operationDate: '2026-09-08',
+      requestId: 'same-return-command',
+    }
+
+    const first = service.writeReturn(input)
+    const second = service.writeReturn(input)
+    expect(enqueue).toHaveBeenCalledTimes(1)
+    finishEnqueue?.(queuedCommand({
+      commandId: 'same-return-command',
+      commandType: 'return',
+      contractVersion: 1,
+      payload: {},
+    }))
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2)
   })
 })

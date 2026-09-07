@@ -9,10 +9,21 @@ export type {
   InventoryCommandEnvelope,
 } from './inventoryCommandBuilders'
 export {
+  buildInventoryDeleteCommand,
+  buildInventoryReturnCommand,
+} from './returnDeleteCommandBuilders'
+export type {
+  DeleteCommandEnvelope,
+  DeleteInventoryOperationParams,
+  ReturnCommandEnvelope,
+} from './returnDeleteCommandBuilders'
+export {
   createInventoryWriteService,
   isPendingInventoryWrite,
   requireAcceptedInventoryWrite,
+  writeInventoryDelete,
   writeInventoryOperation,
+  writeInventoryReturn,
 } from './inventoryWriteService'
 export type {
   InventoryWriteDependencies,

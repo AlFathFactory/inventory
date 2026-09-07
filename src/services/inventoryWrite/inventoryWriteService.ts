@@ -8,12 +8,21 @@ import { enqueueCommand, getCommand } from '../desktopCommandQueue'
 import { probeSupabaseReachability } from '../connectivityService'
 import {
   applyInventoryOperation,
+  deleteInventoryOperation,
+  returnInventoryItem,
   type ApplyInventoryOperationParams,
+  type ReturnInventoryOperationParams,
 } from '../operationsService'
 import {
   buildInventoryOperationCommand,
-  type InventoryCommandEnvelope,
 } from './inventoryCommandBuilders'
+import {
+  buildInventoryDeleteCommand,
+  buildInventoryReturnCommand,
+  type DeleteInventoryOperationParams,
+} from './returnDeleteCommandBuilders'
+
+type DesktopWriteCommandEnvelope = EnqueueCommandInput & { commandId: string }
 
 export type InventoryWriteError = {
   code: string | null
@@ -43,7 +52,9 @@ export type InventoryWriteResult =
 export interface InventoryWriteDependencies {
   isDesktop: () => boolean
   createCommandId: () => string
-  writeDirect: (params: ApplyInventoryOperationParams) => Promise<unknown>
+  writeInventoryDirect: (params: ApplyInventoryOperationParams) => Promise<unknown>
+  writeReturnDirect: (params: ReturnInventoryOperationParams) => Promise<unknown>
+  writeDeleteDirect: (operationId: string | number, deletedBy: string) => Promise<unknown>
   enqueue: (input: EnqueueCommandInput) => Promise<OfflineCommand>
   getQueuedCommand: (commandId: string) => Promise<OfflineCommand | null>
   isOnline: () => Promise<boolean>
@@ -110,7 +121,7 @@ function resultFromCommand(command: OfflineCommand): InventoryWriteResult {
   }
 }
 
-function envelopeFingerprint(command: InventoryCommandEnvelope) {
+function envelopeFingerprint(command: DesktopWriteCommandEnvelope) {
   return `${command.commandType}:${command.contractVersion}:${serializeCanonicalPayload(command.payload)}`
 }
 
@@ -120,7 +131,7 @@ export function createInventoryWriteService(dependencies: InventoryWriteDependen
     promise: Promise<InventoryWriteResult>
   }>()
 
-  async function writeDesktop(command: InventoryCommandEnvelope): Promise<InventoryWriteResult> {
+  async function writeDesktop(command: DesktopWriteCommandEnvelope): Promise<InventoryWriteResult> {
     const queued = await dependencies.enqueue(command)
     let online = false
     try {
@@ -139,18 +150,7 @@ export function createInventoryWriteService(dependencies: InventoryWriteDependen
     return resultFromCommand(current ?? queued)
   }
 
-  async function write(params: ApplyInventoryOperationParams): Promise<InventoryWriteResult> {
-    if (!dependencies.isDesktop()) {
-      const commandId = params.requestId ?? dependencies.createCommandId()
-      const directResult = await dependencies.writeDirect({ ...params, requestId: commandId })
-      return {
-        status: isLegacyWebQueueResult(directResult) ? 'queued' : 'synced',
-        commandId,
-        runtime: 'web',
-      }
-    }
-
-    const command = buildInventoryOperationCommand(params, dependencies.createCommandId)
+  function writeCommand(command: DesktopWriteCommandEnvelope) {
     const fingerprint = envelopeFingerprint(command)
     const active = inFlight.get(command.commandId)
     if (active?.fingerprint === fingerprint) return active.promise
@@ -164,20 +164,62 @@ export function createInventoryWriteService(dependencies: InventoryWriteDependen
     return promise
   }
 
-  return { write }
+  async function writeInventory(params: ApplyInventoryOperationParams): Promise<InventoryWriteResult> {
+    if (!dependencies.isDesktop()) {
+      const commandId = params.requestId ?? dependencies.createCommandId()
+      const directResult = await dependencies.writeInventoryDirect({ ...params, requestId: commandId })
+      return {
+        status: isLegacyWebQueueResult(directResult) ? 'queued' : 'synced',
+        commandId,
+        runtime: 'web',
+      }
+    }
+
+    const command = buildInventoryOperationCommand(params, dependencies.createCommandId)
+    return writeCommand(command)
+  }
+
+  async function writeReturn(params: ReturnInventoryOperationParams): Promise<InventoryWriteResult> {
+    if (!dependencies.isDesktop()) {
+      const commandId = params.requestId ?? dependencies.createCommandId()
+      await dependencies.writeReturnDirect({ ...params, requestId: commandId })
+      return { status: 'synced', commandId, runtime: 'web' }
+    }
+    return writeCommand(buildInventoryReturnCommand(params, dependencies.createCommandId))
+  }
+
+  async function writeDelete(params: DeleteInventoryOperationParams): Promise<InventoryWriteResult> {
+    if (!dependencies.isDesktop()) {
+      const commandId = params.requestId ?? dependencies.createCommandId()
+      await dependencies.writeDeleteDirect(params.operationId, params.deletedBy || 'user')
+      return { status: 'synced', commandId, runtime: 'web' }
+    }
+    return writeCommand(buildInventoryDeleteCommand(params, dependencies.createCommandId))
+  }
+
+  return {
+    write: writeInventory,
+    writeInventory,
+    writeReturn,
+    writeDelete,
+  }
 }
 
 const productionService = createInventoryWriteService({
   isDesktop: isDesktopRuntime,
   createCommandId: () => crypto.randomUUID(),
-  writeDirect: applyInventoryOperation,
+  writeInventoryDirect: applyInventoryOperation,
+  writeReturnDirect: returnInventoryItem,
+  writeDeleteDirect: deleteInventoryOperation,
   enqueue: enqueueCommand,
   getQueuedCommand: getCommand,
   isOnline: () => probeSupabaseReachability({ force: true }),
   replay: async () => (await import('../desktopQueueReplay')).runDesktopQueueReplay(),
 })
 
-export const writeInventoryOperation = productionService.write
+export const writeInventoryOperation = productionService.writeInventory
+export const writeInventoryReturn = productionService.writeReturn
+export const writeInventoryDelete = productionService.writeDelete
 
 export function isPendingInventoryWrite(result: InventoryWriteResult) {
   return result.status === 'queued' || result.status === 'syncing'
