@@ -73,7 +73,7 @@ function unwrapRows(value: unknown, possibleKeys: string[]): UnknownRecord[] {
   return Object.keys(record).length > 0 ? [record] : []
 }
 
-function normalizeCustodyRecord(row: UnknownRecord): EmployeeCustodyRecord {
+export function normalizeCustodyRecord(row: UnknownRecord): EmployeeCustodyRecord {
   const nestedItem = asRecord(row.item ?? row.item_details ?? row.inventory_item)
   const item = { ...nestedItem, ...row }
   const tableName = textValue(row.table_name, row.tableName)

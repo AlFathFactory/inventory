@@ -1,5 +1,6 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { getActiveProjects, getProjects, getUnregisteredItemProjectNames, getUsedProjectNames } from '../../services/projectsService'
+import { getUnregisteredItemProjectNames, getUsedProjectNames } from '../../services/projectsService'
+import { getProjectsRepository } from '../../repositories'
 import { getCachedProjects } from '../../services/offlineBootstrapService'
 import { isTransportError } from '../../services/connectivityService'
 
@@ -29,7 +30,7 @@ export const projectsQueryOptions = queryOptions({
   queryKey: projectKeys.all,
   networkMode: 'always',
   queryFn: () => withProjectFallback(
-    async () => requireData(await getProjects()),
+    async () => requireData(await (await getProjectsRepository()).listProjects()),
     () => getCachedProjects(),
   ),
 })
@@ -38,7 +39,7 @@ export const activeProjectsQueryOptions = queryOptions({
   queryKey: projectKeys.active,
   networkMode: 'always',
   queryFn: () => withProjectFallback(
-    async () => requireData(await getActiveProjects()),
+    async () => requireData(await (await getProjectsRepository()).listActiveProjects()),
     () => getCachedProjects(true),
   ),
 })
