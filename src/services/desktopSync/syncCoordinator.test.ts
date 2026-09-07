@@ -16,6 +16,7 @@ import {
   hydrateDesktopSyncStatus,
   isDesktopSyncRunning,
   resetDesktopSyncGuard,
+  runDesktopDeltaAfterReplay,
   runDesktopSync,
 } from './syncCoordinator'
 import {
@@ -83,6 +84,16 @@ describe('runDesktopSync', () => {
     expect(outcome).toMatchObject({ status: 'succeeded', mode: 'full' })
   })
 
+  it('prefers delta after replay and falls back to full without a cursor', async () => {
+    mocks.runDeltaSync.mockResolvedValueOnce({ status: 'requires_full_sync' })
+
+    const outcome = await runDesktopDeltaAfterReplay()
+
+    expect(mocks.runDeltaSync).toHaveBeenCalledOnce()
+    expect(mocks.runInitialFullSync).toHaveBeenCalledOnce()
+    expect(outcome).toMatchObject({ status: 'succeeded', mode: 'full' })
+  })
+
   it('never runs on web', async () => {
     mocks.isDesktopRuntime.mockReturnValue(false)
 
@@ -138,6 +149,7 @@ describe('runDesktopSync', () => {
       const run = runDesktopSync()
       expect(getDesktopSyncSnapshot().phase).toBe('syncing')
 
+      await vi.waitFor(() => expect(mocks.runInitialFullSync).toHaveBeenCalledOnce())
       release(SUCCESS)
       await run
 

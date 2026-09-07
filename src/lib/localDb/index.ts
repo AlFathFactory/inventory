@@ -30,4 +30,13 @@ export type {
   LocalEmployeeCustodyItem,
   SyncStatus,
   SyncState,
+  JsonPrimitive,
+  JsonValue,
+  OfflineCommandPayload,
+  OfflineCommandStatus,
+  OfflineCommandType,
+  OfflineCommandContractVersion,
+  OfflineCommand,
+  EnqueueCommandInput,
 } from './models'
+export { OFFLINE_COMMAND_STATUSES, OFFLINE_COMMAND_TYPES } from './models'

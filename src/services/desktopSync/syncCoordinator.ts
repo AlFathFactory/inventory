@@ -2,6 +2,7 @@ import { isDesktopRuntime } from '../../config/platform'
 import { getSyncState } from '../../lib/localDb/syncState'
 import type { SyncPassResult } from './syncPipeline'
 import { setDesktopSyncSnapshot } from './syncStatusStore'
+import { runWithDesktopDataMutex } from './desktopDataMutex'
 
 /**
  * The sync pipeline (and the Tauri APIs behind it) is imported on demand, so
@@ -45,10 +46,28 @@ export function runDesktopSync(): Promise<DesktopSyncOutcome> {
     return inFlight
   }
 
-  inFlight = executeSyncPass().finally(() => {
+  inFlight = runWithDesktopDataMutex(() => executeSyncPass()).finally(() => {
     inFlight = null
   })
 
+  return inFlight
+}
+
+/**
+ * Refreshes authoritative state immediately after replay. It prefers delta,
+ * but safely falls back to full sync if this database has no cursor yet.
+ */
+export function runDesktopDeltaAfterReplay(): Promise<DesktopSyncOutcome> {
+  if (!isDesktopRuntime()) {
+    return Promise.resolve({ status: 'skipped' })
+  }
+  if (inFlight) {
+    return inFlight
+  }
+
+  inFlight = runWithDesktopDataMutex(() => executeSyncPass('delta')).finally(() => {
+    inFlight = null
+  })
   return inFlight
 }
 
@@ -57,13 +76,13 @@ export function isDesktopSyncRunning(): boolean {
   return inFlight !== null
 }
 
-async function executeSyncPass(): Promise<DesktopSyncOutcome> {
+async function executeSyncPass(preferredMode?: 'delta'): Promise<DesktopSyncOutcome> {
   setDesktopSyncSnapshot({ phase: 'syncing', lastError: null })
 
   let mode: DesktopSyncMode | null = null
   try {
     const { cursor } = await getSyncState()
-    mode = cursor ? 'delta' : 'full'
+    mode = preferredMode ?? (cursor ? 'delta' : 'full')
 
     let result = mode === 'delta' ? await loadDeltaSync() : await loadFullSync()
 

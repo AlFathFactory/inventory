@@ -22,3 +22,15 @@ export type { LocalEmployeeCustodyItem } from './custody'
 export type { LocalCuttingDisc, LocalLongWeldingGlove } from './custodyCategory'
 export { SYNC_STATUSES } from './syncState'
 export type { SyncStatus, SyncState } from './syncState'
+export { OFFLINE_COMMAND_STATUSES, OFFLINE_COMMAND_TYPES } from './offlineCommand'
+export type {
+  JsonPrimitive,
+  JsonValue,
+  OfflineCommandPayload,
+  OfflineCommandStatus,
+  OfflineCommandType,
+  OfflineCommandContractVersion,
+  OfflineCommand,
+  OfflineCommandRow,
+  EnqueueCommandInput,
+} from './offlineCommand'

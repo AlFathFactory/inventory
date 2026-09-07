@@ -34,6 +34,18 @@ pub fn migrations() -> Vec<Migration> {
             sql: include_str!("migrations/v3_custody_categories.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "create_offline_command_queue",
+            sql: include_str!("migrations/v4_offline_command_queue.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "allow_interrupted_command_recovery",
+            sql: include_str!("migrations/v5_interrupted_command_recovery.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -75,7 +87,51 @@ mod tests {
     #[test]
     fn versions_are_ordered_and_unique() {
         let versions: Vec<i64> = migrations().iter().map(|m| m.version).collect();
-        assert_eq!(versions, vec![1, 2, 3]);
+        assert_eq!(versions, vec![1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn v4_creates_the_offline_command_queue_and_required_indexes() {
+        let v4 = &migrations()[3];
+        assert!(v4.sql.contains("CREATE TABLE IF NOT EXISTS offline_commands"));
+        for field in [
+            "command_id", "command_type", "contract_version", "payload_json", "status",
+            "attempts", "last_error", "created_at", "updated_at", "synced_at",
+        ] {
+            assert!(v4.sql.contains(field), "v4 must contain `{field}`");
+        }
+        for index in [
+            "offline_commands_status_created_at_idx",
+            "offline_commands_created_at_idx",
+            "offline_commands_synced_cleanup_idx",
+        ] {
+            assert!(v4.sql.contains(index), "v4 must create `{index}`");
+        }
+    }
+
+    #[test]
+    fn v4_is_additive_and_guards_immutable_contract_fields() {
+        let v4 = &migrations()[3];
+        for forbidden in ["DROP ", "ALTER "] {
+            assert!(
+                !v4.sql.to_uppercase().contains(forbidden),
+                "migration v4 must not contain `{forbidden}`"
+            );
+        }
+        assert!(v4.sql.contains("offline_commands_immutable_contract"));
+    }
+
+    #[test]
+    fn v5_only_replaces_the_status_trigger_for_interrupted_recovery() {
+        let v5 = &migrations()[4];
+        assert!(v5.sql.contains("DROP TRIGGER IF EXISTS offline_commands_valid_status_transition"));
+        assert!(v5.sql.contains("OLD.status = 'syncing' AND NEW.status IN ('pending'"));
+        for forbidden in ["DROP TABLE", "ALTER TABLE", "DELETE FROM", "UPDATE offline_commands"] {
+            assert!(
+                !v5.sql.to_uppercase().contains(&forbidden.to_uppercase()),
+                "migration v5 must not contain `{forbidden}`"
+            );
+        }
     }
 
     #[test]
