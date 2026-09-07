@@ -5,9 +5,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { App } from './app/App'
 import { queryClient } from './lib/queryClient'
+import { initializeLocalDb } from './lib/localDb'
 
 document.documentElement.lang = 'ar'
 document.documentElement.dir = 'rtl'
+
+void initializeLocalDb().catch((error: unknown) => {
+  console.error('Failed to initialize local database', error)
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

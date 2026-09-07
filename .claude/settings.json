@@ -6,7 +6,10 @@
       "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'rustup|rustc|cargo' } | Select-Object Id, ProcessName, StartTime, CPU)",
       "PowerShell(Get-Process -Id 26696 -ErrorAction SilentlyContinue)",
       "Bash(command -v strings)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Read(//c/Users/DUBAI/AppData/Local/Temp/**)",
+      "PowerShell(Stop-Process -Id 27012 -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Id 27012 -ErrorAction SilentlyContinue)"
     ]
   }
 }
