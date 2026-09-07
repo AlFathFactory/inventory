@@ -9,10 +9,13 @@ import {
 } from '../../inventory-operations/operationForm'
 import type { ItemMovement } from '../../../services/itemsService'
 import type { ItemDetails } from '../../../services/itemsService'
+import { type InventoryOperationType } from '../../../services/operationsService'
 import {
-  applyInventoryOperation,
-  type InventoryOperationType,
-} from '../../../services/operationsService'
+  isPendingInventoryWrite,
+  requireAcceptedInventoryWrite,
+  writeInventoryOperation,
+  type InventoryWriteResult,
+} from '../../../services/inventoryWrite'
 import { invalidateItemData } from '../../inventory/inventoryCache'
 import {
   itemQueryOptions,
@@ -178,7 +181,7 @@ export function useItemDetailsPage(
     operationRequestInFlight.current = true
     setIsSubmitting(true)
     try {
-      const isOffline = !navigator.onLine
+      let writeResult: InventoryWriteResult | null = null
       const commonOperation = {
         tableName: operationTableName,
         categoryName: details.category_name || category.label,
@@ -240,9 +243,14 @@ export function useItemDetailsPage(
           requestId: form.requestId ?? '',
         })
       } else {
-        await applyInventoryOperation(commonOperation)
+        writeResult = requireAcceptedInventoryWrite(
+          await writeInventoryOperation(commonOperation),
+        )
       }
-      if (isOffline) {
+
+      const isPending = writeResult ? isPendingInventoryWrite(writeResult) : false
+      const isLegacyWebQueue = writeResult?.runtime === 'web' && writeResult.status === 'queued'
+      if (isLegacyWebQueue) {
         const currentBalance = Number(details.stock_balance ?? details.gas_balance ?? 0)
         const quantity = Number(form.quantity)
         const balance = operationType === 'add'
@@ -253,15 +261,15 @@ export function useItemDetailsPage(
           ...(category.table === 'cylinders' ? { gas_balance: balance } : {}),
           offline_state: details.offline_state === 'local' ? 'local' : 'pending',
         })
-      } else {
+      } else if (!isPending) {
         await invalidateItemData(queryClient, category.table, itemId)
       }
       closeOperationModal()
       setMessage({
         type: 'success',
         text:
-          isOffline
-            ? 'تم حفظ العملية محليًا وستتم مزامنتها عند عودة الإنترنت'
+          isPending
+            ? 'تم وضع العملية في قائمة انتظار المزامنة وهي معلّقة حتى قبول الخادم'
             : operationType === 'add'
             ? 'تمت إضافة الكمية بنجاح'
             : operationType === 'issue'

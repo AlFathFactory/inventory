@@ -7,10 +7,12 @@ import {
   validateOperationForm,
 } from '../../inventory-operations/operationForm'
 import { type CategorySummaryItem, type ItemDetails } from '../../../services/itemsService'
+import { type InventoryOperationType } from '../../../services/operationsService'
 import {
-  applyInventoryOperation,
-  type InventoryOperationType,
-} from '../../../services/operationsService'
+  isPendingInventoryWrite,
+  requireAcceptedInventoryWrite,
+  writeInventoryOperation,
+} from '../../../services/inventoryWrite'
 import type { CategoryQuickAction, SelectedInventoryItem } from '../types'
 import { invalidateItemData } from '../../inventory/inventoryCache'
 import { getProjectedCachedInventoryItem } from '../../inventory/inventoryQueries'
@@ -145,7 +147,7 @@ export function useCategoryOperation({
     operationRequestInFlight.current = true
     setIsSubmitting(true)
     try {
-      const isOffline = !navigator.onLine
+      let isPending = false
       const commonOperation = {
         tableName: selectedItem.tableName,
         categoryName: selectedItem.categoryName,
@@ -204,21 +206,24 @@ export function useCategoryOperation({
           requestId: form.requestId ?? '',
         })
       } else {
-        await applyInventoryOperation(commonOperation)
+        const result = requireAcceptedInventoryWrite(
+          await writeInventoryOperation(commonOperation),
+        )
+        isPending = isPendingInventoryWrite(result)
       }
 
-      if (!isOffline) {
+      if (!isPending) {
         await invalidateItemData(queryClient, selectedItem.tableName, String(selectedItem.itemId))
       }
       close()
       setMessage({
         type: 'success',
-        text: isOffline
+        text: isPending
           ? operationType === 'add'
-            ? 'تم تسجيل الإضافة محليًا وستتم مزامنتها عند عودة الإنترنت'
+            ? 'تم وضع الإضافة في قائمة انتظار المزامنة وهي معلّقة حتى قبول الخادم'
             : operationType === 'issue'
-              ? 'تم تسجيل الصرف محليًا وستتم مزامنته عند عودة الإنترنت'
-              : 'تم تسجيل الجرد محليًا وستتم مزامنته عند عودة الإنترنت'
+              ? 'تم وضع الصرف في قائمة انتظار المزامنة وهو معلّق حتى قبول الخادم'
+              : 'تم وضع الجرد في قائمة انتظار المزامنة وهو معلّق حتى قبول الخادم'
           : operationType === 'add'
           ? 'تمت إضافة الكمية بنجاح'
           : operationType === 'issue'
