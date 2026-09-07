@@ -1,0 +1,6 @@
+export { runInitialFullSync } from './fullSync'
+export type { FullSyncResult } from './fullSync'
+export { SUPPORTED_SYNC_PAYLOAD_VERSION, SyncPayloadError, SyncSchemaVersionError } from './syncPayload'
+export type { SyncSnapshot } from './syncPayload'
+export { SYNC_TABLE_NAMES, SYNC_TABLE_COLUMNS } from './syncTables'
+export type { SyncTableName } from './syncTables'

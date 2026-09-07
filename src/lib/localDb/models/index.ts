@@ -19,3 +19,5 @@ export type {
   LocalInventoryOperationDeletion,
 } from './operation'
 export type { LocalEmployeeCustodyItem } from './custody'
+export { SYNC_STATUSES } from './syncState'
+export type { SyncStatus, SyncState } from './syncState'

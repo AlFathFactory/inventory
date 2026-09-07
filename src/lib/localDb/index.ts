@@ -1,5 +1,13 @@
 export { initializeLocalDb } from './initialize'
 export { getMetadataValue, setMetadataValue } from './metadataRepository'
+export {
+  getSyncState,
+  markSyncStarted,
+  markSyncSucceeded,
+  markSyncFailed,
+  clearSyncState,
+} from './syncState'
+export { METADATA_KEYS } from './metadataKeys'
 export type {
   MetadataRow,
   LocalCategory,
@@ -20,4 +28,6 @@ export type {
   LocalInventoryOperationEmployeeAllocation,
   LocalInventoryOperationDeletion,
   LocalEmployeeCustodyItem,
+  SyncStatus,
+  SyncState,
 } from './models'

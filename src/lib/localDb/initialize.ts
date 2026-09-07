@@ -1,8 +1,8 @@
 import { isDesktopRuntime } from '../../config/platform'
 import { getLocalDb } from './connection'
+import { METADATA_KEYS } from './metadataKeys'
 import { setMetadataValue } from './metadataRepository'
 
-const SCHEMA_VERSION_KEY = 'schema_version'
 const SCHEMA_VERSION = '2'
 
 /**
@@ -16,5 +16,5 @@ export async function initializeLocalDb(): Promise<void> {
     return
   }
   await getLocalDb()
-  await setMetadataValue(SCHEMA_VERSION_KEY, SCHEMA_VERSION)
+  await setMetadataValue(METADATA_KEYS.schemaVersion, SCHEMA_VERSION)
 }
