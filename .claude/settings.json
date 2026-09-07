@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'vs_|setup|BuildTools' } | Select-Object Id, ProcessName, StartTime)",
+      "Bash(powershell.exe -NoProfile -Command \"while \\(Get-Process -Id 5276 -ErrorAction SilentlyContinue\\) { Start-Sleep -Seconds 10 }; Write-Output 'VS Build Tools setup process exited'\")",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'rustup|rustc|cargo' } | Select-Object Id, ProcessName, StartTime, CPU)",
+      "PowerShell(Get-Process -Id 26696 -ErrorAction SilentlyContinue)",
+      "Bash(command -v strings)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}
