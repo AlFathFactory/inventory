@@ -1,4 +1,4 @@
-import { getCategoryRows } from '../services/inventoryService'
+import { loadCategoryRowsForTable } from '../features/category/utils/categoryRows'
 import { getItemDetails, getItemMovements } from '../services/itemsService'
 import { getActiveProjects, getProjects } from '../services/projectsService'
 import { searchActiveParties } from '../services/partiesService'
@@ -27,7 +27,10 @@ function toResult<T>(error: unknown, fallback: string) {
 }
 
 const inventory: InventoryReadRepository = {
-  listCategoryRows: (tableName) => getCategoryRows(tableName),
+  async listCategoryRows(tableName) {
+    const { data, error } = await loadCategoryRowsForTable(tableName)
+    return error === null ? repositoryOk(data) : repositoryFailure(error)
+  },
   getItemDetails: (tableName, itemId) => getItemDetails(tableName, itemId),
 }
 

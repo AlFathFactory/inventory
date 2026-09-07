@@ -60,7 +60,17 @@ function mapCuttingDiscRows(rows: CuttingDiscRecord[] | null): CategorySummaryIt
 }
 
 export async function loadCategoryRows(category: CategoryDefinition) {
-  if (category.table === 'cutting_discs') {
+  return loadCategoryRowsForTable(category.table)
+}
+
+/**
+ * Same loader keyed by table name, so the repository layer can expose the web
+ * category list without needing a full category definition.
+ */
+export async function loadCategoryRowsForTable(
+  tableName: string,
+): Promise<{ data: CategorySummaryItem[]; error: string | null }> {
+  if (tableName === 'cutting_discs') {
     const result = await listCuttingDiscs()
     return {
       data: result.error ? [] : mapCuttingDiscRows(result.data),
@@ -68,7 +78,7 @@ export async function loadCategoryRows(category: CategoryDefinition) {
     }
   }
 
-  if (category.table === 'long_welding_gloves') {
+  if (tableName === 'long_welding_gloves') {
     const result = await listLongWeldingGloves()
     return {
       data: result.error ? [] : mapGloveRows(result.data),
@@ -76,12 +86,12 @@ export async function loadCategoryRows(category: CategoryDefinition) {
     }
   }
 
-  const result = isCustodyTable(category.table)
-    ? await getCustodyCategoryRows(category.table)
-    : await getCategorySummaryItems(category.table)
+  const result = isCustodyTable(tableName)
+    ? await getCustodyCategoryRows(tableName)
+    : await getCategorySummaryItems(tableName)
 
   return {
-    data: (result.data ?? []) as CategorySummaryItem[],
+    data: result.data ?? [],
     error: result.error,
   }
 }

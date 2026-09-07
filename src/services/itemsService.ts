@@ -116,6 +116,58 @@ export type ItemMovement = {
   }>
 }
 
+export type MovementEmployeeAllocation =
+  NonNullable<ItemMovement['employeeAllocations']>[number]
+
+export type MovementReturnState = Pick<
+  ItemMovement,
+  'returnedQuantity' | 'returnStatus' | 'relatedOperationId' | 'remainingReturnableQuantity'
+>
+
+/**
+ * Return bookkeeping derived from a movement row. Shared by the Supabase and
+ * SQLite read paths so both produce identical return state from the same
+ * underlying numbers.
+ */
+export function computeMovementReturnState(row: {
+  quantity: unknown
+  returned_quantity: unknown
+  return_status: unknown
+  related_operation_id: unknown
+}): MovementReturnState {
+  const quantity = Number(row.quantity ?? 0)
+  const returnedQuantity = Number(row.returned_quantity ?? 0)
+  const normalizedQuantity = Number.isFinite(quantity) ? quantity : 0
+  const normalizedReturnedQuantity = Number.isFinite(returnedQuantity)
+    ? returnedQuantity
+    : 0
+  const rawReturnStatus = row.return_status
+
+  return {
+    returnedQuantity: normalizedReturnedQuantity,
+    returnStatus:
+      rawReturnStatus === 'partially_returned' || rawReturnStatus === 'fully_returned'
+        ? rawReturnStatus
+        : 'not_returned',
+    relatedOperationId:
+      typeof row.related_operation_id === 'string' ? row.related_operation_id : null,
+    remainingReturnableQuantity: Math.max(
+      normalizedQuantity - normalizedReturnedQuantity,
+      0,
+    ),
+  }
+}
+
+/** A group issue is still pending until every allocation has a quantity. */
+export function resolveAllocationStatus(
+  allocations: MovementEmployeeAllocation[],
+): NonNullable<ItemMovement['allocationStatus']> {
+  return allocations.length > 1 &&
+    allocations.some((allocation) => allocation.allocated_quantity === null)
+    ? 'pending_distribution'
+    : 'allocated'
+}
+
 type ServiceSuccess<TData> = {
   data: TData
   error: null
@@ -163,7 +215,7 @@ function normalizeError(error: unknown, fallbackMessage: string): string {
   return fallbackMessage
 }
 
-function withComputedStockStatus<TItem extends CategorySummaryItem>(
+export function withComputedStockStatus<TItem extends CategorySummaryItem>(
   item: TItem,
 ): TItem {
   const status = getStockStatusFromValues(
@@ -284,7 +336,7 @@ async function getAllCylinderRows(): ServiceResult<
   }
 }
 
-function mapCylinderSummaryItem(
+export function mapCylinderSummaryItem(
   row: Record<string, string | number | null>,
 ): CategorySummaryItem {
   const gasBalance = Number(row.gas_balance)
@@ -572,40 +624,18 @@ export async function getItemMovements(
 
     return createSuccess(
       ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
-        const quantity = Number(row.quantity ?? 0)
-        const returnedQuantity = Number(row.returned_quantity ?? 0)
-        const normalizedQuantity = Number.isFinite(quantity) ? quantity : 0
-        const normalizedReturnedQuantity = Number.isFinite(returnedQuantity)
-          ? returnedQuantity
-          : 0
-        const remainingReturnableQuantity = Math.max(
-          normalizedQuantity - normalizedReturnedQuantity,
-          0,
-        )
-        const rawReturnStatus = row.return_status
-        const returnStatus =
-          rawReturnStatus === 'partially_returned' ||
-          rawReturnStatus === 'fully_returned'
-            ? rawReturnStatus
-            : 'not_returned'
-
         const employeeAllocations = allocationMap.get(String(row.id)) ?? []
-        const allocationStatus = employeeAllocations.length > 1 &&
-          employeeAllocations.some((allocation) => allocation.allocated_quantity === null)
-          ? 'pending_distribution'
-          : 'allocated'
 
         return {
           ...row,
-          returnedQuantity: normalizedReturnedQuantity,
-          returnStatus,
-          relatedOperationId:
-            typeof row.related_operation_id === 'string'
-              ? row.related_operation_id
-              : null,
-          remainingReturnableQuantity,
+          ...computeMovementReturnState({
+            quantity: row.quantity,
+            returned_quantity: row.returned_quantity,
+            return_status: row.return_status,
+            related_operation_id: row.related_operation_id,
+          }),
           employeeAllocations,
-          allocationStatus,
+          allocationStatus: resolveAllocationStatus(employeeAllocations),
         } as ItemMovement
       }),
     )

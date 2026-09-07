@@ -12,8 +12,25 @@ import {
   type ReadRepositories,
   type RepositoryResult,
 } from './contracts'
-import type { InventoryRow } from '../services/inventoryService'
-import type { ItemDetails, ItemMovement } from '../services/itemsService'
+import {
+  buildCategorySummarySql,
+  buildItemDetailsSql,
+  CYLINDER_BY_ID_SQL,
+  CYLINDER_LIST_SQL,
+  CYLINDERS_TABLE,
+  hasCategorySummaryProjection,
+  toCategorySummaryItem,
+  toCylinderSummaryItem,
+} from './local/categorySummaryProjection'
+import {
+  buildAllocationsSql,
+  collectIssueIds,
+  ITEM_MOVEMENTS_SQL,
+  toEmployeeAllocation,
+  toItemMovement,
+} from './local/movementsProjection'
+import type { LocalRow } from './local/rowValues'
+import type { MovementEmployeeAllocation } from '../services/itemsService'
 import type { Project } from '../services/projectsService'
 import type { Employee, Supplier } from '../services/partiesService'
 import type { EmployeeCustodyRecord } from '../features/employee-custody/types'
@@ -29,8 +46,6 @@ import type { EmployeeCustodyRecord } from '../features/employee-custody/types'
 
 const READABLE_TABLES = new Set<string>(SYNC_TABLE_NAMES)
 
-type LocalRow = Record<string, unknown>
-
 /** Guards the only place a table name reaches SQL text. */
 function assertReadableTable(tableName: string) {
   if (!READABLE_TABLES.has(tableName)) {
@@ -38,7 +53,21 @@ function assertReadableTable(tableName: string) {
   }
 }
 
-async function selectRows<T>(sql: string, bindings: unknown[] = []): Promise<T[]> {
+/** Category lists additionally need a summary projection for the table. */
+function assertSummaryTable(tableName: string) {
+  assertReadableTable(tableName)
+  if (!hasCategorySummaryProjection(tableName)) {
+    throw new Error(`لا يوجد ملخص أصناف محلي للجدول "${tableName}"`)
+  }
+}
+
+/**
+ * Rows come back untyped by default; the inventory and movement reads narrow
+ * them through the projection mappers rather than asserting a domain type
+ * onto a raw table row. The remaining reads select an explicit column list
+ * that already matches their domain type one-for-one.
+ */
+async function selectRows<T = LocalRow>(sql: string, bindings: unknown[] = []): Promise<T[]> {
   const db = await getLocalDb()
   return db.select<T[]>(sql, bindings)
 }
@@ -57,20 +86,31 @@ async function guard<T>(
 const inventory: InventoryReadRepository = {
   listCategoryRows(tableName) {
     return guard(async () => {
-      assertReadableTable(tableName)
-      return selectRows<InventoryRow>(`SELECT * FROM ${tableName}`)
+      assertSummaryTable(tableName)
+
+      // Cylinders come straight off their own table on web too, so the same
+      // mapper is reused instead of the summary projection.
+      if (tableName === CYLINDERS_TABLE) {
+        return (await selectRows(CYLINDER_LIST_SQL)).map(toCylinderSummaryItem)
+      }
+
+      const rows = await selectRows(buildCategorySummarySql(tableName))
+      return rows.map((row) => toCategorySummaryItem(row, tableName))
     }, `تعذر تحميل بيانات "${tableName}" محليًا`)
   },
 
   getItemDetails(tableName, itemId) {
     return guard(async () => {
-      assertReadableTable(tableName)
+      assertSummaryTable(tableName)
+
+      if (tableName === CYLINDERS_TABLE) {
+        const rows = await selectRows(CYLINDER_BY_ID_SQL, [itemId])
+        return rows[0] ? toCylinderSummaryItem(rows[0]) : null
+      }
+
       // Primary-key lookup.
-      const rows = await selectRows<ItemDetails>(
-        `SELECT * FROM ${tableName} WHERE id = $1 LIMIT 1`,
-        [itemId],
-      )
-      return rows[0] ?? null
+      const rows = await selectRows(buildItemDetailsSql(tableName), [itemId])
+      return rows[0] ? toCategorySummaryItem(rows[0], tableName) : null
     }, 'تعذر تحميل تفاصيل الصنف محليًا')
   },
 }
@@ -80,14 +120,32 @@ const movements: MovementsReadRepository = {
     return guard(async () => {
       assertReadableTable(tableName)
       // Served by inventory_operations_item_idx (table_name, item_id).
-      return selectRows<ItemMovement>(
-        `SELECT * FROM inventory_operations
-         WHERE table_name = $1 AND item_id = $2
-         ORDER BY operation_date DESC, created_at DESC`,
-        [tableName, itemId],
-      )
+      const rows = await selectRows(ITEM_MOVEMENTS_SQL, [tableName, itemId])
+      if (rows.length === 0) return []
+
+      const allocationsByIssue = await loadAllocations(collectIssueIds(rows))
+      return rows.map((row) => toItemMovement(
+        row,
+        allocationsByIssue.get(String(row.id)) ?? [],
+      ))
     }, 'تعذر تحميل حركات الصنف محليًا')
   },
+}
+
+/** Per-employee allocations for the issue rows, keyed by issue operation id. */
+async function loadAllocations(issueIds: string[]) {
+  const allocationsByIssue = new Map<string, MovementEmployeeAllocation[]>()
+  if (issueIds.length === 0) return allocationsByIssue
+
+  // Served by inventory_operation_employee_allocations_issue_idx.
+  const rows = await selectRows(buildAllocationsSql(issueIds.length), issueIds)
+  for (const row of rows) {
+    const issueId = String(row.issue_operation_id)
+    const current = allocationsByIssue.get(issueId) ?? []
+    current.push(toEmployeeAllocation(row))
+    allocationsByIssue.set(issueId, current)
+  }
+  return allocationsByIssue
 }
 
 const projects: ProjectsReadRepository = {

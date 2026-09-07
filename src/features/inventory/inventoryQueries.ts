@@ -4,9 +4,14 @@ import {
   getCustodyRecord,
   getItemDetails,
   getItemMovements,
+  type CategorySummaryItem,
   type CustodyTableName,
+  type ItemDetails,
+  type ItemMovement,
 } from '../../services/itemsService'
 import { loadCategoryRows } from '../category/utils/categoryRows'
+import { getInventoryRepository, getMovementsRepository } from '../../repositories'
+import { readForRuntime } from '../../repositories/readStrategy'
 import { inventoryKeys } from './inventoryQueryKeys'
 import {
   getCachedCategoryRows,
@@ -46,19 +51,32 @@ function requireData<T>(result: { data: T | null; error: string | null }): T {
   return result.data
 }
 
+/** Desktop reads are local-only: a repository failure surfaces, never falls back. */
+function requireRepositoryData<T>(result: { data: T | null; error: string | null }): T {
+  if (result.error !== null) throw new Error(result.error)
+  if (result.data === null) throw new Error('لا توجد بيانات محلية')
+  return result.data
+}
+
 export function categoryQueryOptions(category: CategoryDefinition) {
   return queryOptions({
     queryKey: inventoryKeys.category(category.table),
     networkMode: 'always',
-    queryFn: async () => {
-      if (!navigator.onLine) return getCachedCategoryRows(category.table)
-      try {
-        return requireData(await loadCategoryRows(category))
-      } catch (error) {
-        if (isTransportError(error)) return getCachedCategoryRows(category.table)
-        throw error
-      }
-    },
+    queryFn: () => readForRuntime<CategorySummaryItem[]>({
+      desktop: async () => {
+        const repository = await getInventoryRepository()
+        return requireRepositoryData(await repository.listCategoryRows(category.table))
+      },
+      web: async () => {
+        if (!navigator.onLine) return getCachedCategoryRows(category.table)
+        try {
+          return requireData(await loadCategoryRows(category))
+        } catch (error) {
+          if (isTransportError(error)) return getCachedCategoryRows(category.table)
+          throw error
+        }
+      },
+    }),
   })
 }
 
@@ -66,18 +84,27 @@ export function itemQueryOptions(tableName: string, itemId: string) {
   return queryOptions({
     queryKey: inventoryKeys.item(tableName, itemId),
     networkMode: 'always',
-    queryFn: async () => {
-      if (navigator.onLine) {
-        try {
-          return requireData(await getItemDetails(tableName, itemId))
-        } catch (error) {
-          if (!isTransportError(error)) throw error
+    queryFn: () => readForRuntime<ItemDetails>({
+      desktop: async () => {
+        const repository = await getInventoryRepository()
+        const result = await repository.getItemDetails(tableName, itemId)
+        if (result.error !== null) throw new Error(result.error)
+        if (result.data === null) throw new Error('الصنف غير موجود في البيانات المحلية')
+        return result.data
+      },
+      web: async () => {
+        if (navigator.onLine) {
+          try {
+            return requireData(await getItemDetails(tableName, itemId))
+          } catch (error) {
+            if (!isTransportError(error)) throw error
+          }
         }
-      }
-      const item = await getProjectedCachedInventoryItem(tableName, itemId)
-      if (!item) throw new Error('الصنف غير موجود في البيانات المحلية')
-      return item
-    },
+        const item = await getProjectedCachedInventoryItem(tableName, itemId)
+        if (!item) throw new Error('الصنف غير موجود في البيانات المحلية')
+        return item
+      },
+    }),
   })
 }
 
@@ -85,15 +112,21 @@ export function movementsQueryOptions(tableName: string, itemId: string) {
   return queryOptions({
     queryKey: inventoryKeys.movements(tableName, itemId),
     networkMode: 'always',
-    queryFn: async () => {
-      if (!navigator.onLine) return []
-      try {
-        return requireData(await getItemMovements(tableName, itemId))
-      } catch (error) {
-        if (isTransportError(error)) return []
-        throw error
-      }
-    },
+    queryFn: () => readForRuntime<ItemMovement[]>({
+      desktop: async () => {
+        const repository = await getMovementsRepository()
+        return requireRepositoryData(await repository.listItemMovements(tableName, itemId))
+      },
+      web: async () => {
+        if (!navigator.onLine) return []
+        try {
+          return requireData(await getItemMovements(tableName, itemId))
+        } catch (error) {
+          if (isTransportError(error)) return []
+          throw error
+        }
+      },
+    }),
   })
 }
 

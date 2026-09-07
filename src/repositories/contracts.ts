@@ -1,5 +1,8 @@
-import type { InventoryRow } from '../services/inventoryService'
-import type { ItemDetails, ItemMovement } from '../services/itemsService'
+import type {
+  CategorySummaryItem,
+  ItemDetails,
+  ItemMovement,
+} from '../services/itemsService'
 import type { Project } from '../services/projectsService'
 import type { Employee, Supplier } from '../services/partiesService'
 import type { EmployeeCustodyRecord } from '../features/employee-custody/types'
@@ -20,9 +23,15 @@ export function repositoryFailure<TData = never>(error: string): RepositoryResul
   return { data: null, error }
 }
 
-/** Category/stock item lists and single-item details. */
+/**
+ * Category/stock item lists and single-item details.
+ *
+ * Both sides return the derived summary shape the UI renders, not raw table
+ * rows: on web that is the Supabase summary view, on desktop the equivalent
+ * projection over the synced SQLite tables.
+ */
 export interface InventoryReadRepository {
-  listCategoryRows(tableName: string): Promise<RepositoryResult<InventoryRow[]>>
+  listCategoryRows(tableName: string): Promise<RepositoryResult<CategorySummaryItem[]>>
   getItemDetails(tableName: string, itemId: string): Promise<RepositoryResult<ItemDetails | null>>
 }
 

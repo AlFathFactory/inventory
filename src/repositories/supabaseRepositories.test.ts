@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  getCategoryRows: vi.fn(),
+  loadCategoryRowsForTable: vi.fn(),
   getItemDetails: vi.fn(),
   getItemMovements: vi.fn(),
   getProjects: vi.fn(),
@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({
   getEmployeeCustodyItems: vi.fn(),
 }))
 
-vi.mock('../services/inventoryService', () => ({ getCategoryRows: mocks.getCategoryRows }))
+vi.mock('../features/category/utils/categoryRows', () => ({
+  loadCategoryRowsForTable: mocks.loadCategoryRowsForTable,
+}))
 vi.mock('../services/itemsService', () => ({
   getItemDetails: mocks.getItemDetails,
   getItemMovements: mocks.getItemMovements,
@@ -31,14 +33,14 @@ describe('supabaseReadRepositories', () => {
     vi.clearAllMocks()
   })
 
-  it('delegates category rows to the existing service unchanged', async () => {
-    const expected = { data: [{ id: '1' }], error: null }
-    mocks.getCategoryRows.mockResolvedValue(expected)
+  it('delegates category rows to the loader the web pages already use', async () => {
+    const rows = [{ item_id: '1' }]
+    mocks.loadCategoryRowsForTable.mockResolvedValue({ data: rows, error: null })
 
     const result = await supabaseReadRepositories.inventory.listCategoryRows('consumables')
 
-    expect(mocks.getCategoryRows).toHaveBeenCalledWith('consumables')
-    expect(result).toBe(expected)
+    expect(mocks.loadCategoryRowsForTable).toHaveBeenCalledWith('consumables')
+    expect(result).toEqual({ data: rows, error: null })
   })
 
   it('delegates item details and movements with the same arguments', async () => {
@@ -53,7 +55,7 @@ describe('supabaseReadRepositories', () => {
   })
 
   it('passes service failures straight through', async () => {
-    mocks.getCategoryRows.mockResolvedValue({ data: null, error: 'boom' })
+    mocks.loadCategoryRowsForTable.mockResolvedValue({ data: [], error: 'boom' })
 
     expect(await supabaseReadRepositories.inventory.listCategoryRows('screws'))
       .toEqual({ data: null, error: 'boom' })
