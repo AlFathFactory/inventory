@@ -41,6 +41,6 @@ describe('initializeLocalDb', () => {
     await initializeLocalDb()
 
     expect(getLocalDbMock).toHaveBeenCalledTimes(1)
-    expect(setMetadataValueMock).toHaveBeenCalledWith('schema_version', '1')
+    expect(setMetadataValueMock).toHaveBeenCalledWith('schema_version', '2')
   })
 })
