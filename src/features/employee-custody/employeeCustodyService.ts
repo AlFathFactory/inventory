@@ -209,7 +209,7 @@ export async function addEmployeeCustodyItem(input: AddEmployeeCustodyInput) {
     p_item_id: input.itemId,
     p_received_date: input.receivedDate,
     p_source_issue_operation_id: input.sourceIssueOperationId,
-    p_quantity: input.quantity,
+    p_quantity: input.quantity ?? 1,
     p_notes: input.notes?.trim() || null,
     p_created_by: input.createdBy?.trim() || 'user',
   })

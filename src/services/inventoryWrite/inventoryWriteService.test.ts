@@ -45,6 +45,8 @@ function setup(overrides: Partial<InventoryWriteDependencies> = {}) {
     writeReturnDirect: vi.fn(async () => ({ status: 'success' })),
     writeDeleteDirect: vi.fn(async () => ({ status: 'deleted' })),
     writeRawMaterialDirect: vi.fn(async () => ({ status: 'success' })),
+    writeCustodyAddDirect: vi.fn(async () => ({ status: 'success' })),
+    writeCustodyScrapDirect: vi.fn(async () => ({ status: 'success' })),
     enqueue: vi.fn(async (input) => {
       stored = queuedCommand(input)
       return stored
@@ -523,5 +525,177 @@ describe('inventory write routing', () => {
         requiresUserAction: true,
       },
     })
+  })
+
+  it('keeps web custody add and scrap on their existing direct RPC executors', async () => {
+    const { dependencies, service } = setup({ isDesktop: () => false })
+    const addInput = {
+      employeeId: 'employee-1',
+      tableName: 'inventory_items',
+      itemId: 'item-1',
+      receivedDate: '2026-09-08',
+      sourceIssueOperationId: null,
+      quantity: 1,
+      requestId: 'web-custody-add',
+    }
+    const scrapInput = {
+      custodyId: 'custody-1',
+      scrappedDate: '2026-09-08',
+      reason: 'damaged',
+      requestId: 'web-custody-scrap',
+    }
+
+    const addResult = await service.writeCustodyAdd(addInput)
+    const scrapResult = await service.writeCustodyScrap(scrapInput)
+
+    expect(dependencies.writeCustodyAddDirect).toHaveBeenCalledWith(addInput)
+    expect(dependencies.writeCustodyScrapDirect).toHaveBeenCalledWith(scrapInput)
+    expect(dependencies.enqueue).not.toHaveBeenCalled()
+    expect(dependencies.replay).not.toHaveBeenCalled()
+    expect(addResult).toEqual({ status: 'synced', commandId: 'web-custody-add', runtime: 'web' })
+    expect(scrapResult).toEqual({ status: 'synced', commandId: 'web-custody-scrap', runtime: 'web' })
+  })
+
+  it('queues source-linked and manual custody adds without inventory or custody RPC calls', async () => {
+    const { dependencies, service } = setup()
+
+    await service.writeCustodyAdd({
+      employeeId: 'employee-1',
+      tableName: 'consumables',
+      itemId: 'item-1',
+      receivedDate: null,
+      sourceIssueOperationId: 'issue-1',
+      requestId: 'linked-command',
+    })
+    await service.writeCustodyAdd({
+      employeeId: 'employee-1',
+      tableName: 'inventory_items',
+      itemId: 'item-2',
+      receivedDate: '2026-09-08',
+      sourceIssueOperationId: null,
+      quantity: 2,
+      requestId: 'manual-command',
+    })
+
+    expect(dependencies.enqueue).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      commandId: 'linked-command',
+      commandType: 'custody_add',
+      payload: expect.objectContaining({
+        received_date: null,
+        source_issue_operation_id: 'issue-1',
+        quantity: 1,
+      }),
+    }))
+    expect(dependencies.enqueue).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      commandId: 'manual-command',
+      commandType: 'custody_add',
+      payload: expect.objectContaining({
+        received_date: '2026-09-08',
+        source_issue_operation_id: null,
+        quantity: 2,
+      }),
+    }))
+    expect(dependencies.writeCustodyAddDirect).not.toHaveBeenCalled()
+    expect(dependencies.writeInventoryDirect).not.toHaveBeenCalled()
+    expect(dependencies.writeReturnDirect).not.toHaveBeenCalled()
+    expect(dependencies.replay).not.toHaveBeenCalled()
+  })
+
+  it('queues custody scrap offline without deleting or mutating local data', async () => {
+    const { dependencies, service } = setup()
+
+    const result = await service.writeCustodyScrap({
+      custodyId: 'custody-1',
+      scrappedDate: '2026-09-08',
+      reason: 'damaged',
+      requestId: 'scrap-command',
+    })
+
+    expect(dependencies.enqueue).toHaveBeenCalledWith({
+      commandId: 'scrap-command',
+      commandType: 'custody_scrap',
+      contractVersion: 1,
+      payload: {
+        custody_id: 'custody-1',
+        scrapped_date: '2026-09-08',
+        reason: 'damaged',
+      },
+    })
+    expect(dependencies.writeCustodyScrapDirect).not.toHaveBeenCalled()
+    expect(dependencies.writeDeleteDirect).not.toHaveBeenCalled()
+    expect(result.status).toBe('queued')
+  })
+
+  it('replays custody online and maps its persisted conflict', async () => {
+    let stored: OfflineCommand | null = null
+    const { dependencies, service } = setup({
+      enqueue: vi.fn(async (input) => {
+        stored = queuedCommand(input)
+        return stored
+      }),
+      isOnline: vi.fn(async () => true),
+      replay: vi.fn(async () => {
+        if (stored) {
+          stored = {
+            ...stored,
+            status: 'conflict',
+            attempts: 1,
+            lastError: JSON.stringify({
+              code: 'custody_already_scrapped',
+              message: 'Custody is already scrapped.',
+              sqlstate: 'P0001',
+              retryable: false,
+              requires_user_action: true,
+            }),
+          }
+        }
+      }),
+      getQueuedCommand: vi.fn(async () => stored),
+    })
+
+    const result = await service.writeCustodyScrap({
+      custodyId: 'custody-1',
+      scrappedDate: '2026-09-08',
+      reason: 'damaged',
+      requestId: 'scrap-conflict',
+    })
+
+    expect(dependencies.replay).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({
+      status: 'conflict',
+      commandId: 'scrap-conflict',
+      error: {
+        code: 'custody_already_scrapped',
+        retryable: false,
+        requiresUserAction: true,
+      },
+    })
+  })
+
+  it('collapses an identical custody command id while it is in flight', async () => {
+    let finishEnqueue: ((command: OfflineCommand) => void) | undefined
+    const enqueue = vi.fn((input: EnqueueCommandInput) => new Promise<OfflineCommand>((resolve) => {
+      finishEnqueue = resolve
+      void input
+    }))
+    const { service } = setup({ enqueue })
+    const input = {
+      custodyId: 'custody-1',
+      scrappedDate: '2026-09-08',
+      reason: 'damaged',
+      requestId: 'same-custody-command',
+    }
+
+    const first = service.writeCustodyScrap(input)
+    const second = service.writeCustodyScrap(input)
+    expect(enqueue).toHaveBeenCalledTimes(1)
+    finishEnqueue?.(queuedCommand({
+      commandId: 'same-custody-command',
+      commandType: 'custody_scrap',
+      contractVersion: 1,
+      payload: {},
+    }))
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2)
   })
 })

@@ -54,11 +54,6 @@ export function AddEmployeeCustodyModal({
       return
     }
 
-    const issueWithoutDate = selectedIssues.find((issue) => !issue.operationDate)
-    if (issueWithoutDate) {
-      setValidationError(`حركة صرف الصنف «${issueWithoutDate.itemName}» لا تحتوي على تاريخ استلام صالح`)
-      return
-    }
     const issueAboveAvailable = selectedIssues.find((issue) => {
       const meaningfulQuantity = Math.max(issue.quantity - issue.returnedQuantity, 0)
       return issue.quantity > 0 && parsedQuantity > meaningfulQuantity
@@ -79,7 +74,7 @@ export function AddEmployeeCustodyModal({
         tableName: issue.tableName,
         itemId: issue.itemId,
         sourceIssueOperationId: issue.operationId,
-        receivedDate: issue.operationDate,
+        receivedDate: issue.operationDate || null,
         quantity: parsedQuantity,
         notes,
       })),
@@ -98,7 +93,9 @@ export function AddEmployeeCustodyModal({
     try {
       const result = await mutation.mutateAsync(inputs)
       if (result.failures.length === 0) {
-        showToast(`تم تسجيل ${result.savedCount} من عناصر العهدة بنجاح`)
+        showToast(result.pendingCount > 0
+          ? `تمت إضافة ${result.pendingCount} من عناصر العهدة إلى قائمة انتظار المزامنة`
+          : `تم تسجيل ${result.savedCount} من عناصر العهدة بنجاح`)
         onClose()
       } else if (result.savedCount > 0) {
         showToast(`تم تسجيل ${result.savedCount} وتعذر تسجيل ${result.failures.length} من عناصر العهدة`, 'error')

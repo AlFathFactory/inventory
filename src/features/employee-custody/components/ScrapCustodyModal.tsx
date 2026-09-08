@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useToast } from '../../../components/ToastProvider'
 import { useScrapEmployeeCustody } from '../hooks/useEmployeeCustody'
 import type { EmployeeCustodyRecord } from '../types'
+import { isPendingInventoryWrite } from '../../../services/inventoryWrite'
 
 export function ScrapCustodyModal({
   employeeId,
@@ -36,12 +37,14 @@ export function ScrapCustodyModal({
     }
     savingRef.current = true
     try {
-      await mutation.mutateAsync({
+      const result = await mutation.mutateAsync({
         custodyId: custody.id,
         scrappedDate,
         reason,
       })
-      showToast('تم تكهين العهدة بنجاح')
+      showToast(isPendingInventoryWrite(result)
+        ? 'تمت إضافة طلب تكهين العهدة إلى قائمة انتظار المزامنة'
+        : 'تم تكهين العهدة بنجاح')
       onClose()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تكهين العهدة')

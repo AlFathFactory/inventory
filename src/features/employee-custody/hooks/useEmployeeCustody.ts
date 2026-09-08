@@ -1,13 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  addEmployeeCustodyItems,
   employeeCustodyKeys,
   getEmployeeCustodyItems,
-  scrapEmployeeCustodyItem,
 } from '../employeeCustodyService'
-import type { AddEmployeeCustodyInput } from '../types'
+import type { AddEmployeeCustodyInput, ScrapEmployeeCustodyInput } from '../types'
 import { getCustodyRepository } from '../../../repositories'
 import { readForRuntime } from '../../../repositories/readStrategy'
+import {
+  isPendingInventoryWrite,
+  requireAcceptedInventoryWrite,
+  writeEmployeeCustodyAdds,
+  writeEmployeeCustodyScrap,
+} from '../../../services/inventoryWrite'
 
 export function useEmployeeCustody(employeeId: string) {
   return useQuery({
@@ -27,8 +31,8 @@ export function useEmployeeCustody(employeeId: string) {
 export function useAddEmployeeCustody(employeeId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (items: AddEmployeeCustodyInput[]) => addEmployeeCustodyItems(items),
-    onSettled: () => Promise.all([
+    mutationFn: (items: AddEmployeeCustodyInput[]) => writeEmployeeCustodyAdds(items),
+    onSettled: (result) => result?.pendingCount ? undefined : Promise.all([
       queryClient.invalidateQueries({
         queryKey: employeeCustodyKeys.employee(employeeId),
       }),
@@ -42,9 +46,12 @@ export function useAddEmployeeCustody(employeeId: string) {
 export function useScrapEmployeeCustody(employeeId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: scrapEmployeeCustodyItem,
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: employeeCustodyKeys.employee(employeeId),
-    }),
+    mutationFn: async (input: ScrapEmployeeCustodyInput) =>
+      requireAcceptedInventoryWrite(await writeEmployeeCustodyScrap(input)),
+    onSuccess: (result) => isPendingInventoryWrite(result)
+      ? undefined
+      : queryClient.invalidateQueries({
+          queryKey: employeeCustodyKeys.employee(employeeId),
+        }),
   })
 }

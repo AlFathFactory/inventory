@@ -13,6 +13,14 @@ export {
   buildInventoryReturnCommand,
 } from './returnDeleteCommandBuilders'
 export { buildRawMaterialOperationCommand } from './rawMaterialCommandBuilder'
+export {
+  buildCustodyAddCommand,
+  buildCustodyScrapCommand,
+} from './custodyCommandBuilders'
+export type {
+  CustodyAddCommandEnvelope,
+  CustodyScrapCommandEnvelope,
+} from './custodyCommandBuilders'
 export type {
   RawMaterialCommandEnvelope,
   RawMaterialCommandInput,
@@ -30,8 +38,12 @@ export {
   writeInventoryOperation,
   writeInventoryReturn,
   writeRawMaterialOperation,
+  writeEmployeeCustodyAdd,
+  writeEmployeeCustodyAdds,
+  writeEmployeeCustodyScrap,
 } from './inventoryWriteService'
 export type {
+  CustodyBatchWriteResult,
   InventoryWriteDependencies,
   InventoryWriteError,
   InventoryWriteResult,

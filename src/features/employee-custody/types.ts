@@ -47,11 +47,12 @@ export type AddEmployeeCustodyInput = {
   employeeId: string
   tableName: string
   itemId: string
-  receivedDate: string
+  receivedDate: string | null
   sourceIssueOperationId: string | null
-  quantity: number
+  quantity?: number
   notes?: string | null
   createdBy?: string
+  requestId?: string
 }
 
 export type ScrapEmployeeCustodyInput = {
@@ -59,6 +60,7 @@ export type ScrapEmployeeCustodyInput = {
   scrappedDate: string
   reason: string
   scrappedBy?: string
+  requestId?: string
 }
 
 export type CustodyFilter = 'all' | 'active' | 'scrapped'
