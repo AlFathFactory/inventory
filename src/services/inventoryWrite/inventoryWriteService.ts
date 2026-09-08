@@ -7,6 +7,10 @@ import type {
 import { enqueueCommand, getCommand } from '../desktopCommandQueue'
 import { probeSupabaseReachability } from '../connectivityService'
 import {
+  applyRawMaterialOperationWithProject,
+  type RawMaterialOperationInput,
+} from '../rawMaterialsService'
+import {
   applyInventoryOperation,
   deleteInventoryOperation,
   returnInventoryItem,
@@ -21,6 +25,10 @@ import {
   buildInventoryReturnCommand,
   type DeleteInventoryOperationParams,
 } from './returnDeleteCommandBuilders'
+import {
+  buildRawMaterialOperationCommand,
+  type RawMaterialCommandInput,
+} from './rawMaterialCommandBuilder'
 
 type DesktopWriteCommandEnvelope = EnqueueCommandInput & { commandId: string }
 
@@ -55,6 +63,7 @@ export interface InventoryWriteDependencies {
   writeInventoryDirect: (params: ApplyInventoryOperationParams) => Promise<unknown>
   writeReturnDirect: (params: ReturnInventoryOperationParams) => Promise<unknown>
   writeDeleteDirect: (operationId: string | number, deletedBy: string) => Promise<unknown>
+  writeRawMaterialDirect: (params: RawMaterialOperationInput) => Promise<unknown>
   enqueue: (input: EnqueueCommandInput) => Promise<OfflineCommand>
   getQueuedCommand: (commandId: string) => Promise<OfflineCommand | null>
   isOnline: () => Promise<boolean>
@@ -197,11 +206,21 @@ export function createInventoryWriteService(dependencies: InventoryWriteDependen
     return writeCommand(buildInventoryDeleteCommand(params, dependencies.createCommandId))
   }
 
+  async function writeRawMaterial(params: RawMaterialCommandInput): Promise<InventoryWriteResult> {
+    if (!dependencies.isDesktop()) {
+      const commandId = params.requestId ?? dependencies.createCommandId()
+      await dependencies.writeRawMaterialDirect({ ...params, requestId: commandId })
+      return { status: 'synced', commandId, runtime: 'web' }
+    }
+    return writeCommand(buildRawMaterialOperationCommand(params, dependencies.createCommandId))
+  }
+
   return {
     write: writeInventory,
     writeInventory,
     writeReturn,
     writeDelete,
+    writeRawMaterial,
   }
 }
 
@@ -211,6 +230,7 @@ const productionService = createInventoryWriteService({
   writeInventoryDirect: applyInventoryOperation,
   writeReturnDirect: returnInventoryItem,
   writeDeleteDirect: deleteInventoryOperation,
+  writeRawMaterialDirect: applyRawMaterialOperationWithProject,
   enqueue: enqueueCommand,
   getQueuedCommand: getCommand,
   isOnline: () => probeSupabaseReachability({ force: true }),
@@ -220,6 +240,7 @@ const productionService = createInventoryWriteService({
 export const writeInventoryOperation = productionService.writeInventory
 export const writeInventoryReturn = productionService.writeReturn
 export const writeInventoryDelete = productionService.writeDelete
+export const writeRawMaterialOperation = productionService.writeRawMaterial
 
 export function isPendingInventoryWrite(result: InventoryWriteResult) {
   return result.status === 'queued' || result.status === 'syncing'

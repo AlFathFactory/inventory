@@ -17,6 +17,7 @@ import {
   writeInventoryDelete,
   writeInventoryOperation,
   writeInventoryReturn,
+  writeRawMaterialOperation,
   type InventoryWriteResult,
 } from '../../../services/inventoryWrite'
 import { invalidateItemData } from '../../inventory/inventoryCache'
@@ -38,9 +39,6 @@ import {
   getIssueEmployeeAllocations,
   type IssueEmployeeAllocation,
 } from '../../../services/partiesService'
-import {
-  applyRawMaterialOperationWithProject,
-} from '../../../services/rawMaterialsService'
 
 const emptyMovements: ItemMovement[] = []
 
@@ -225,7 +223,7 @@ export function useItemDetailsPage(
       }
 
       if (category.table === 'raw_materials' && operationType !== 'adjust') {
-        await applyRawMaterialOperationWithProject({
+        writeResult = requireAcceptedInventoryWrite(await writeRawMaterialOperation({
           itemId: String(operationItemId),
           operationType,
           quantity: Number(form.quantity),
@@ -243,8 +241,8 @@ export function useItemDetailsPage(
           itemCode: details.code_number?.trim() || null,
           notes: form.notes,
           createdBy: user?.name || 'user',
-          requestId: form.requestId ?? '',
-        })
+          requestId: form.requestId,
+        }))
       } else {
         writeResult = requireAcceptedInventoryWrite(
           await writeInventoryOperation(commonOperation),

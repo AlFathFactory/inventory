@@ -12,13 +12,13 @@ import {
   isPendingInventoryWrite,
   requireAcceptedInventoryWrite,
   writeInventoryOperation,
+  writeRawMaterialOperation,
 } from '../../../services/inventoryWrite'
 import type { CategoryQuickAction, SelectedInventoryItem } from '../types'
 import { invalidateItemData } from '../../inventory/inventoryCache'
 import { getProjectedCachedInventoryItem } from '../../inventory/inventoryQueries'
 import { inventoryKeys } from '../../inventory/inventoryQueryKeys'
 import type { SetCategoryMessage } from './categoryHookTypes'
-import { applyRawMaterialOperationWithProject } from '../../../services/rawMaterialsService'
 
 const incompleteItemDataMessage =
   'بيانات الصنف غير مكتملة، برجاء تحديث الصفحة والمحاولة مرة أخرى'
@@ -186,7 +186,7 @@ export function useCategoryOperation({
       }
 
       if (category.table === 'raw_materials' && operationType !== 'adjust') {
-        await applyRawMaterialOperationWithProject({
+        const result = requireAcceptedInventoryWrite(await writeRawMaterialOperation({
           itemId: String(selectedItem.itemId),
           operationType,
           quantity: Number(form.quantity),
@@ -203,8 +203,9 @@ export function useCategoryOperation({
             : undefined,
           itemCode: itemDetails.code_number?.trim() || null,
           notes: form.notes,
-          requestId: form.requestId ?? '',
-        })
+          requestId: form.requestId,
+        }))
+        isPending = isPendingInventoryWrite(result)
       } else {
         const result = requireAcceptedInventoryWrite(
           await writeInventoryOperation(commonOperation),

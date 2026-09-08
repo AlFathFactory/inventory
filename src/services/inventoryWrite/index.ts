@@ -12,6 +12,11 @@ export {
   buildInventoryDeleteCommand,
   buildInventoryReturnCommand,
 } from './returnDeleteCommandBuilders'
+export { buildRawMaterialOperationCommand } from './rawMaterialCommandBuilder'
+export type {
+  RawMaterialCommandEnvelope,
+  RawMaterialCommandInput,
+} from './rawMaterialCommandBuilder'
 export type {
   DeleteCommandEnvelope,
   DeleteInventoryOperationParams,
@@ -24,6 +29,7 @@ export {
   writeInventoryDelete,
   writeInventoryOperation,
   writeInventoryReturn,
+  writeRawMaterialOperation,
 } from './inventoryWriteService'
 export type {
   InventoryWriteDependencies,

@@ -44,6 +44,7 @@ function setup(overrides: Partial<InventoryWriteDependencies> = {}) {
     writeInventoryDirect: vi.fn(async () => ({ status: 'success' })),
     writeReturnDirect: vi.fn(async () => ({ status: 'success' })),
     writeDeleteDirect: vi.fn(async () => ({ status: 'deleted' })),
+    writeRawMaterialDirect: vi.fn(async () => ({ status: 'success' })),
     enqueue: vi.fn(async (input) => {
       stored = queuedCommand(input)
       return stored
@@ -383,5 +384,144 @@ describe('inventory write routing', () => {
     }))
 
     await expect(Promise.all([first, second])).resolves.toHaveLength(2)
+  })
+
+  it('keeps the web raw-material path on its existing direct executor', async () => {
+    const { dependencies, service } = setup({ isDesktop: () => false })
+    const input = {
+      itemId: 'material-1',
+      operationType: 'add' as const,
+      quantity: 3,
+      projectId: 'project-1',
+      operationDate: '2026-09-08',
+      supplierId: 'supplier-1',
+      requestId: 'web-raw-add',
+    }
+
+    const result = await service.writeRawMaterial(input)
+
+    expect(dependencies.writeRawMaterialDirect).toHaveBeenCalledWith(input)
+    expect(dependencies.enqueue).not.toHaveBeenCalled()
+    expect(dependencies.replay).not.toHaveBeenCalled()
+    expect(result).toEqual({ status: 'synced', commandId: 'web-raw-add', runtime: 'web' })
+  })
+
+  it('queues raw-material add offline and never invokes its direct RPC executor', async () => {
+    const { dependencies, service } = setup()
+
+    const result = await service.writeRawMaterial({
+      itemId: 'material-1',
+      operationType: 'add',
+      quantity: 3,
+      projectId: 'project-1',
+      operationDate: '2026-09-08',
+      supplierId: 'supplier-1',
+      receivedBy: 'receiver',
+      purchaseOrderNumber: 'PO-1',
+      requestId: 'desktop-raw-add',
+    })
+
+    expect(dependencies.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      commandId: 'desktop-raw-add',
+      commandType: 'raw_material_operation',
+      contractVersion: 1,
+      payload: expect.objectContaining({
+        item_id: 'material-1',
+        operation_type: 'add',
+        project_id: 'project-1',
+        supplier_id: 'supplier-1',
+        employee_ids: [],
+      }),
+    }))
+    expect(dependencies.writeRawMaterialDirect).not.toHaveBeenCalled()
+    expect(dependencies.replay).not.toHaveBeenCalled()
+    expect(result.status).toBe('queued')
+  })
+
+  it('preserves raw-material group issue fields and replays online', async () => {
+    let stored: OfflineCommand | null = null
+    const employeeIds = ['employee-2', 'employee-1']
+    const { dependencies, service } = setup({
+      enqueue: vi.fn(async (input) => {
+        stored = queuedCommand(input)
+        return stored
+      }),
+      isOnline: vi.fn(async () => true),
+      replay: vi.fn(async () => {
+        if (stored) stored = { ...stored, status: 'synced', attempts: 1 }
+      }),
+      getQueuedCommand: vi.fn(async () => stored),
+    })
+
+    const result = await service.writeRawMaterial({
+      itemId: 'material-1',
+      operationType: 'issue',
+      quantity: 2,
+      projectId: 'project-1',
+      operationDate: '2026-09-08',
+      employeeId: null,
+      employeeIds,
+      requestId: 'desktop-raw-issue',
+    })
+
+    expect(dependencies.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      commandType: 'raw_material_operation',
+      payload: expect.objectContaining({
+        operation_type: 'issue',
+        employee_id: null,
+        employee_ids: employeeIds,
+        supplier_id: null,
+      }),
+    }))
+    expect(dependencies.replay).toHaveBeenCalledTimes(1)
+    expect(result.status).toBe('synced')
+  })
+
+  it('maps a persisted raw-material replay conflict', async () => {
+    let stored: OfflineCommand | null = null
+    const { service } = setup({
+      enqueue: vi.fn(async (input) => {
+        stored = queuedCommand(input)
+        return stored
+      }),
+      isOnline: vi.fn(async () => true),
+      replay: vi.fn(async () => {
+        if (stored) {
+          stored = {
+            ...stored,
+            status: 'conflict',
+            attempts: 1,
+            lastError: JSON.stringify({
+              code: 'insufficient_stock',
+              message: 'Insufficient stock.',
+              sqlstate: 'P0001',
+              retryable: true,
+              requires_user_action: true,
+            }),
+          }
+        }
+      }),
+      getQueuedCommand: vi.fn(async () => stored),
+    })
+
+    const result = await service.writeRawMaterial({
+      itemId: 'material-1',
+      operationType: 'issue',
+      quantity: 2,
+      projectId: 'project-1',
+      operationDate: '2026-09-08',
+      employeeId: 'employee-1',
+      requestId: 'raw-conflict',
+    })
+
+    expect(result).toMatchObject({
+      status: 'conflict',
+      commandId: 'raw-conflict',
+      error: {
+        code: 'insufficient_stock',
+        retryable: true,
+        requiresUserAction: true,
+      },
+    })
   })
 })
