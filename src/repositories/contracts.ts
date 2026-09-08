@@ -5,6 +5,7 @@ import type {
   ItemDetails,
   ItemMovement,
 } from '../services/itemsService'
+import type { InventoryRow } from '../services/inventoryService'
 import type { Project } from '../services/projectsService'
 import type { Employee, Supplier } from '../services/partiesService'
 import type { EmployeeCustodyRecord } from '../features/employee-custody/types'
@@ -62,6 +63,27 @@ export interface CustodyReadRepository {
   listEmployeeCustodyItems(employeeId: string): Promise<RepositoryResult<EmployeeCustodyRecord[]>>
 }
 
+/**
+ * The dashboard summary envelope, in the same shape
+ * `get_inventory_dashboard_summary_rpc` returns, so one transform serves
+ * both runtimes.
+ */
+export interface DashboardSummaryPayload {
+  total_imported_files?: number
+  last_imported_file?: string | null
+  category_counts?: Record<string, number>
+  dynamic_category_counts?: Array<{
+    category_id: string
+    category_name: string
+    row_count: number
+  }>
+  inventory_rows?: InventoryRow[]
+}
+
+export interface DashboardReadRepository {
+  getSummary(): Promise<RepositoryResult<DashboardSummaryPayload>>
+}
+
 /** The full read surface resolved for the current runtime. */
 export interface ReadRepositories {
   inventory: InventoryReadRepository
@@ -69,4 +91,5 @@ export interface ReadRepositories {
   projects: ProjectsReadRepository
   parties: PartiesReadRepository
   custody: CustodyReadRepository
+  dashboard: DashboardReadRepository
 }

@@ -41,7 +41,6 @@ describe('inventory v1 command builders', () => {
         category_name: 'Consumables',
         item_name: 'Gloves',
         employee_id: null,
-        employee_ids: null,
         supplier_id: 'supplier-1',
         received_by: 'Receiver',
         purchase_order_number: 'PO-9',
@@ -70,6 +69,26 @@ describe('inventory v1 command builders', () => {
     })
   })
 
+  it('omits employee_ids for a single-employee issue instead of sending null', () => {
+    // The backend tests `payload ? 'employee_ids'`, which is true even for a
+    // JSON null, and then rejects any non-array. Sending null made every
+    // ordinary issue fail with "employee_ids must be an array".
+    const command = buildInventoryIssueCommand({ ...base, employeeId: 'employee-1' })
+
+    expect(command.payload).not.toHaveProperty('employee_ids')
+    expect(command.payload).toMatchObject({ operation_type: 'issue', employee_id: 'employee-1' })
+  })
+
+  it('omits employee_ids when a group list is present but empty', () => {
+    const command = buildInventoryIssueCommand({
+      ...base,
+      employeeId: 'employee-1',
+      employeeIds: [],
+    })
+
+    expect(command.payload).not.toHaveProperty('employee_ids')
+  })
+
   it('builds an adjustment and generates its command id exactly once', () => {
     const createCommandId = vi.fn(() => 'generated-command')
     const command = buildInventoryAdjustCommand({
@@ -87,9 +106,9 @@ describe('inventory v1 command builders', () => {
       operation_type: 'adjust',
       quantity: 0,
       employee_id: null,
-      employee_ids: null,
       supplier_id: null,
     })
+    expect(command.payload).not.toHaveProperty('employee_ids')
   })
 
   it('keeps supplier and employee validation at the command boundary', () => {

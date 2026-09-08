@@ -4,11 +4,9 @@ import {
   type CategoryDefinition,
   type CategoryKey,
 } from '../config/categoryConfig'
-import {
-  getSupabaseConfigError,
-  isSupabaseConfigured,
-  supabaseClient,
-} from '../lib/supabaseClient'
+import { getDashboardRepository } from '../repositories'
+import { readForRuntime } from '../repositories/readStrategy'
+import { fetchRemoteDashboardSummary } from './dashboardSummarySource'
 import { getDynamicCategoryItemsRoute } from '../features/dynamic-categories/dynamicCategoryRoutes'
 import type { InventoryRow } from './inventoryService'
 import type { DashboardData } from '../features/dashboard/types'
@@ -38,19 +36,18 @@ function asNumber(value: unknown) {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  if (!isSupabaseConfigured || !supabaseClient) {
-    throw new Error(getSupabaseConfigError())
-  }
-
-  const { data, error } = await supabaseClient.rpc(
-    'get_inventory_dashboard_summary_rpc',
-  )
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const payload = (data ?? {}) as DashboardRpcPayload
+  // Desktop reads the synced SQLite projection so the dashboard works
+  // offline; web keeps calling the RPC. Both return the same envelope, so
+  // everything below this line is shared.
+  const payload = await readForRuntime<DashboardRpcPayload>({
+    desktop: async () => {
+      const repository = await getDashboardRepository()
+      const result = await repository.getSummary()
+      if (result.error !== null) throw new Error(result.error)
+      return (result.data ?? {}) as DashboardRpcPayload
+    },
+    web: fetchRemoteDashboardSummary,
+  })
   const categoryCounts = payload.category_counts ?? {}
   const dynamicCategoryCounts = payload.dynamic_category_counts ?? []
   const inventoryRows = payload.inventory_rows ?? []

@@ -3,10 +3,12 @@ import { getCustodyRecord, getItemDetails, getItemMovements } from '../services/
 import { getActiveProjects, getProjects } from '../services/projectsService'
 import { searchActiveParties } from '../services/partiesService'
 import { getEmployeeCustodyItems } from '../features/employee-custody/employeeCustodyService'
+import { fetchRemoteDashboardSummary } from '../services/dashboardSummarySource'
 import {
   repositoryFailure,
   repositoryOk,
   type CustodyReadRepository,
+  type DashboardReadRepository,
   type InventoryReadRepository,
   type MovementsReadRepository,
   type PartiesReadRepository,
@@ -71,10 +73,21 @@ const custody: CustodyReadRepository = {
   },
 }
 
+const dashboard: DashboardReadRepository = {
+  async getSummary() {
+    try {
+      return repositoryOk(await fetchRemoteDashboardSummary())
+    } catch (error) {
+      return toResult(error, 'تعذر تحميل بيانات لوحة التحكم')
+    }
+  },
+}
+
 export const supabaseReadRepositories: ReadRepositories = {
   inventory,
   movements,
   projects,
   parties,
   custody,
+  dashboard,
 }

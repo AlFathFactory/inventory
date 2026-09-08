@@ -10,6 +10,8 @@ export type {
   ProjectsReadRepository,
   PartiesReadRepository,
   CustodyReadRepository,
+  DashboardReadRepository,
+  DashboardSummaryPayload,
 } from './contracts'
 
 let desktopRepositories: ReadRepositories | null = null
@@ -51,4 +53,8 @@ export async function getPartiesRepository() {
 
 export async function getCustodyRepository() {
   return (await getReadRepositories()).custody
+}
+
+export async function getDashboardRepository() {
+  return (await getReadRepositories()).dashboard
 }

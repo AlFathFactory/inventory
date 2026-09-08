@@ -61,7 +61,7 @@ function buildPayload(
   operationType: InventoryOperationType,
   input: InventoryCommandBuilderInput,
 ): OfflineCommandPayload {
-  return {
+  const payload: OfflineCommandPayload = {
     table_name: input.tableName,
     item_id: input.itemId,
     operation_type: operationType,
@@ -71,15 +71,21 @@ function buildPayload(
     category_name: input.categoryName || null,
     item_name: input.itemName || null,
     employee_id: operationType === 'issue' ? input.employeeId || null : null,
-    employee_ids: operationType === 'issue' && input.employeeIds
-      ? [...input.employeeIds]
-      : null,
     supplier_id: operationType === 'add' ? input.supplierId || null : null,
     received_by: input.receivedBy || null,
     purchase_order_number: input.purchaseOrderNumber || null,
     item_code: input.itemCode || null,
     notes: input.notes || null,
   }
+
+  // Only group issues carry `employee_ids`, and the key must be absent
+  // otherwise: the backend tests `payload ? 'employee_ids'`, which is true
+  // even for a JSON null, and then rejects anything that is not an array.
+  if (operationType === 'issue' && input.employeeIds && input.employeeIds.length > 0) {
+    payload.employee_ids = [...input.employeeIds]
+  }
+
+  return payload
 }
 
 function buildCommand(

@@ -5,6 +5,8 @@ import {
   repositoryFailure,
   repositoryOk,
   type CustodyReadRepository,
+  type DashboardReadRepository,
+  type DashboardSummaryPayload,
   type InventoryReadRepository,
   type MovementsReadRepository,
   type PartiesReadRepository,
@@ -36,6 +38,17 @@ import {
   toEmployeeAllocation,
   toItemMovement,
 } from './local/movementsProjection'
+import {
+  buildDashboardCountSql,
+  buildDashboardRowsSql,
+  DASHBOARD_COUNT_TABLES,
+  DYNAMIC_CATEGORY_COUNTS_SQL,
+  DYNAMIC_ROWS_SQL,
+  toDashboardRow,
+  toDynamicCategoryCount,
+  toDynamicDashboardRow,
+} from './local/dashboardProjection'
+import type { InventoryRow } from '../services/inventoryService'
 import type { LocalRow } from './local/rowValues'
 import type { MovementEmployeeAllocation } from '../services/itemsService'
 import type { Project } from '../services/projectsService'
@@ -260,10 +273,44 @@ const custody: CustodyReadRepository = {
   },
 }
 
+const dashboard: DashboardReadRepository = {
+  getSummary() {
+    return guard(async () => {
+      const inventoryRows: InventoryRow[] = []
+      const categoryCounts: Record<string, number> = {}
+
+      for (const table of DASHBOARD_COUNT_TABLES) {
+        const [countRow] = await selectRows(buildDashboardCountSql(table))
+        categoryCounts[table] = Number(countRow?.row_count ?? 0)
+        const rows = await selectRows(buildDashboardRowsSql(table))
+        for (const row of rows) inventoryRows.push(toDashboardRow(row, table))
+      }
+
+      for (const row of await selectRows(DYNAMIC_ROWS_SQL)) {
+        inventoryRows.push(toDynamicDashboardRow(row))
+      }
+
+      const dynamicCategoryCounts = (await selectRows(DYNAMIC_CATEGORY_COUNTS_SQL))
+        .map(toDynamicCategoryCount)
+
+      return {
+        // `imports` is not a synced table, so these import statistics are not
+        // available offline. The dashboard renders them as 0 / none.
+        total_imported_files: 0,
+        last_imported_file: null,
+        category_counts: categoryCounts,
+        dynamic_category_counts: dynamicCategoryCounts,
+        inventory_rows: inventoryRows,
+      } satisfies DashboardSummaryPayload
+    }, 'تعذر تحميل بيانات لوحة التحكم محليًا')
+  },
+}
+
 export const localReadRepositories: ReadRepositories = {
   inventory,
   movements,
   projects,
   parties,
   custody,
+  dashboard,
 }
