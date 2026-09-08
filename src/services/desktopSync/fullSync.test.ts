@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { isDesktopRuntimeMock, runSyncPassMock } = vi.hoisted(() => ({
+const { isDesktopRuntimeMock, runPaginatedSnapshotSyncMock } = vi.hoisted(() => ({
   isDesktopRuntimeMock: vi.fn(),
-  runSyncPassMock: vi.fn(),
+  runPaginatedSnapshotSyncMock: vi.fn(),
 }))
 
 vi.mock('../../config/platform', () => ({ isDesktopRuntime: isDesktopRuntimeMock }))
-vi.mock('./syncPipeline', () => ({ runSyncPass: runSyncPassMock }))
+vi.mock('./snapshotSync', () => ({
+  runPaginatedSnapshotSync: runPaginatedSnapshotSyncMock,
+}))
 
 import { runInitialFullSync } from './fullSync'
 
@@ -14,10 +16,11 @@ describe('runInitialFullSync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     isDesktopRuntimeMock.mockReturnValue(true)
-    runSyncPassMock.mockResolvedValue({
+    runPaginatedSnapshotSyncMock.mockResolvedValue({
       status: 'succeeded',
-      nextCursor: '2026-09-07T12:00:00+00:00',
-      rowCounts: {},
+      snapshotCursor: '2026-09-07T12:00:00+00:00',
+      pages: 4,
+      rowCounts: { consumables: 10 },
       upsertedRows: 10,
       deletedRows: 0,
     })
@@ -27,19 +30,39 @@ describe('runInitialFullSync', () => {
     isDesktopRuntimeMock.mockReturnValue(false)
 
     expect(await runInitialFullSync()).toEqual({ status: 'skipped' })
-    expect(runSyncPassMock).not.toHaveBeenCalled()
+    expect(runPaginatedSnapshotSyncMock).not.toHaveBeenCalled()
   })
 
-  it('requests a full snapshot with a null cursor', async () => {
+  it('loads the initial snapshot through the paginated path', async () => {
     const result = await runInitialFullSync()
 
-    expect(runSyncPassMock).toHaveBeenCalledWith(null)
-    expect(result).toMatchObject({ status: 'succeeded', upsertedRows: 10 })
+    expect(runPaginatedSnapshotSyncMock).toHaveBeenCalledOnce()
+    expect(result).toMatchObject({
+      status: 'succeeded',
+      nextCursor: '2026-09-07T12:00:00+00:00',
+      upsertedRows: 10,
+    })
   })
 
-  it('surfaces a failed pass', async () => {
-    runSyncPassMock.mockResolvedValue({ status: 'failed', error: 'network down' })
+  it('surfaces a failed snapshot', async () => {
+    runPaginatedSnapshotSyncMock.mockResolvedValue({
+      status: 'failed',
+      pages: 2,
+      failedTable: 'inventory_operations',
+      error: 'network down',
+    })
 
     expect(await runInitialFullSync()).toEqual({ status: 'failed', error: 'network down' })
+  })
+
+  it('refuses to report success without a cursor', async () => {
+    runPaginatedSnapshotSyncMock.mockResolvedValue({
+      status: 'succeeded',
+      pages: 1,
+      upsertedRows: 0,
+      deletedRows: 0,
+    })
+
+    expect(await runInitialFullSync()).toMatchObject({ status: 'failed' })
   })
 })
