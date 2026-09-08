@@ -112,14 +112,15 @@ export async function runPaginatedSnapshotSync(
         }
 
         if (page.rows.length > 0) {
+          // Tombstone rows are stored *and* applied as deletions, exactly as
+          // the delta path does, so a snapshot and a delta leave the local
+          // database in the same state.
           const report = await dependencies.applyPlan({
-            upserts: table === 'inventory_operation_deletions'
-              ? []
-              : [{
-                  table,
-                  columns: [...SYNC_TABLE_COLUMNS[table]] as string[],
-                  rows: page.rows,
-                }],
+            upserts: [{
+              table,
+              columns: [...SYNC_TABLE_COLUMNS[table]] as string[],
+              rows: page.rows,
+            }],
             deletedOperationIds: page.deletedOperationIds,
           })
           upsertedRows += report.upsertedRows

@@ -141,7 +141,7 @@ describe('runPaginatedSnapshotSync', () => {
     expect(harness.onSucceeded).toHaveBeenCalledWith(CURSOR)
   })
 
-  it('applies tombstones as deletions rather than upserts', async () => {
+  it('both stores tombstone rows and applies them as deletions', async () => {
     const harness = createHarness()
     harness.fetchPage.mockImplementation(async (params) =>
       params.table === 'inventory_operation_deletions'
@@ -155,7 +155,10 @@ describe('runPaginatedSnapshotSync', () => {
 
     expect(result.status).toBe('succeeded')
     const plan = harness.applyPlan.mock.calls.at(-1)?.[0]
-    expect(plan?.upserts).toEqual([])
+    // Stored, so a snapshot leaves the same local state a delta would.
+    expect(plan?.upserts).toEqual([
+      expect.objectContaining({ table: 'inventory_operation_deletions' }),
+    ])
     expect(plan?.deletedOperationIds).toEqual(['op-d1'])
   })
 
