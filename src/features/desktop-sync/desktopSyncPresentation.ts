@@ -1,4 +1,5 @@
 import type { DesktopSyncPhase } from '../../services/desktopSync/syncStatusStore'
+import type { DesktopConnectivityState } from '../../services/desktopConnectivity/desktopConnectivityStore'
 
 /**
  * Pure presentation helpers for the sync status surface, kept out of the
@@ -19,6 +20,16 @@ const PHASE_UI: Record<DesktopSyncPhase, PhaseUi> = {
 
 export function describeSyncPhase(phase: DesktopSyncPhase): PhaseUi {
   return PHASE_UI[phase]
+}
+
+const CONNECTIVITY_UI: Record<DesktopConnectivityState, PhaseUi> = {
+  online: { label: 'متصل', className: 'bg-emerald-50 text-emerald-700' },
+  offline: { label: 'غير متصل', className: 'bg-amber-50 text-amber-800' },
+  checking: { label: 'جاري فحص الاتصال', className: 'bg-slate-100 text-slate-700' },
+}
+
+export function describeConnectivityState(state: DesktopConnectivityState): PhaseUi {
+  return CONNECTIVITY_UI[state]
 }
 
 export const NEVER_SYNCED_LABEL = 'لم تتم أي مزامنة بعد'

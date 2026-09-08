@@ -1,6 +1,11 @@
 import { lazy, Suspense, useState } from 'react'
 import { useDesktopSync } from './useDesktopSync'
-import { describeSyncPhase, formatLastSync } from './desktopSyncPresentation'
+import { useDesktopConnectivity } from './useDesktopConnectivity'
+import {
+  describeConnectivityState,
+  describeSyncPhase,
+  formatLastSync,
+} from './desktopSyncPresentation'
 
 const DesktopQueuePanel = lazy(async () => {
   const module = await import('./DesktopQueuePanel')
@@ -31,18 +36,28 @@ function QueueIcon() {
  */
 export function DesktopSyncStatus() {
   const { isEnabled, phase, isSyncing, lastSuccessfulSyncAt, lastError, refresh } = useDesktopSync()
+  const connectivity = useDesktopConnectivity()
   const [isQueueOpen, setIsQueueOpen] = useState(false)
 
   if (!isEnabled) return null
 
   const ui = describeSyncPhase(phase)
+  const connectivityUi = describeConnectivityState(connectivity.state)
 
   return (
     <div className="flex items-center gap-2">
       <div className="text-left">
-        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ui.className}`}>
-          {ui.label}
-        </span>
+        <div className="flex flex-wrap items-center gap-1">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${ui.className}`}>
+            {ui.label}
+          </span>
+          <span
+            className={`rounded-full px-2 py-1 text-[11px] font-bold ${connectivityUi.className}`}
+            title={connectivityUi.label}
+          >
+            {connectivityUi.label}
+          </span>
+        </div>
         <p className="mt-1 text-[11px] text-[var(--app-text-muted)]">
           {formatLastSync(lastSuccessfulSyncAt)}
         </p>
@@ -69,9 +84,11 @@ export function DesktopSyncStatus() {
       >
         <QueueIcon />
       </button>
-      <Suspense fallback={null}>
-        <DesktopQueuePanel open={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
-      </Suspense>
+      {isQueueOpen ? (
+        <Suspense fallback={null}>
+          <DesktopQueuePanel open onClose={() => setIsQueueOpen(false)} />
+        </Suspense>
+      ) : null}
     </div>
   )
 }

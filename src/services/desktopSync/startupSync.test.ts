@@ -92,6 +92,16 @@ describe('runStartupSync', () => {
     expect(getDesktopSyncSnapshot()).toMatchObject({ phase: 'failed', lastError: 'disk is full' })
   })
 
+  it('hydrates local state but leaves pending commands untouched when offline is confirmed', async () => {
+    const result = await runStartupSync({ allowNetwork: false })
+
+    expect(result).toEqual({ status: 'skipped', reason: 'offline' })
+    expect(mocks.initializeLocalDb).toHaveBeenCalledOnce()
+    expect(mocks.hydrateDesktopSyncStatus).toHaveBeenCalledOnce()
+    expect(mocks.runDesktopQueueReplay).not.toHaveBeenCalled()
+    expect(mocks.runDesktopSync).not.toHaveBeenCalled()
+  })
+
   it('never throws even if hydration fails', async () => {
     mocks.hydrateDesktopSyncStatus.mockRejectedValue(new Error('metadata unreadable'))
 

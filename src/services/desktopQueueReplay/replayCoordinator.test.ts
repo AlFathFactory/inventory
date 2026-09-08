@@ -169,6 +169,23 @@ describe('desktop offline command replay', () => {
     })
   })
 
+  it('does not auto-retry a conflict on a later replay pass', async () => {
+    const harness = buildRunner()
+    harness.applyCommand.mockImplementation(async (item) => errorResponse(item, 'conflict', {
+      code: 'requires_review',
+      message: 'Review this command.',
+      sqlstate: null,
+      retryable: false,
+      requires_user_action: true,
+    }))
+
+    await harness.coordinator.run()
+    await harness.coordinator.run()
+
+    expect(harness.commands.get('command-1')?.status).toBe('conflict')
+    expect(harness.applyCommand).toHaveBeenCalledOnce()
+  })
+
   it('records a transient retryable failure and stops before the next command', async () => {
     const harness = buildRunner([command('command-1'), command('command-2')])
     harness.applyCommand.mockImplementation(async (item) => errorResponse(item, 'failed', {

@@ -14,16 +14,34 @@ document.documentElement.dir = 'rtl'
 // the sync pipeline, and deliberately not awaited so rendering never waits on
 // it. Whatever it resolves to, the app opens and the local data stays usable.
 if (isDesktopRuntime()) {
-  void import('./services/desktopSync/startupSync')
-    .then(({ runStartupSync }) => runStartupSync())
-    .then((result) => {
-      if (result.status === 'failed' || result.status === 'skipped') {
+  void (async () => {
+    let allowNetwork = true
+    try {
+      const connectivity = await import('./services/desktopConnectivity')
+      await connectivity.startDesktopConnectivity()
+      allowNetwork = connectivity.getDesktopConnectivitySnapshot().state !== 'offline'
+    } catch (error) {
+      // Monitoring failure must not prevent opening/hydrating the local database.
+      console.warn('Desktop connectivity monitoring could not start', error)
+    }
+
+    try {
+      const { runStartupSync } = await import('./services/desktopSync/startupSync')
+      const result = await runStartupSync({ allowNetwork })
+      if (
+        result.status === 'failed'
+        || (
+          result.status === 'skipped'
+          && 'reason' in result
+          && result.reason === 'unavailable'
+        )
+      ) {
         console.warn('Desktop startup sync did not complete', result)
       }
-    })
-    .catch((error: unknown) => {
+    } catch (error) {
       console.error('Desktop startup sync could not start', error)
-    })
+    }
+  })()
 }
 
 createRoot(document.getElementById('root')!).render(

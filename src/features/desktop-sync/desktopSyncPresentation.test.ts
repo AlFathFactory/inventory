@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  describeConnectivityState,
   describeSyncPhase,
   formatLastSync,
   NEVER_SYNCED_LABEL,
@@ -22,6 +23,17 @@ describe('describeSyncPhase', () => {
     expect(describeSyncPhase('syncing').label).toBe('جاري المزامنة')
     expect(describeSyncPhase('synced').label).toBe('تمت المزامنة')
     expect(describeSyncPhase('failed').label).toBe('فشلت المزامنة')
+  })
+})
+
+describe('describeConnectivityState', () => {
+  it('provides distinct desktop labels for all typed connectivity states', () => {
+    const labels = ['online', 'offline', 'checking']
+      .map((state) => describeConnectivityState(state as 'online' | 'offline' | 'checking').label)
+
+    expect(new Set(labels).size).toBe(3)
+    expect(describeConnectivityState('online').label).toBe('متصل')
+    expect(describeConnectivityState('offline').label).toBe('غير متصل')
   })
 })
 

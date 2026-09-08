@@ -35,8 +35,16 @@ async function runProbe(timeoutMs: number) {
   }
 }
 
-export function probeSupabaseReachability(options: { force?: boolean; timeoutMs?: number } = {}) {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return Promise.resolve(false)
+export function probeSupabaseReachability(options: {
+  force?: boolean
+  timeoutMs?: number
+  ignoreNavigatorHint?: boolean
+} = {}) {
+  if (
+    !options.ignoreNavigatorHint
+    && typeof navigator !== 'undefined'
+    && !navigator.onLine
+  ) return Promise.resolve(false)
   const now = Date.now()
   if (!options.force && now - lastProbeAt < 15_000) return Promise.resolve(lastProbeResult)
   if (activeProbe) return activeProbe

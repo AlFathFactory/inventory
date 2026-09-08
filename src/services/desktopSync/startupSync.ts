@@ -9,8 +9,13 @@ import { setDesktopSyncSnapshot } from './syncStatusStore'
 
 export type StartupSyncResult =
   /** Web runtime, or the local database could not be opened. */
-  | { status: 'skipped'; reason: 'web' | 'unavailable'; error?: string }
+  | { status: 'skipped'; reason: 'web' | 'offline' | 'unavailable'; error?: string }
   | DesktopSyncOutcome
+
+export interface StartupSyncOptions {
+  /** False only after the desktop reachability service has confirmed offline. */
+  allowNetwork?: boolean
+}
 
 /**
  * Desktop startup: open the local database, publish whatever sync state is
@@ -20,7 +25,9 @@ export type StartupSyncResult =
  * sync fails — the previously synced data stays readable, the cursor is left
  * untouched, and nothing recreates or deletes the database on error.
  */
-export async function runStartupSync(): Promise<StartupSyncResult> {
+export async function runStartupSync(
+  options: StartupSyncOptions = {},
+): Promise<StartupSyncResult> {
   if (!isDesktopRuntime()) {
     return { status: 'skipped', reason: 'web' }
   }
@@ -32,6 +39,10 @@ export async function runStartupSync(): Promise<StartupSyncResult> {
     const message = error instanceof Error ? error.message : String(error)
     setDesktopSyncSnapshot({ phase: 'failed', lastError: message, hydrated: true })
     return { status: 'skipped', reason: 'unavailable', error: message }
+  }
+
+  if (options.allowNetwork === false) {
+    return { status: 'skipped', reason: 'offline' }
   }
 
   let replay
