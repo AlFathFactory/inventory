@@ -2,6 +2,7 @@ import { isDesktopRuntime } from '../config/platform'
 import type {
   DeleteSyncedCommandsOptions,
   ListPendingCommandsOptions,
+  ListRecentNonSyncedCommandsOptions,
 } from '../repositories/local/offlineCommandQueueRepository'
 import type {
   EnqueueCommandInput,
@@ -30,6 +31,16 @@ export async function listPendingCommands(
   options?: ListPendingCommandsOptions,
 ): Promise<OfflineCommand[]> {
   return (await getQueue()).listPendingCommands(options)
+}
+
+export async function listRecentNonSyncedCommands(
+  options?: ListRecentNonSyncedCommandsOptions,
+): Promise<OfflineCommand[]> {
+  return (await getQueue()).listRecentNonSyncedCommands(options)
+}
+
+export async function getCommandStatusCounts() {
+  return (await getQueue()).getCommandStatusCounts()
 }
 
 export async function markSyncing(commandId: string): Promise<OfflineCommand> {
@@ -65,6 +76,8 @@ export async function recoverInterruptedCommands(): Promise<number> {
 export type {
   DeleteSyncedCommandsOptions,
   ListPendingCommandsOptions,
+  ListRecentNonSyncedCommandsOptions,
+  OfflineCommandStatusCounts,
 } from '../repositories/local/offlineCommandQueueRepository'
 export type {
   EnqueueCommandInput,

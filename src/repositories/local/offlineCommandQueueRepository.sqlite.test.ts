@@ -158,6 +158,37 @@ describe('desktop offline command queue', () => {
     expect(JSON.stringify(queryPlan)).toContain('offline_commands_status_created_at_idx')
   })
 
+  it('returns bounded recent non-synced commands and counts every queue status', async () => {
+    const queue = repository()
+    for (const commandId of ['pending', 'syncing', 'failed', 'conflict', 'synced']) {
+      await queue.enqueueCommand({ ...DEFAULT_COMMAND, commandId })
+      advance()
+    }
+    await queue.markSyncing('syncing')
+    await queue.markSyncing('failed')
+    await queue.markFailed('failed', 'temporary')
+    await queue.markSyncing('conflict')
+    await queue.markConflict('conflict', 'review')
+    await queue.markSyncing('synced')
+    await queue.markSynced('synced')
+
+    expect((await queue.listRecentNonSyncedCommands({ limit: 2 }))
+      .map((command) => command.commandId)).toEqual(['conflict', 'failed'])
+    expect(await queue.getCommandStatusCounts()).toEqual({
+      pending: 1,
+      syncing: 1,
+      synced: 1,
+      failed: 1,
+      conflict: 1,
+    })
+
+    const queryPlan = db.prepare(`EXPLAIN QUERY PLAN
+      SELECT command_id FROM offline_commands
+      WHERE status IN ('pending', 'syncing', 'failed', 'conflict')
+      ORDER BY created_at DESC, command_id DESC LIMIT 50`).all()
+    expect(JSON.stringify(queryPlan)).toContain('offline_commands_status_created_at_idx')
+  })
+
   it('enforces status transitions and records attempts, errors, and sync time', async () => {
     const queue = repository()
     await queue.enqueueCommand({ ...DEFAULT_COMMAND, commandId: 'success' })

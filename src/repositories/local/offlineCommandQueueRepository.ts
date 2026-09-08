@@ -10,7 +10,10 @@ import type {
   OfflineCommandRow,
   OfflineCommandStatus,
 } from '../../lib/localDb/models/offlineCommand'
-import { OFFLINE_COMMAND_TYPES } from '../../lib/localDb/models/offlineCommand'
+import {
+  OFFLINE_COMMAND_STATUSES,
+  OFFLINE_COMMAND_TYPES,
+} from '../../lib/localDb/models/offlineCommand'
 
 const SELECT_COMMAND = `SELECT command_id, command_type, contract_version, payload_json,
   status, attempts, last_error, created_at, updated_at, synced_at
@@ -35,6 +38,18 @@ export interface QueueRepositoryDependencies {
 export interface ListPendingCommandsOptions {
   limit?: number
   createdAtOrBefore?: string
+}
+
+export interface ListRecentNonSyncedCommandsOptions {
+  /** Bounds the panel query; defaults to 50. */
+  limit?: number
+}
+
+export type OfflineCommandStatusCounts = Record<OfflineCommandStatus, number>
+
+interface OfflineCommandStatusCountRow {
+  status: unknown
+  count: unknown
 }
 
 export interface DeleteSyncedCommandsOptions {
@@ -174,6 +189,39 @@ export function createOfflineCommandQueueRepository(
     return rows.map(deserializeOfflineCommand)
   }
 
+  async function listRecentNonSyncedCommands(
+    options: ListRecentNonSyncedCommandsOptions = {},
+  ): Promise<OfflineCommand[]> {
+    const limit = requireLimit(options.limit, 50)
+    const db = await dependencies.getDatabase()
+    const rows = await db.select<OfflineCommandRow[]>(
+      `${SELECT_COMMAND}
+       WHERE status IN ('pending', 'syncing', 'failed', 'conflict')
+       ORDER BY created_at DESC, command_id DESC LIMIT $1`,
+      [limit],
+    )
+    return rows.map(deserializeOfflineCommand)
+  }
+
+  async function getCommandStatusCounts(): Promise<OfflineCommandStatusCounts> {
+    const db = await dependencies.getDatabase()
+    const rows = await db.select<OfflineCommandStatusCountRow[]>(
+      `SELECT status, COUNT(*) AS count
+       FROM offline_commands
+       GROUP BY status`,
+    )
+    const counts = Object.fromEntries(
+      OFFLINE_COMMAND_STATUSES.map((status) => [status, 0]),
+    ) as OfflineCommandStatusCounts
+    for (const row of rows) {
+      if (typeof row.status !== 'string' || !OFFLINE_COMMAND_STATUSES.includes(
+        row.status as OfflineCommandStatus,
+      )) continue
+      counts[row.status as OfflineCommandStatus] = Number(row.count) || 0
+    }
+    return counts
+  }
+
   async function transition(
     commandId: string,
     from: OfflineCommandStatus,
@@ -287,6 +335,8 @@ export function createOfflineCommandQueueRepository(
     enqueueCommand,
     getCommand,
     listPendingCommands,
+    listRecentNonSyncedCommands,
+    getCommandStatusCounts,
     markSyncing,
     markSynced,
     markFailed,
@@ -308,6 +358,8 @@ export const localOfflineCommandQueueRepository = desktopQueue
 export const enqueueCommand = desktopQueue.enqueueCommand
 export const getCommand = desktopQueue.getCommand
 export const listPendingCommands = desktopQueue.listPendingCommands
+export const listRecentNonSyncedCommands = desktopQueue.listRecentNonSyncedCommands
+export const getCommandStatusCounts = desktopQueue.getCommandStatusCounts
 export const markSyncing = desktopQueue.markSyncing
 export const markSynced = desktopQueue.markSynced
 export const markFailed = desktopQueue.markFailed

@@ -1,11 +1,25 @@
+import { lazy, Suspense, useState } from 'react'
 import { useDesktopSync } from './useDesktopSync'
 import { describeSyncPhase, formatLastSync } from './desktopSyncPresentation'
+
+const DesktopQueuePanel = lazy(async () => {
+  const module = await import('./DesktopQueuePanel')
+  return { default: module.DesktopQueuePanel }
+})
 
 function RefreshIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
       <path d="M21 12a9 9 0 1 1-3-6.7" />
       <path d="M21 4v5h-5" />
+    </svg>
+  )
+}
+
+function QueueIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+      <path d="M5 6h14M5 12h14M5 18h9" />
     </svg>
   )
 }
@@ -17,6 +31,7 @@ function RefreshIcon() {
  */
 export function DesktopSyncStatus() {
   const { isEnabled, phase, isSyncing, lastSuccessfulSyncAt, lastError, refresh } = useDesktopSync()
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
 
   if (!isEnabled) return null
 
@@ -44,6 +59,19 @@ export function DesktopSyncStatus() {
           <RefreshIcon />
         </span>
       </button>
+      <button
+        type="button"
+        onClick={() => setIsQueueOpen(true)}
+        title="قائمة انتظار المزامنة"
+        aria-label="فتح قائمة انتظار المزامنة"
+        aria-expanded={isQueueOpen}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--app-border)] text-slate-700 transition hover:bg-slate-50"
+      >
+        <QueueIcon />
+      </button>
+      <Suspense fallback={null}>
+        <DesktopQueuePanel open={isQueueOpen} onClose={() => setIsQueueOpen(false)} />
+      </Suspense>
     </div>
   )
 }
