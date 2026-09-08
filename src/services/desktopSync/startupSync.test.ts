@@ -6,10 +6,16 @@ const mocks = vi.hoisted(() => ({
   runDesktopSync: vi.fn(),
   runDesktopQueueReplay: vi.fn(),
   hydrateDesktopSyncStatus: vi.fn(),
+  recoverInterruptedCommands: vi.fn(),
 }))
 
 vi.mock('../../config/platform', () => ({ isDesktopRuntime: mocks.isDesktopRuntime }))
 vi.mock('../../lib/localDb', () => ({ initializeLocalDb: mocks.initializeLocalDb }))
+vi.mock('../../repositories/local/offlineCommandQueueRepository', () => ({
+  localOfflineCommandQueueRepository: {
+    recoverInterruptedCommands: mocks.recoverInterruptedCommands,
+  },
+}))
 vi.mock('./syncCoordinator', () => ({
   runDesktopSync: mocks.runDesktopSync,
   hydrateDesktopSyncStatus: mocks.hydrateDesktopSyncStatus,
@@ -28,6 +34,7 @@ describe('runStartupSync', () => {
     mocks.isDesktopRuntime.mockReturnValue(true)
     mocks.initializeLocalDb.mockResolvedValue(undefined)
     mocks.hydrateDesktopSyncStatus.mockResolvedValue(undefined)
+    mocks.recoverInterruptedCommands.mockResolvedValue(0)
     mocks.runDesktopSync.mockResolvedValue({ status: 'succeeded', mode: 'full' })
     mocks.runDesktopQueueReplay.mockResolvedValue({
       status: 'succeeded',
@@ -40,10 +47,14 @@ describe('runStartupSync', () => {
     })
   })
 
-  it('initializes the database, publishes state, then syncs — in that order', async () => {
+  it('initializes the database, publishes state, recovers, then syncs — in that order', async () => {
     const calls: string[] = []
     mocks.initializeLocalDb.mockImplementation(async () => { calls.push('init') })
     mocks.hydrateDesktopSyncStatus.mockImplementation(async () => { calls.push('hydrate') })
+    mocks.recoverInterruptedCommands.mockImplementation(async () => {
+      calls.push('recover')
+      return 0
+    })
     mocks.runDesktopQueueReplay.mockImplementation(async () => {
       calls.push('replay')
       return {
@@ -59,7 +70,7 @@ describe('runStartupSync', () => {
 
     const result = await runStartupSync()
 
-    expect(calls).toEqual(['init', 'hydrate', 'replay'])
+    expect(calls).toEqual(['init', 'hydrate', 'recover', 'replay'])
     expect(result).toMatchObject({ status: 'succeeded', mode: 'delta' })
   })
 
@@ -87,25 +98,47 @@ describe('runStartupSync', () => {
     const result = await runStartupSync()
 
     expect(result).toEqual({ status: 'skipped', reason: 'unavailable', error: 'disk is full' })
+    expect(mocks.recoverInterruptedCommands).not.toHaveBeenCalled()
     expect(mocks.runDesktopQueueReplay).not.toHaveBeenCalled()
     expect(mocks.runDesktopSync).not.toHaveBeenCalled()
     expect(getDesktopSyncSnapshot()).toMatchObject({ phase: 'failed', lastError: 'disk is full' })
   })
 
-  it('hydrates local state but leaves pending commands untouched when offline is confirmed', async () => {
+  it('recovers interrupted commands unconditionally, then opens with local data when offline', async () => {
     const result = await runStartupSync({ allowNetwork: false })
 
     expect(result).toEqual({ status: 'skipped', reason: 'offline' })
     expect(mocks.initializeLocalDb).toHaveBeenCalledOnce()
     expect(mocks.hydrateDesktopSyncStatus).toHaveBeenCalledOnce()
+    // Recovery must not depend on a replay pass actually running — a command
+    // stuck `syncing` from a crash must not stay stuck forever on a launch
+    // that stays offline the whole session.
+    expect(mocks.recoverInterruptedCommands).toHaveBeenCalledOnce()
     expect(mocks.runDesktopQueueReplay).not.toHaveBeenCalled()
     expect(mocks.runDesktopSync).not.toHaveBeenCalled()
+  })
+
+  it('recovers interrupted commands before replaying when online', async () => {
+    await runStartupSync({ allowNetwork: true })
+
+    expect(mocks.recoverInterruptedCommands).toHaveBeenCalledOnce()
+    expect(mocks.runDesktopQueueReplay).toHaveBeenCalledOnce()
+  })
+
+  it('resolves instead of throwing if recovery fails, and does not replay', async () => {
+    mocks.recoverInterruptedCommands.mockRejectedValue(new Error('queue table locked'))
+
+    const result = await runStartupSync()
+
+    expect(result).toEqual({ status: 'skipped', reason: 'unavailable', error: 'queue table locked' })
+    expect(mocks.runDesktopQueueReplay).not.toHaveBeenCalled()
   })
 
   it('never throws even if hydration fails', async () => {
     mocks.hydrateDesktopSyncStatus.mockRejectedValue(new Error('metadata unreadable'))
 
     await expect(runStartupSync()).resolves.toMatchObject({ status: 'skipped' })
+    expect(mocks.recoverInterruptedCommands).not.toHaveBeenCalled()
   })
 
   it('resolves instead of throwing if replay cannot start', async () => {
@@ -123,6 +156,7 @@ describe('runStartupSync', () => {
 
     expect(await runStartupSync()).toEqual({ status: 'skipped', reason: 'web' })
     expect(mocks.initializeLocalDb).not.toHaveBeenCalled()
+    expect(mocks.recoverInterruptedCommands).not.toHaveBeenCalled()
     expect(mocks.runDesktopQueueReplay).not.toHaveBeenCalled()
     expect(mocks.runDesktopSync).not.toHaveBeenCalled()
   })

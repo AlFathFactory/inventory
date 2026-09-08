@@ -1,5 +1,7 @@
 import { isDesktopRuntime } from '../../config/platform'
 import { initializeLocalDb } from '../../lib/localDb'
+import { localOfflineCommandQueueRepository } from '../../repositories/local/offlineCommandQueueRepository'
+import { runWithDesktopDataMutex } from './desktopDataMutex'
 import {
   hydrateDesktopSyncStatus,
   runDesktopSync,
@@ -35,6 +37,13 @@ export async function runStartupSync(
   try {
     await initializeLocalDb()
     await hydrateDesktopSyncStatus()
+    // Unconditional: a command stuck mid-flight from a previous crash or
+    // force-quit must go back to `pending` even on a launch that never gets
+    // to replay it (stays offline the whole session), so it is not silently
+    // stuck as `syncing` forever.
+    await runWithDesktopDataMutex(
+      () => localOfflineCommandQueueRepository.recoverInterruptedCommands(),
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     setDesktopSyncSnapshot({ phase: 'failed', lastError: message, hydrated: true })
